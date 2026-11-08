@@ -24,7 +24,11 @@ export function TaskToolbarComponent({ day, today, onNewTask }: TaskToolbarProps
     router.replace(`${pathname}?${next}`);
   }
 
-  const goTo = (target: string) => update((next) => next.set('day', target));
+  const goTo = (target: string) =>
+    update((next) => {
+      if (target === today) next.delete('day');
+      else next.set('day', target);
+    });
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">

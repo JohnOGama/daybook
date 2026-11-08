@@ -68,9 +68,12 @@ export class TasksService {
       .select()
       .from(tasks)
       .where(
-        inArray(
-          tasks.parentId,
-          placed.map(({ row }) => row.id),
+        and(
+          eq(tasks.userId, userId),
+          inArray(
+            tasks.parentId,
+            placed.map(({ row }) => row.id),
+          ),
         ),
       )
       .orderBy(asc(tasks.createdAt), asc(tasks.id));

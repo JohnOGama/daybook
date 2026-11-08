@@ -43,6 +43,10 @@ pnpm --filter web dev
 
 Open http://localhost:3000.
 
+## Before deploying
+
+Sign-in and code requests are not rate limited yet. Better Auth only enables its limiter when `NODE_ENV=production`, and behind the Next.js rewrite it can't see the visitor's IP, so everyone would share one limit. Before the app is public, have your host or proxy set a trusted client IP header, then set `rateLimit: { enabled: true }` and `advanced.ipAddress` in `apps/api/src/features/auth/src/create-auth.ts`.
+
 ## Test
 
 ```bash

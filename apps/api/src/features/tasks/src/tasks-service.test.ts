@@ -71,6 +71,13 @@ describe('TasksService listing and editing', () => {
     expect(await svc.list('u1', onlyToday)).toHaveLength(0);
   });
 
+  it("never nests another user's subtask under a task", async () => {
+    const parent = await addTask({});
+    await db.insert(tasks).values({ userId: 'u2', title: 'foreign', parentId: parent.id });
+    const [listed] = await svc.list('u1', onlyToday);
+    expect(listed.subtasks).toEqual([]);
+  });
+
   it('create starts a task as To do on the given day', async () => {
     await svc.create('u1', { title: 'new', day: '2026-11-20' });
     const [listed] = await svc.list('u1', { from: '2026-11-20', to: '2026-11-20', today });

@@ -46,6 +46,23 @@ describe('createAuth', () => {
     await expect(signIn()).resolves.toMatchObject({ user: { email } });
   });
 
+  it('signing up again on an unverified email sends a new code and uses the new password', async () => {
+    await signUp();
+    await auth.api.signUpEmail({ body: { name: 'Person', email, password: 'secondpassword' } });
+    expect(sent).toHaveLength(2);
+    await auth.api.verifyEmailOTP({ body: { email, otp: sent[1].otp } });
+    await expect(signIn('secondpassword')).resolves.toMatchObject({ user: { email } });
+    await expect(signIn()).rejects.toBeDefined();
+  });
+
+  it('signing up again on a verified email leaves the account alone', async () => {
+    await signUp();
+    await auth.api.verifyEmailOTP({ body: { email, otp: sent[0].otp } });
+    await auth.api.signUpEmail({ body: { name: 'Other', email, password: 'attackerpassword' } }).catch(() => {});
+    await expect(signIn()).resolves.toMatchObject({ user: { email } });
+    await expect(signIn('attackerpassword')).rejects.toBeDefined();
+  });
+
   it('resets a password with a forget-password code, and the new password signs in', async () => {
     await signUp();
     await auth.api.verifyEmailOTP({ body: { email, otp: sent[0].otp } });

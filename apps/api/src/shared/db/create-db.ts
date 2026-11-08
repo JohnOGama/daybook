@@ -8,5 +8,7 @@ export const DB = Symbol('DB');
 export type Db = PgDatabase<any, typeof schema>;
 
 export function createDb(url: string): Db {
-  return drizzle(new pg.Pool({ connectionString: url }), { schema });
+  const pool = new pg.Pool({ connectionString: url });
+  pool.on('error', (error) => console.error('Idle database connection failed', error));
+  return drizzle(pool, { schema });
 }

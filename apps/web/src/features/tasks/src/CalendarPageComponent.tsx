@@ -34,10 +34,9 @@ export function CalendarPageComponent() {
   const [editing, setEditing] = useState<Task>();
 
   const { total } = daySummary(todayTasks);
-  const dayQuery = ['status', 'high']
-    .filter((name) => params.get(name))
-    .map((name) => `&${name}=${params.get(name)}`)
-    .join('');
+  const filterParams = new URLSearchParams(
+    [...params].filter(([name]) => name === 'status' || name === 'high'),
+  );
 
   function goToMonth(target: string) {
     const next = new URLSearchParams(params);
@@ -76,7 +75,7 @@ export function CalendarPageComponent() {
         month={month}
         today={today}
         tasks={filterTasks(tasks, filters)}
-        dayQuery={dayQuery}
+        filterParams={filterParams}
         onSelectTask={setEditing}
       />
       <TaskFormDialogComponent mode="new" defaultDay={today} open={creating} onOpenChange={setCreating} />

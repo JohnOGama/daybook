@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/shared/utils/cn';
-import { dayEntries } from './calendar-grid';
+import { dayEntries, dayListHref } from './calendar-grid';
 import type { Task } from './task-types';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -13,7 +13,7 @@ type MonthGridProps = {
   month: string;
   today: string;
   tasks: Task[];
-  dayQuery: string;
+  filterParams: URLSearchParams;
   onSelectTask: (task: Task) => void;
 };
 
@@ -24,7 +24,7 @@ function entryColor(task: Task): string {
   return 'bg-slate-100 text-slate-700';
 }
 
-export function MonthGridComponent({ days, month, today, tasks, dayQuery, onSelectTask }: MonthGridProps) {
+export function MonthGridComponent({ days, month, today, tasks, filterParams, onSelectTask }: MonthGridProps) {
   const router = useRouter();
 
   return (
@@ -38,7 +38,7 @@ export function MonthGridComponent({ days, month, today, tasks, dayQuery, onSele
         {days.map((day, index) => {
           const { shown, more } = dayEntries(tasks.filter((task) => task.day === day));
           const inMonth = day.startsWith(month);
-          const href = `/list?day=${day}${dayQuery}`;
+          const href = dayListHref(day, today, filterParams);
           return (
             <div
               key={day}

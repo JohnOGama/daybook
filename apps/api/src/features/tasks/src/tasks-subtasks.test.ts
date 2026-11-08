@@ -149,7 +149,8 @@ describe('finishing, subtasks and deletion', () => {
     expect((await read(p)).completedOn).toBeNull();
   });
 
-  it('two subtasks ticked together finish the parent', async () => {
+  // PGlite runs these one after the other, so this pins the outcome, not the row lock.
+  it('two subtasks ticked in the same moment finish the parent', async () => {
     const p = await addParent();
     const a = await addSub(p);
     const b = await addSub(p);

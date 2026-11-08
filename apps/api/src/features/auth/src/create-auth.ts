@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP } from 'better-auth/plugins';
 import type { Db } from '../../../shared/db/create-db.ts';
@@ -18,6 +19,15 @@ export function createAuth(
     baseURL: config.baseURL,
     trustedOrigins: [config.baseURL],
     emailAndPassword: { enabled: true, requireEmailVerification: true },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-up/email' || typeof ctx.body?.email !== 'string') return;
+        const existing = await ctx.context.internalAdapter.findUserByEmail(ctx.body.email.toLowerCase());
+        if (existing && !existing.user.emailVerified) {
+          await ctx.context.internalAdapter.deleteUser(existing.user.id);
+        }
+      }),
+    },
     plugins: [
       emailOTP({
         otpLength: 6,

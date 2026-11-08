@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { dayEntries, formatMonthHeading, monthGrid, shiftMonth } from './calendar-grid';
+import { dayEntries, dayListHref, formatMonthHeading, monthGrid, shiftMonth } from './calendar-grid';
 import type { Task } from './task-types';
 
 function task(id: string, subtasks: Task[] = []): Task {
@@ -40,6 +40,16 @@ it('reports nothing more when three or fewer entries exist', () => {
 it('shifts months across a year end', () => {
   expect(shiftMonth('2026-12', 1)).toBe('2027-01');
   expect(shiftMonth('2027-01', -1)).toBe('2026-12');
+});
+
+it('links a day to the list, keeping filters', () => {
+  const filters = new URLSearchParams('status=todo');
+  expect(dayListHref('2026-11-08', '2026-11-09', filters)).toBe('/list?status=todo&day=2026-11-08');
+});
+
+it('links today without pinning the date', () => {
+  expect(dayListHref('2026-11-09', '2026-11-09', new URLSearchParams())).toBe('/list');
+  expect(dayListHref('2026-11-09', '2026-11-09', new URLSearchParams('high=1'))).toBe('/list?high=1');
 });
 
 it('formats the month heading', () => {

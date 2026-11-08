@@ -26,6 +26,12 @@ export function dayEntries(tasks: Task[]): { shown: Task[]; more: number } {
   };
 }
 
+export function dayListHref(day: string, today: string, filters: URLSearchParams): string {
+  const query = new URLSearchParams(filters);
+  if (day !== today) query.set('day', day);
+  return query.size > 0 ? `/list?${query}` : '/list';
+}
+
 export function shiftMonth(month: string, amount: number): string {
   const date = parseMonth(month);
   date.setMonth(date.getMonth() + amount);
