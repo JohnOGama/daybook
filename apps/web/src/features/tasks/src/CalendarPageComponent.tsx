@@ -1,0 +1,94 @@
+'use client';
+
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { Button } from '@/shared/components/ui/button';
+import { useToday } from '@/shared/hooks/useToday';
+import { useTaskFilters } from '../hooks/useTaskFilters';
+import { useTasks } from '../hooks/useTasks';
+import { formatMonthHeading, monthGrid, shiftMonth } from './calendar-grid';
+import { daySummary } from './day-summary';
+import { filterTasks } from './filter-tasks';
+import { FiltersMenuComponent } from './FiltersMenuComponent';
+import { MonthGridComponent } from './MonthGridComponent';
+import { TaskFormDialogComponent } from './TaskFormDialogComponent';
+import { TasksHeaderComponent } from './TasksHeaderComponent';
+import type { Task } from './task-types';
+
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+export function CalendarPageComponent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const today = useToday();
+  const monthParam = params.get('month');
+  const month = monthParam && MONTH_PATTERN.test(monthParam) ? monthParam : today.slice(0, 7);
+  const days = monthGrid(month);
+
+  const { data: tasks = [], isPending, isError } = useTasks({ from: days[0], to: days[days.length - 1] });
+  const { data: todayTasks = [] } = useTasks({ from: today, to: today });
+  const { filters } = useTaskFilters();
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Task>();
+
+  const { total } = daySummary(todayTasks);
+  const dayQuery = ['status', 'high']
+    .filter((name) => params.get(name))
+    .map((name) => `&${name}=${params.get(name)}`)
+    .join('');
+
+  function goToMonth(target: string) {
+    const next = new URLSearchParams(params);
+    next.set('month', target);
+    router.replace(`${pathname}?${next}`);
+  }
+
+  return (
+    <>
+      <TasksHeaderComponent
+        title={formatMonthHeading(month)}
+        subtitle={`Today · ${total} ${total === 1 ? 'task' : 'tasks'}`}
+      />
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
+        <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => goToMonth(shiftMonth(month, -1))}>
+          <ChevronLeft aria-hidden />
+        </Button>
+        <Button variant="outline" size="icon" aria-label="Next month" onClick={() => goToMonth(shiftMonth(month, 1))}>
+          <ChevronRight aria-hidden />
+        </Button>
+        <Button size="sm" onClick={() => goToMonth(today.slice(0, 7))}>
+          Today
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <FiltersMenuComponent />
+          <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
+            <Plus aria-hidden />
+            New task
+          </Button>
+        </div>
+      </div>
+      {isError && <p className="px-6 pb-3 text-sm text-destructive">Could not load tasks. Please try again.</p>}
+      {isPending && <p className="px-6 pb-3 text-sm text-muted-foreground">Loading tasks…</p>}
+      <MonthGridComponent
+        days={days}
+        month={month}
+        today={today}
+        tasks={filterTasks(tasks, filters)}
+        dayQuery={dayQuery}
+        onSelectTask={setEditing}
+      />
+      <TaskFormDialogComponent mode="new" defaultDay={today} open={creating} onOpenChange={setCreating} />
+      {editing && (
+        <TaskFormDialogComponent
+          mode="edit"
+          task={editing}
+          defaultDay={editing.day}
+          open
+          onOpenChange={(open) => !open && setEditing(undefined)}
+        />
+      )}
+    </>
+  );
+}

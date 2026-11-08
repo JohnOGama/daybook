@@ -29,7 +29,7 @@ export function TaskRowComponent({ task, expanded, onToggleExpanded }: TaskRowPr
       aria-label={`Finish ${task.title}`}
       checked={finished}
       onCheckedChange={(checked) => setFinished.mutate({ id: task.id, finished: checked === true })}
-      className="data-[state=checked]:border-brand data-[state=checked]:bg-brand"
+      className="border-slate-300 data-[state=checked]:border-brand data-[state=checked]:bg-brand"
     />
   );
 
