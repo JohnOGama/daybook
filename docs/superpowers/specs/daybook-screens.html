@@ -1,0 +1,193 @@
+<h2>Daybook: List and Calendar</h2>
+<p class="subtitle">Styled after your second image, with Backlog removed. Status and high priority are now separate, so "Fix sign-in redirect bug" shows both.</p>
+
+<style>
+  .db{--ink:#111827;--muted:#64748b;--line:#e8ecf2;--side:#f6f8fb;--blue:#2563eb;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--side);display:flex;border-radius:14px;border:1px solid var(--line);overflow:hidden;margin:0 0 28px;font-size:14px;line-height:1.3;color-scheme:light}
+  .db *{box-sizing:border-box}
+  .db svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .db-side{width:224px;flex:none;padding:12px;display:flex;flex-direction:column}
+  .db-brand{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 12px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+  .db-logo{width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center}
+  .db-logo svg{width:15px;height:15px;stroke-width:2.6}
+  .db-nav{display:flex;align-items:center;gap:11px;padding:9px 10px;margin-top:14px;font-weight:500;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .db-count{margin-left:auto;color:var(--muted);font-size:12px}
+  .db-badge{margin-left:auto;background:#e0ecff;color:#1d4ed8;font-size:12px;font-weight:600;border-radius:99px;min-width:22px;height:22px;display:grid;place-items:center}
+  .db-group{color:var(--muted);font-size:13px;font-weight:500;margin:20px 10px 4px}
+  .db-link{display:flex;align-items:center;gap:12px;padding:8px 10px}
+  .db-dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .db-out{margin-top:auto;padding:30px 10px 6px;display:flex;gap:11px;align-items:center;color:var(--muted)}
+  .db-main{flex:1;min-width:0;background:#fff;border-radius:16px 0 0 16px;border-left:1px solid var(--line);margin:8px 0 8px 0}
+  .db-head{padding:20px 26px 0}
+  .db-title{display:flex;align-items:center;gap:12px;font-size:25px;font-weight:600;letter-spacing:-.02em}
+  .db-kebab{width:28px;height:28px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center}
+  .db-kebab svg{width:15px;height:15px}
+  .db-sub{color:var(--muted);font-size:13px;margin-top:3px}
+  .db-tabs{display:flex;gap:6px;padding:0 16px;margin-top:12px;border-bottom:1px solid var(--line)}
+  .db-tab{display:flex;align-items:center;gap:8px;padding:11px 12px;color:#475569;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .db-tab.on{color:var(--ink);border-color:var(--ink)}
+  .db-tools{display:flex;align-items:center;gap:8px;padding:12px 26px}
+  .db-btn{height:32px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border:1px solid var(--line);border-radius:8px;font-weight:500;font-size:13px;background:#fff}
+  .db-btn svg{width:15px;height:15px}
+  .db-btn.ico{padding:0;width:32px;justify-content:center}
+  .db-btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+  .db-sp{margin-left:auto}
+  .db-prog{margin:0 26px 14px;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .db-prog-top{display:flex;justify-content:space-between;align-items:center}
+  .db-pct{font-size:26px;font-weight:700}
+  .db-pct small{font-size:14px;font-weight:500;color:var(--muted);margin-left:2px}
+  .db-prog-r{text-align:right;font-size:12px;color:var(--muted)}
+  .db-prog-r b{display:block;color:var(--ink);font-size:13px;font-weight:600}
+  .db-bar{height:7px;border-radius:99px;background:#e9edf3;margin-top:9px}
+  .db-bar i{display:block;height:100%;width:17%;border-radius:99px;background:var(--blue)}
+  .db-row{display:grid;grid-template-columns:34px 26px minmax(0,1fr) 112px 92px 62px 34px;align-items:center;min-height:46px;padding:0 20px;border-bottom:1px solid var(--line)}
+  .db-row.th{background:#f6f8fb;min-height:40px;color:#475569;font-weight:500;font-size:13px;border:0}
+  .db-ex{width:20px;height:20px;border-radius:50%;border:1px solid #94a3b8;display:grid;place-items:center;color:#64748b}
+  .db-ex svg{width:11px;height:11px;stroke-width:2.4}
+  .db-cb{width:17px;height:17px;border:1.5px solid #cbd5e1;border-radius:5px;display:grid;place-items:center}
+  .db-cb.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .db-cb svg{width:11px;height:11px;stroke-width:3}
+  .db-t{font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .db-t.done{text-decoration:line-through;color:#94a3b8}
+  .db-t.child{padding-left:30px}
+  .db-cb.child{margin-left:0}
+  .db-pill{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+  .db-pill.prog{background:#e0e9ff;color:#1e40af}
+  .db-pill.todo{background:#eef1f5;color:#475569}
+  .db-pill.hold{background:#efe9fe;color:#5b21b6}
+  .db-pill.high{background:#ffe7d6;color:#9a3412}
+  .db-date{color:var(--muted);font-size:13px}
+  .db-more{color:#334155;text-align:center}
+  .db-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin:0 26px 22px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .db-dow{background:#f6f8fb;color:#475569;font-size:12px;font-weight:500;padding:8px 9px}
+  .db-day{min-height:92px;padding:6px;border-top:1px solid var(--line);border-left:1px solid var(--line);min-width:0}
+  .db-day:nth-child(7n+1){border-left:0}
+  .db-num{font-size:12px;font-weight:500;color:#334155;height:22px;display:flex;align-items:center;padding-left:3px}
+  .db-day.out{background:#fbfcfd}
+  .db-day.out .db-num{color:#b6c0cc}
+  .db-day.now .db-num span{background:var(--ink);color:#fff;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;margin-left:-3px}
+  .db-ev{font-size:11px;font-weight:500;padding:3px 6px;border-radius:5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#eef1f5;color:#334155}
+  .db-ev.high{background:#ffe7d6;color:#9a3412}
+  .db-ev.prog{background:#e0e9ff;color:#1e40af}
+  .db-ev.done{background:none;color:#94a3b8;text-decoration:line-through;padding-left:6px}
+  .db-ev.more{background:none;color:var(--muted);padding-left:6px}
+  .db-cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 7h16M7.5 12h9M10.5 17h3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01"/></symbol>
+  <symbol id="i-hdots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M10 5H6a2 2 0 00-2 2v10a2 2 0 002 2h4M15 8l4 4-4 4M19 12H9"/></symbol>
+  <symbol id="i-closed" viewBox="0 0 24 24"><path d="M2 13l4 4L16 7M12 15l2 2L22 7"/></symbol>
+</svg>
+
+<p class="db-cap">List</p>
+<div class="db">
+  <aside class="db-side">
+    <div class="db-brand"><span class="db-logo"><svg><use href="#i-check"/></svg></span>Daybook</div>
+    <div class="db-nav"><svg><use href="#i-cal"/></svg>Today<span class="db-badge">5</span></div>
+    <div class="db-group">Status</div>
+    <div class="db-link"><span class="db-dot" style="background:#94a3b8"></span>To do<span class="db-count">4</span></div>
+    <div class="db-link"><span class="db-dot" style="background:#3b82f6"></span>In progress<span class="db-count">1</span></div>
+    <div class="db-link"><span class="db-dot" style="background:#a78bfa"></span>On hold<span class="db-count">0</span></div>
+    <div class="db-group">Priority</div>
+    <div class="db-link"><span class="db-dot" style="background:#f97316"></span>High priority<span class="db-count">3</span></div>
+    <div class="db-out"><svg><use href="#i-out"/></svg>Sign out</div>
+  </aside>
+  <section class="db-main">
+    <div class="db-head">
+      <div class="db-title">Monday, 9 November <span class="db-kebab"><svg><use href="#i-dots"/></svg></span></div>
+      <div class="db-sub">Today · 6 tasks</div>
+    </div>
+    <div class="db-tabs">
+      <div class="db-tab on"><svg><use href="#i-list"/></svg>List</div>
+      <div class="db-tab"><svg><use href="#i-cal"/></svg>Calendar</div>
+    </div>
+    <div class="db-tools">
+      <span class="db-btn ico"><svg><use href="#i-left"/></svg></span>
+      <span class="db-btn ico"><svg><use href="#i-right"/></svg></span>
+      <span class="db-btn dark">Today</span>
+      <span class="db-btn db-sp"><svg><use href="#i-closed"/></svg>Show closed</span>
+      <span class="db-btn"><svg><use href="#i-filter"/></svg>Filters</span>
+      <span class="db-btn"><svg><use href="#i-plus"/></svg>New task</span>
+    </div>
+    <div class="db-prog">
+      <div class="db-prog-top"><div class="db-pct">17<small>%</small></div><div class="db-prog-r"><b>1 of 6 done</b>3 high priority left</div></div>
+      <div class="db-bar"><i></i></div>
+    </div>
+    <div class="db-row th"><span></span><span class="db-cb"></span><span>Task</span><span>Status</span><span>Priority</span><span>Created</span><span></span></div>
+    <div class="db-row"><span></span><span class="db-cb"></span><span class="db-t">Draft weekly planning notes</span><span><span class="db-pill todo">To do</span></span><span><span class="db-pill high">High</span></span><span class="db-date">6 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+    <div class="db-row"><span></span><span class="db-cb"></span><span class="db-t">Reply to design feedback</span><span><span class="db-pill todo">To do</span></span><span></span><span class="db-date">6 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+    <div class="db-row"><span class="db-ex"><svg><use href="#i-down"/></svg></span><span class="db-cb"></span><span class="db-t">Fix sign-in redirect bug</span><span><span class="db-pill prog">In progress</span></span><span><span class="db-pill high">High</span></span><span class="db-date">7 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+    <div class="db-row"><span></span><span></span><span class="db-t child"><span style="display:inline-flex;align-items:center;gap:12px;margin-left:-26px"><span class="db-cb child"></span>Reproduce on Safari</span></span><span><span class="db-pill todo">To do</span></span><span></span><span class="db-date">8 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+    <div class="db-row"><span></span><span class="db-cb on"><svg><use href="#i-check"/></svg></span><span class="db-t done">Plan the week</span><span></span><span></span><span class="db-date">9 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+    <div class="db-row" style="border-bottom:0"><span></span><span class="db-cb"></span><span class="db-t">Write tests for the auth form</span><span><span class="db-pill todo">To do</span></span><span><span class="db-pill high">High</span></span><span class="db-date">8 Nov</span><span class="db-more"><svg><use href="#i-hdots"/></svg></span></div>
+  </section>
+</div>
+
+<p class="db-cap">Calendar</p>
+<div class="db">
+  <aside class="db-side">
+    <div class="db-brand"><span class="db-logo"><svg><use href="#i-check"/></svg></span>Daybook</div>
+    <div class="db-nav"><svg><use href="#i-cal"/></svg>Today<span class="db-badge">5</span></div>
+    <div class="db-group">Status</div>
+    <div class="db-link"><span class="db-dot" style="background:#94a3b8"></span>To do<span class="db-count">4</span></div>
+    <div class="db-link"><span class="db-dot" style="background:#3b82f6"></span>In progress<span class="db-count">1</span></div>
+    <div class="db-link"><span class="db-dot" style="background:#a78bfa"></span>On hold<span class="db-count">0</span></div>
+    <div class="db-group">Priority</div>
+    <div class="db-link"><span class="db-dot" style="background:#f97316"></span>High priority<span class="db-count">3</span></div>
+    <div class="db-out"><svg><use href="#i-out"/></svg>Sign out</div>
+  </aside>
+  <section class="db-main">
+    <div class="db-head">
+      <div class="db-title">November 2026 <span class="db-kebab"><svg><use href="#i-dots"/></svg></span></div>
+      <div class="db-sub">Today · 6 tasks</div>
+    </div>
+    <div class="db-tabs">
+      <div class="db-tab"><svg><use href="#i-list"/></svg>List</div>
+      <div class="db-tab on"><svg><use href="#i-cal"/></svg>Calendar</div>
+    </div>
+    <div class="db-tools">
+      <span class="db-btn ico"><svg><use href="#i-left"/></svg></span>
+      <span class="db-btn ico"><svg><use href="#i-right"/></svg></span>
+      <span class="db-btn dark">Today</span>
+      <span class="db-btn db-sp"><svg><use href="#i-filter"/></svg>Filters</span>
+      <span class="db-btn"><svg><use href="#i-plus"/></svg>New task</span>
+    </div>
+    <div class="db-cal" id="db-cal"></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var cal = document.getElementById('db-cal');
+  var html = '';
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(function (d) { html += '<div class="db-dow">' + d + '</div>'; });
+  var tasks = {
+    '3': [['done','Book dentist']],
+    '5': [['done','Send invoice'],['done','Call landlord']],
+    '6': [['done','Review budget']],
+    '9': [['high','Draft weekly planning'],['prog','Fix sign-in redirect'],['','Reply to design feedback'],['more','+3 more']],
+    '12': [['','Team lunch']],
+    '16': [['high','Renew passport']],
+    '20': [['','Pay rent']]
+  };
+  var cells = [26,27,28,29,30,31].map(function (n) { return [n,true]; });
+  for (var i = 1; i <= 30; i++) cells.push([i,false]);
+  [1,2,3,4,5,6].forEach(function (n) { cells.push([n,true]); });
+  cells.forEach(function (c) {
+    var n = c[0], out = c[1], now = !out && n === 9;
+    html += '<div class="db-day' + (out ? ' out' : '') + (now ? ' now' : '') + '"><div class="db-num"><span>' + n + '</span></div>';
+    if (!out && tasks[n]) tasks[n].forEach(function (t) { html += '<div class="db-ev ' + t[0] + '">' + t[1] + '</div>'; });
+    html += '</div>';
+  });
+  cal.innerHTML = html;
+})();
+</script>
