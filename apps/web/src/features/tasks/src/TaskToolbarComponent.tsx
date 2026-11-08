@@ -1,12 +1,18 @@
 'use client';
 
-import { CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCheck, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/shared/components/ui/button';
 import { addDays } from '@/shared/utils/date-formatter';
 import { FiltersMenuComponent } from './FiltersMenuComponent';
 
-export function TaskToolbarComponent({ day, today }: { day: string; today: string }) {
+type TaskToolbarProps = {
+  day: string;
+  today: string;
+  onNewTask: () => void;
+};
+
+export function TaskToolbarComponent({ day, today, onNewTask }: TaskToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -47,6 +53,10 @@ export function TaskToolbarComponent({ day, today }: { day: string; today: strin
           Show closed
         </Button>
         <FiltersMenuComponent />
+        <Button variant="outline" size="sm" onClick={onNewTask}>
+          <Plus aria-hidden />
+          New task
+        </Button>
       </div>
     </div>
   );

@@ -1,10 +1,16 @@
 'use client';
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { cn } from '@/shared/utils/cn';
 import { formatShortDate } from '@/shared/utils/date-formatter';
-import { STATUS_LABELS, type Task } from './task-types';
+import { useTaskMutations } from '../hooks/useTaskMutations';
+import { PriorityPillComponent } from './PriorityPillComponent';
+import { StatusPillComponent } from './StatusPillComponent';
+import { TaskFormDialogComponent, type TaskFormMode } from './TaskFormDialogComponent';
+import { TaskRowMenuComponent } from './TaskRowMenuComponent';
+import type { Task } from './task-types';
 
 type TaskRowProps = {
   task: Task;
@@ -12,14 +18,20 @@ type TaskRowProps = {
   onToggleExpanded?: () => void;
 };
 
-const STATUS_PILL = {
-  todo: 'bg-slate-100 text-slate-600',
-  in_progress: 'bg-blue-100 text-blue-800',
-  on_hold: 'bg-violet-100 text-violet-800',
-};
-
 export function TaskRowComponent({ task, expanded, onToggleExpanded }: TaskRowProps) {
+  const { setFinished } = useTaskMutations();
+  const [formMode, setFormMode] = useState<TaskFormMode>();
   const isSubtask = task.parentId !== null;
+  const finished = setFinished.isPending ? setFinished.variables.finished : task.finished;
+
+  const finishBox = (
+    <Checkbox
+      aria-label={`Finish ${task.title}`}
+      checked={finished}
+      onCheckedChange={(checked) => setFinished.mutate({ id: task.id, finished: checked === true })}
+      className="data-[state=checked]:border-brand data-[state=checked]:bg-brand"
+    />
+  );
 
   return (
     <tr className="h-[46px] border-b">
@@ -40,52 +52,32 @@ export function TaskRowComponent({ task, expanded, onToggleExpanded }: TaskRowPr
           </button>
         )}
       </td>
-      <td>
-        {!isSubtask && (
-          <Checkbox
-            aria-label={`Finish ${task.title}`}
-            checked={task.finished}
-            disabled
-            className="data-[state=checked]:border-brand data-[state=checked]:bg-brand"
-          />
-        )}
-      </td>
+      <td>{!isSubtask && finishBox}</td>
       <td className="pr-3">
         <div className={cn('flex items-center gap-3', isSubtask && 'pl-1')}>
-          {isSubtask && (
-            <Checkbox
-              aria-label={`Finish ${task.title}`}
-              checked={task.finished}
-              disabled
-              className="data-[state=checked]:border-brand data-[state=checked]:bg-brand"
-            />
-          )}
-          <span className={cn('truncate font-medium', task.finished && 'text-slate-400 line-through')}>
+          {isSubtask && finishBox}
+          <span className={cn('truncate font-medium', finished && 'text-slate-400 line-through')}>
             {task.title}
           </span>
         </div>
       </td>
+      <td>{!task.finished && <StatusPillComponent task={task} />}</td>
       <td>
-        {!task.finished && (
-          <span
-            className={cn(
-              'inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold',
-              STATUS_PILL[task.status],
-            )}
-          >
-            {STATUS_LABELS[task.status]}
-          </span>
-        )}
-      </td>
-      <td>
-        {task.highPriority && (
-          <span className="inline-flex h-6 items-center rounded-full bg-orange-100 px-2.5 text-xs font-semibold text-orange-800">
-            High
-          </span>
-        )}
+        <PriorityPillComponent task={task} />
       </td>
       <td className="text-[13px] text-muted-foreground">{formatShortDate(task.createdAt)}</td>
-      <td className="pr-4" />
+      <td className="pr-2">
+        <TaskRowMenuComponent task={task} onOpenForm={setFormMode} />
+        {formMode && (
+          <TaskFormDialogComponent
+            mode={formMode}
+            task={task}
+            defaultDay={task.day}
+            open
+            onOpenChange={(open) => !open && setFormMode(undefined)}
+          />
+        )}
+      </td>
     </tr>
   );
 }
