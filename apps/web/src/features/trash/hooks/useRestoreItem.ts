@@ -23,6 +23,7 @@ export function useRestoreItem() {
       toast.success(`Restored "${item.title}"`);
       void queryClient.invalidateQueries({ queryKey: ['spaces'] });
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['pages'] });
       void queryClient.invalidateQueries({ queryKey: ['trash'] });
     },
   });

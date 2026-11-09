@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { spaces, tasks } from '../../../shared/db/schema.ts';
+import { notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
 import type { CreateSpaceInput } from './space-schemas.ts';
 
@@ -128,6 +128,16 @@ export class SpacesService {
           title: copyTitle(source.title),
         })
         .returning();
+
+      const pages = await tx
+        .select()
+        .from(notebookPages)
+        .where(and(eq(notebookPages.spaceId, id), isNull(notebookPages.deletedAt)));
+      if (pages.length > 0) {
+        await tx.insert(notebookPages).values(
+          pages.map(({ title, content, createdAt }) => ({ userId, spaceId: copy.id, title, content, createdAt })),
+        );
+      }
 
       const inOrder = [asc(tasks.position), asc(tasks.createdAt), asc(tasks.id)];
       const parents = await tx

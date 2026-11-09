@@ -41,10 +41,18 @@ async function openMenu(task: Task) {
 beforeEach(() => {
   vi.clearAllMocks();
   spacesData.current = [
-    { id: 'here', kind: 'space', title: 'Here' },
-    { id: 'folder', kind: 'folder', title: 'Team' },
-    { id: 'there', kind: 'space', title: 'There' },
+    { id: 'here', kind: 'space', title: 'Here', tool: 'list' },
+    { id: 'folder', kind: 'folder', title: 'Team', tool: null },
+    { id: 'there', kind: 'space', title: 'There', tool: 'list' },
   ];
+});
+
+it('hides Copy to when the only other space is a notebook', async () => {
+  spacesData.current = [
+    { id: 'here', kind: 'space', title: 'Here', tool: 'list' },
+    { id: 'book', kind: 'space', title: 'Book', tool: 'notebook' },
+  ];
+  expect(await openMenu(baseTask)).not.toContain('Copy to');
 });
 
 it('top-level open task offers every action', async () => {

@@ -17,6 +17,6 @@ const { PORT } = readEnv([
 
 const app = await NestFactory.create(AppModule, { bodyParser: false });
 app.getHttpAdapter().getInstance().all('/api/auth/*splat', toNodeHandler(app.get(AUTH)));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.setGlobalPrefix('api');
 await app.listen(PORT);

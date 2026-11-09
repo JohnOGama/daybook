@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -20,7 +21,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook']);
 
 export const spaces = pgTable(
   'spaces',
@@ -42,6 +43,25 @@ export const spaces = pgTable(
     check('spaces_folder_top_level', sql`${t.kind} = 'space' OR ${t.parentId} IS NULL`),
     index('spaces_user_idx').on(t.userId),
   ],
+);
+
+export const notebookPages = pgTable(
+  'notebook_pages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default(''),
+    content: jsonb('content').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('notebook_pages_space_idx').on(t.spaceId)],
 );
 
 export const tasks = pgTable(

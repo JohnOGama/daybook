@@ -1,11 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { spaces, tasks } from '../../../shared/db/schema.ts';
+import { notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
 
 export type TrashItem = {
   id: string;
-  type: 'task' | 'subtask' | 'space' | 'folder';
+  type: 'task' | 'subtask' | 'space' | 'folder' | 'page';
   title: string;
   location: string | null;
   deletedAt: string;
@@ -16,12 +16,16 @@ export class TrashService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   async list(userId: string): Promise<TrashItem[]> {
-    const [allSpaces, deletedTasks] = await Promise.all([
+    const [allSpaces, deletedTasks, deletedPages] = await Promise.all([
       this.db.select().from(spaces).where(eq(spaces.userId, userId)),
       this.db
         .select()
         .from(tasks)
         .where(and(eq(tasks.userId, userId), isNotNull(tasks.deletedAt))),
+      this.db
+        .select()
+        .from(notebookPages)
+        .where(and(eq(notebookPages.userId, userId), isNotNull(notebookPages.deletedAt))),
     ]);
     const spacesById = new Map(allSpaces.map((space) => [space.id, space]));
     const parentIds = deletedTasks.flatMap((task) => (task.parentId ? [task.parentId] : []));
@@ -60,7 +64,29 @@ export class TrashService {
         }),
       );
 
-    return [...taskItems, ...spaceItems].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+    const pageItems = deletedPages.map(
+      (page): TrashItem => ({
+        id: page.id,
+        type: 'page',
+        title: page.title || 'Untitled',
+        location: spacePath(page.spaceId),
+        deletedAt: (page.deletedAt as Date).toISOString(),
+      }),
+    );
+
+    return [...taskItems, ...spaceItems, ...pageItems].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+  }
+
+  async restorePage(userId: string, id: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [page] = await tx
+        .update(notebookPages)
+        .set({ deletedAt: null })
+        .where(and(eq(notebookPages.id, id), eq(notebookPages.userId, userId), isNotNull(notebookPages.deletedAt)))
+        .returning({ spaceId: notebookPages.spaceId });
+      if (!page) throw new NotFoundException('Not in the trash');
+      await this.restoreSpaceChain(tx, page.spaceId);
+    });
   }
 
   async restoreTask(userId: string, id: string): Promise<void> {

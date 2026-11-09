@@ -6,8 +6,15 @@ export async function fetchTrash(): Promise<TrashItem[]> {
   return response.json();
 }
 
+const COLLECTIONS: Record<TrashItem['type'], string> = {
+  task: 'tasks',
+  subtask: 'tasks',
+  space: 'spaces',
+  folder: 'spaces',
+  page: 'pages',
+};
+
 export async function restoreItem(item: TrashItem): Promise<void> {
-  const collection = item.type === 'task' || item.type === 'subtask' ? 'tasks' : 'spaces';
-  const response = await fetch(`/api/trash/${collection}/${item.id}/restore`, { method: 'POST' });
+  const response = await fetch(`/api/trash/${COLLECTIONS[item.type]}/${item.id}/restore`, { method: 'POST' });
   if (!response.ok) throw new Error(`"${item.title}" could not be restored. Please try again.`);
 }

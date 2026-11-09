@@ -61,7 +61,7 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 
 ### Web data flow
 
-- The active space comes from the `?space=` param through `useActiveSpace`. Task queries are keyed `['tasks', spaceId, from, to, today]`; the other roots are `['spaces']` and `['trash']`.
+- The active space comes from the `?space=` param through `useActiveSpace`. Task queries are keyed `['tasks', spaceId, from, to, today]`; the other roots are `['spaces']`, `['trash']` and `['pages', spaceId]` (Notebook pages, which autosave through `usePageAutosave` instead of rolling back).
 - Mutations are optimistic: the client generates IDs with `crypto.randomUUID()`, patches the cache, and on error restores the snapshot and shows a toast. A successful change does not refetch.
 - Because of that, server rules are mirrored in `features/tasks/src/task-cache.ts` and `features/spaces/src/space-cache.ts`. A behaviour change in a service usually needs the matching cache change.
 

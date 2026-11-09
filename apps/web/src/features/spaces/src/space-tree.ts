@@ -11,6 +11,9 @@ export function buildSpaceTree(spaces: Space[]): SpaceNode[] {
     }));
 }
 
+export const spaceHref = ({ id, tool }: Pick<Space, 'id' | 'tool'>) =>
+  `${tool === 'notebook' ? '/notebook' : '/list'}?space=${id}`;
+
 export function resolveActiveSpace(spaces: Space[], id: string | null): Space | undefined {
   const requested = spaces.find((space) => space.id === id && space.kind === 'space');
   if (requested) return requested;

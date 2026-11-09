@@ -2,11 +2,42 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { SpaceGateComponent } from './SpaceGateComponent';
 
-const { useSpaces } = vi.hoisted(() => ({ useSpaces: vi.fn() }));
+const { useSpaces, replace, pathname } = vi.hoisted(() => ({
+  useSpaces: vi.fn(),
+  replace: vi.fn(),
+  pathname: { current: '/list' },
+}));
 
 vi.mock('../hooks/useSpaces', () => ({ useSpaces }));
 vi.mock('../hooks/useCreateSpace', () => ({ useCreateSpace: () => ({ mutateAsync: vi.fn() }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace }),
+  usePathname: () => pathname.current,
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+const spaceWith = (tool: string) => ({
+  id: 's',
+  parentId: null,
+  kind: 'space',
+  title: 'S',
+  tool,
+  createdAt: '',
+  openToday: 0,
+});
+
+it.each([
+  ['a notebook opened on the List screen', 'notebook', '/list', '/notebook?space=s'],
+  ['a List space opened on the Notebook screen', 'list', '/notebook', '/list?space=s'],
+])('sends %s to its own screen', (_, tool, path, target) => {
+  vi.clearAllMocks();
+  pathname.current = path;
+  useSpaces.mockReturnValue({ data: [spaceWith(tool)], isPending: false, isError: false });
+  renderGate();
+  expect(replace).toHaveBeenCalledWith(target);
+  expect(screen.queryByText('tool screen')).not.toBeInTheDocument();
+  pathname.current = '/list';
+});
 
 const renderGate = () => render(<SpaceGateComponent>tool screen</SpaceGateComponent>);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/shared/components/ui/button';
-import { CheckSquare, Folder, Hash, ListTree } from 'lucide-react';
+import { CheckSquare, FileText, Folder, Hash, ListTree } from 'lucide-react';
 import { Skeleton } from 'skullet/react';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyTrashIcon } from '@/shared/components/EmptyStateIconsComponent';
@@ -15,6 +15,7 @@ const ICONS: Record<TrashItem['type'], typeof Hash> = {
   subtask: ListTree,
   space: Hash,
   folder: Folder,
+  page: FileText,
 };
 
 const SAMPLE_ITEMS: TrashItem[] = ['sample-1', 'sample-2', 'sample-3'].map((id) => ({

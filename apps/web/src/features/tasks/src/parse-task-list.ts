@@ -1,20 +1,15 @@
+import { parseListLines } from '@/shared/utils/parse-list-lines';
+
 export type PastedTask = { title: string; subtasks: string[] };
 
 const MAX_TITLE_LENGTH = 200;
-const LIST_MARKER = /^(?:[-*+•]|\d+[.)])\s+/;
-const CHECKBOX = /^\[[ xX]?\]\s*/;
-
-const indentOf = (line: string) => (line.match(/^\s*/)?.[0] ?? '').replaceAll('\t', '    ').length;
-const titleOf = (line: string) =>
-  line.trim().replace(LIST_MARKER, '').replace(CHECKBOX, '').trim().slice(0, MAX_TITLE_LENGTH);
 
 export function parseTaskList(text: string): PastedTask[] {
   const list: PastedTask[] = [];
   let parentIndent = 0;
-  for (const line of text.split(/\r?\n/)) {
-    const title = titleOf(line);
-    if (!title) continue;
-    const indent = indentOf(line);
+  for (const line of parseListLines(text)) {
+    const { indent } = line;
+    const title = line.text.slice(0, MAX_TITLE_LENGTH);
     const parent = list.at(-1);
     if (parent && indent > parentIndent) {
       parent.subtasks.push(title);

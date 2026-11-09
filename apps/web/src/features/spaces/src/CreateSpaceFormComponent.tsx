@@ -1,6 +1,6 @@
 'use client';
 
-import { Folder, Hash, List } from 'lucide-react';
+import { BookOpen, Folder, Hash, List } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { cn } from '@/shared/utils/cn';
 import { useCreateSpace } from '../hooks/useCreateSpace';
+import { spaceHref } from './space-tree';
 import { type Space, type SpaceTool, TOOLS } from './space-types';
 
 type CreateSpaceFormProps = {
@@ -19,6 +20,7 @@ type CreateSpaceFormProps = {
 
 const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   list: <List className="size-[18px]" aria-hidden />,
+  notebook: <BookOpen className="size-[18px]" aria-hidden />,
 };
 
 export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, onCancel }: CreateSpaceFormProps) {
@@ -39,7 +41,7 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, on
           ? { kind, title }
           : { kind, title, tool, ...(parentFolder ? { parentId: parentFolder.id } : {}) },
       );
-      if (!isFolder) router.push(`/list?space=${created.id}`);
+      if (!isFolder) router.push(spaceHref({ id: created.id, tool }));
       onDone?.();
     } catch {
       setSaving(false);
@@ -94,7 +96,10 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, on
               type="button"
               aria-pressed={tool === id}
               onClick={() => setTool(id)}
-              className="flex items-center gap-3 rounded-xl border-[1.5px] border-primary bg-primary/10 p-2.5 text-left"
+              className={cn(
+                'flex items-center gap-3 rounded-xl border-[1.5px] p-2.5 text-left',
+                tool === id ? 'border-primary bg-primary/10' : 'hover:bg-accent',
+              )}
             >
               <span className="grid size-8 place-items-center rounded-lg border bg-background">
                 {TOOL_ICONS[id]}

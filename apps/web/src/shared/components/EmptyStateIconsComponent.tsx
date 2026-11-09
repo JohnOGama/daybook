@@ -78,6 +78,19 @@ export function EmptyTrashIcon() {
   );
 }
 
+export function EmptyNotebookIcon() {
+  return (
+    <EmptyIcon>
+      <Solid>
+        <path d="M32 18c-5-4-12-5-21-4v35c9-1 16 0 21 4 5-4 12-5 21-4V14c-9-1-16 0-21 4ZM32 18v35" />
+      </Solid>
+      <Missing>
+        <path d="M18 26c3 0 6 .5 8 1.5M18 35c3 0 6 .5 8 1.5M38 27.5c2-1 5-1.5 8-1.5M38 36.5c2-1 5-1.5 8-1.5" />
+      </Missing>
+    </EmptyIcon>
+  );
+}
+
 export function FirstSpaceIcon() {
   return (
     <EmptyIcon>

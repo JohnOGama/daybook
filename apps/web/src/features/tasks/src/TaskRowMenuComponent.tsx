@@ -28,7 +28,7 @@ export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenu
   const { data: spaces = [] } = useSpaces();
   const activeId = useActiveSpace()?.id;
   const isTopLevel = task.parentId === null;
-  const otherSpaces = spaces.filter((space) => space.kind === 'space' && space.id !== activeId);
+  const otherSpaces = spaces.filter((space) => space.tool === 'list' && space.id !== activeId);
 
   return (
     <DropdownMenu modal={false}>

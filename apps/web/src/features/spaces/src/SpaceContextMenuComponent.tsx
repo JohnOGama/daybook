@@ -58,7 +58,7 @@ export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceCont
             <AlertDialogDescription>
               {isFolder
                 ? `"${space.title}", the spaces inside it, and all their tasks will move to Trash. You can restore them from there.`
-                : `"${space.title}" and all its tasks will move to Trash. You can restore them from there.`}
+                : `"${space.title}" and all its ${space.tool === 'notebook' ? 'pages' : 'tasks'} will move to Trash. You can restore them from there.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

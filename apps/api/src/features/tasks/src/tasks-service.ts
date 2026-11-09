@@ -283,11 +283,11 @@ export class TasksService {
 
   private async assertTaskSpace(db: Db, userId: string, spaceId: string): Promise<void> {
     const [space] = await db
-      .select({ kind: spaces.kind })
+      .select({ tool: spaces.tool })
       .from(spaces)
       .where(and(eq(spaces.id, spaceId), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
     if (!space) throw new NotFoundException('Space not found');
-    if (space.kind !== 'space') throw new BadRequestException('A folder cannot hold tasks');
+    if (space.tool !== 'list') throw new BadRequestException('Only a List space can hold tasks');
   }
 
   private async lockFamily(tx: Db, userId: string, id: string): Promise<TaskRow> {

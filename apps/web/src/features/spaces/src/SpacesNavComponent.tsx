@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Folder, FolderOpen, GripVertical, Hash, Plus } from 'lucide-react';
+import { BookOpen, Folder, FolderOpen, GripVertical, Hash, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -32,7 +32,7 @@ import { useReorderSpaces } from '../hooks/useReorderSpaces';
 import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
-import { buildSpaceTree, type SpaceNode } from './space-tree';
+import { buildSpaceTree, type SpaceNode, spaceHref } from './space-tree';
 import type { Space } from './space-types';
 
 type CreatingState = { parentFolder?: Space };
@@ -94,7 +94,8 @@ type SpaceRowProps = {
 function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceRowProps) {
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({ id: space.id });
-  const icon = <Hash className="size-4 shrink-0" aria-hidden />;
+  const Icon = space.tool === 'notebook' ? BookOpen : Hash;
+  const icon = <Icon className="size-4 shrink-0" aria-hidden />;
 
   return (
     <div
@@ -103,7 +104,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
       className={cn('group/row relative', nested && 'ml-4', draggingClass(sortable))}
     >
       {canReorder && !editing && <ReorderHandle title={space.title} sortable={sortable} />}
-      <Tooltip delayDuration={300} open={renderSummary ? undefined : false}>
+      <Tooltip delayDuration={300} open={renderSummary && space.tool === 'list' ? undefined : false}>
         <SpaceContextMenuComponent space={space} onEdit={() => setEditing(true)}>
           {editing ? (
             <div>
@@ -112,7 +113,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
           ) : (
             <TooltipTrigger asChild>
               <Link
-                href={`/list?space=${space.id}`}
+                href={spaceHref(space)}
                 aria-current={isActive ? 'page' : undefined}
                 onDoubleClick={() => setEditing(true)}
                 className={cn(

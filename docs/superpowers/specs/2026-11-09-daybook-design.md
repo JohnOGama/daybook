@@ -152,7 +152,8 @@ Percent of the viewed day's tasks that are finished, rounded, counting parents a
 
 Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-create.html), next to this document. This replaces the sidebar's Today item and its filter lists. Filters live in the page's Filters menu.
 
-- A **space** (#) has a title and a tool, and opens that tool's screen. List is the only tool for now; Kanban and Notes are planned.
+- A **space** (#) has a title and a tool, and opens that tool's screen. The tools are List and Notebook. Each List space also has a Kanban tab.
+- A **Notebook** space holds pages, newest first, listed beside the editor. Add page creates a blank one. Pages are rich text and save automatically. The formatting toolbar stays hidden until text is highlighted, then floats beside the selection. Right-clicking a page offers Delete, which moves it to Trash after a confirmation **(my call)**.
 - A **folder** only groups spaces. It has a title and no tool. Clicking it opens and closes the group, and its + creates a space inside it. Folders go one level deep.
 - A new person sees a blank page asking for a title and a tool.
 - The + beside "Spaces" opens one dialog with a Space/Folder switch. Folder hides the tool. The + on a folder has no switch.

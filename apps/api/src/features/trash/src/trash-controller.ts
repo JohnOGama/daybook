@@ -17,6 +17,11 @@ export class TrashController {
     return this.trash.restoreTask(userId, id);
   }
 
+  @Post('pages/:id/restore')
+  restorePage(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.trash.restorePage(userId, id);
+  }
+
   @Post('spaces/:id/restore')
   restoreSpace(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.trash.restoreSpace(userId, id);
