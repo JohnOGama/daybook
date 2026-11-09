@@ -38,7 +38,15 @@ export const createTasks = (input: NewTaskList) => send('/api/tasks/bulk', 'POST
 export const createSubtask =({ parentId, input }: { parentId: string; input: NewTaskFields }) =>
   send(`/api/tasks/${parentId}/subtasks`, 'POST', input);
 
-export const updateTask = ({ id, input }: { id: string; input: TaskChanges }) =>
+export const createSubtasks = ({
+  parentId,
+  subtasks,
+}: {
+  parentId: string;
+  subtasks: { id: string; title: string }[];
+}) => send(`/api/tasks/${parentId}/subtasks/bulk`, 'POST', { subtasks });
+
+export const updateTask =({ id, input }: { id: string; input: TaskChanges }) =>
   send(`/api/tasks/${id}`, 'PATCH', input);
 
 export const setTaskFinished = (id: string, finished: boolean, today: string, status?: TaskStatus) =>

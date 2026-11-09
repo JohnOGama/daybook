@@ -195,6 +195,31 @@ export class TasksService {
     });
   }
 
+  async createManySubtasks(
+    userId: string,
+    parentId: string,
+    subtasks: { id: string; title: string }[],
+  ): Promise<void> {
+    const now = Date.now();
+    await this.db.transaction(async (tx) => {
+      const parent = await this.lockFamily(tx, userId, parentId);
+      if (parent.parentId !== null) {
+        throw new BadRequestException('A subtask cannot have subtasks');
+      }
+      await tx.insert(tasks).values(
+        subtasks.map(({ id, title }, index) => ({
+          id,
+          title,
+          userId,
+          parentId,
+          spaceId: parent.spaceId,
+          createdAt: new Date(now + index),
+        })),
+      );
+      await this.reopen(tx, eq(tasks.id, parentId));
+    });
+  }
+
   async reorder(userId: string, ids: string[]): Promise<void> {
     if (new Set(ids).size !== ids.length) throw new BadRequestException('Each task can appear only once');
     await this.db.transaction(async (tx) => {

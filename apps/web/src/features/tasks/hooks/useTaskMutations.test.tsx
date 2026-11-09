@@ -8,6 +8,7 @@ import { useTaskMutations } from './useTaskMutations';
 const api = vi.hoisted(() => ({
   copyTask: vi.fn(),
   createSubtask: vi.fn(),
+  createSubtasks: vi.fn(),
   createTask: vi.fn(),
   createTasks: vi.fn(),
   deleteTask: vi.fn(),
@@ -158,6 +159,20 @@ describe('useTaskMutations', () => {
     });
     expect(cached().map((t) => t.id)).toEqual(['a', 'b']);
     expect(toastError).toHaveBeenCalledWith('nope');
+  });
+
+  it('shows pasted subtasks at once and sends the same ids', async () => {
+    api.createSubtasks.mockReturnValue(never());
+    const result = setup();
+    act(() => {
+      void result.current.createManySubtasks.mutateAsync({ parentId: 'a', titles: ['One', 'Two'] });
+    });
+    await waitFor(() => expect(cached()[0].subtasks.map((t) => t.title)).toEqual(['One', 'Two']));
+    expect(cached()[0].subtasks[0]).toMatchObject({ parentId: 'a', day: today, finished: false });
+    expect(api.createSubtasks.mock.calls[0][0]).toMatchObject({
+      parentId: 'a',
+      subtasks: cached()[0].subtasks.map(({ id, title }) => ({ id, title })),
+    });
   });
 
   it('removes a task at once', async () => {

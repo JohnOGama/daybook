@@ -49,6 +49,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
 
   const hasDetails = mode !== 'move';
   const hasDay = mode === 'new' || mode === 'move';
+  const canPasteList = mode === 'new' || mode === 'subtask';
   const canSave = (!hasDetails || title.trim().length > 0) && (!hasDay || day !== '');
 
   function save() {
@@ -65,7 +66,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
 
   function handleTitlePaste(event: ClipboardEvent) {
     const text = event.clipboardData.getData('text/plain');
-    if (mode !== 'new' || !isTaskList(text)) return;
+    if (!canPasteList || !isTaskList(text)) return;
     event.preventDefault();
     onPasteList(text);
   }
@@ -93,7 +94,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
             onChange={(event) => setTitle(event.target.value)}
             onPaste={handleTitlePaste}
           />
-          {mode === 'new' && (
+          {canPasteList && (
             <Button
               type="button"
               variant="link"
@@ -153,6 +154,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
 
 export function TaskFormDialogComponent({ open, onOpenChange, ...formProps }: TaskFormDialogProps) {
   const [pastedText, setPastedText] = useState<string>();
+  const isSubtask = formProps.mode === 'subtask';
 
   function handleOpenChange(next: boolean) {
     if (!next) setPastedText(undefined);
@@ -163,7 +165,9 @@ export function TaskFormDialogComponent({ open, onOpenChange, ...formProps }: Ta
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{pastedText === undefined ? DIALOG_TITLES[formProps.mode] : 'Paste tasks'}</DialogTitle>
+          <DialogTitle>
+            {pastedText === undefined ? DIALOG_TITLES[formProps.mode] : isSubtask ? 'Paste subtasks' : 'Paste tasks'}
+          </DialogTitle>
         </DialogHeader>
         {pastedText === undefined ? (
           <TaskForm {...formProps} onOpenChange={handleOpenChange} onPasteList={setPastedText} />
@@ -171,6 +175,7 @@ export function TaskFormDialogComponent({ open, onOpenChange, ...formProps }: Ta
           <PasteTasksFormComponent
             defaultDay={formProps.defaultDay}
             initialText={pastedText}
+            parent={isSubtask ? formProps.task : undefined}
             onDone={() => handleOpenChange(false)}
           />
         )}

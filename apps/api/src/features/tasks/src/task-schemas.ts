@@ -33,7 +33,10 @@ export const createSubtaskSchema =z.object({
   status: status.optional(),
   highPriority: z.boolean().optional(),
 });
-export const updateTaskSchema = z.object({
+export const createManySubtasksSchema = z.object({
+  subtasks: z.array(z.object({ id: z.uuid(), title })).min(1).max(200),
+});
+export const updateTaskSchema =z.object({
   title: title.optional(),
   status: status.optional(),
   highPriority: z.boolean().optional(),

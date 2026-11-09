@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { describeTaskList, isTaskList, parseTaskList } from './parse-task-list';
+import { describeTaskList, isTaskList, parseSubtaskList, parseTaskList } from './parse-task-list';
 
 const sample = `- [ ]  site admin pref → Default order
 - [ ]  Add legacy path
@@ -58,6 +58,20 @@ it('only treats more than one item as a list', () => {
   expect(isTaskList('Just one title')).toBe(false);
   expect(isTaskList('One\nTwo')).toBe(true);
   expect(isTaskList('One\n  Under it')).toBe(true);
+});
+
+it('flattens every line into one level for subtasks, in order', () => {
+  expect(parseSubtaskList(sample).map((item) => item.title)).toEqual([
+    'site admin pref → Default order',
+    'Add legacy path',
+    'If Site SSO',
+    'Enable SSO config in payload',
+    'If has auto approval feature',
+    'Set the correct email',
+    'Check the config with previous store',
+    'Enable reCAPTCHA',
+  ]);
+  expect(parseSubtaskList(sample).every((item) => item.subtasks.length === 0)).toBe(true);
 });
 
 it('describes the counts', () => {

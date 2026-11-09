@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { type Space, useActiveSpace } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
 import { sidebarCounts } from '../src/day-summary';
-import { describeTaskList, type PastedTask } from '../src/parse-task-list';
+import { countOf, describeTaskList, type PastedTask } from '../src/parse-task-list';
 import {
   buildCopy,
   buildSubtask,
@@ -23,6 +23,7 @@ import type { Task, TaskStatus } from '../src/task-types';
 import {
   copyTask,
   createSubtask,
+  createSubtasks,
   createTask,
   createTasks,
   deleteTask,
@@ -130,6 +131,19 @@ export function useTaskMutations() {
     onSuccess: (_result, { input }) => toast.success(`Created "${input.title}"`),
   });
 
+  const addSubtasks = useMutation({
+    ...optimistic(createSubtasks, ({ parentId, subtasks }) => {
+      const fields = { status: 'todo', highPriority: false } as const;
+      changeFamily(parentId, (family) =>
+        subtasks.reduce<Task>(
+          (next, subtask) => withSubtask(next, buildSubtask({ ...subtask, ...fields }, next), today),
+          family,
+        ),
+      );
+    }),
+    onSuccess: (_result, { subtasks }) => toast.success(`Created ${countOf(subtasks.length, 'subtask')}`),
+  });
+
   const update = useMutation(
     optimistic(updateTask, ({ id, input }: { id: string; input: TaskChanges }) => {
       const { day, ...fields } = input;
@@ -212,6 +226,13 @@ export function useTaskMutations() {
     createSubtask: {
       mutateAsync: ({ parentId, input }: { parentId: string; input: TaskFields }) =>
         addSubtask.mutateAsync({ parentId, input: { ...input, id: crypto.randomUUID() } }),
+    },
+    createManySubtasks: {
+      mutateAsync: ({ parentId, titles }: { parentId: string; titles: string[] }) =>
+        addSubtasks.mutateAsync({
+          parentId,
+          subtasks: titles.map((title) => ({ id: crypto.randomUUID(), title })),
+        }),
     },
     update,
     setFinished,

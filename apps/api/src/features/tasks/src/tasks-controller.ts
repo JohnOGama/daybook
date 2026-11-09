@@ -17,6 +17,7 @@ import { AuthGuard, UserId } from '../../auth/index.ts';
 import {
   copySchema,
   createManySchema,
+  createManySubtasksSchema,
   createSubtaskSchema,
   createTaskSchema,
   finishedSchema,
@@ -61,6 +62,15 @@ export class TasksController {
     @Body() body: unknown,
   ) {
     return this.tasks.createSubtask(userId, id, parseOrThrow(createSubtaskSchema, body));
+  }
+
+  @Post(':id/subtasks/bulk')
+  createManySubtasks(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.tasks.createManySubtasks(userId, id, parseOrThrow(createManySubtasksSchema, body).subtasks);
   }
 
   @Patch(':id')

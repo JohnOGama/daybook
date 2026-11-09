@@ -261,6 +261,46 @@ describe('finishing, subtasks and deletion', () => {
     });
   });
 
+  describe('createManySubtasks', () => {
+    const items = (...titles: string[]) => titles.map((title) => ({ id: crypto.randomUUID(), title }));
+    const subtaskTitles = async (parentId: string) => {
+      const listed = await svc.list('u1', spaces.u1, { from: today, to: today, today });
+      return listed.find((task) => task.id === parentId)?.subtasks.map((subtask) => subtask.title);
+    };
+
+    it('adds them in the pasted order, after existing subtasks', async () => {
+      const p = await addParent();
+      await addSub(p);
+      const titles = Array.from({ length: 12 }, (_, index) => `s${index}`);
+      await svc.createManySubtasks('u1', p, items(...titles));
+      expect(await subtaskTitles(p)).toEqual(['s', ...titles]);
+    });
+
+    it('reopens a finished parent', async () => {
+      const p = await addParent({ completedOn: today });
+      await svc.createManySubtasks('u1', p, items('new'));
+      expect((await read(p)).completedOn).toBeNull();
+    });
+
+    it('refuses to nest under a subtask', async () => {
+      const p = await addParent();
+      const sub = await addSub(p);
+      await expect(svc.createManySubtasks('u1', sub, items('x'))).rejects.toThrow(BadRequestException);
+    });
+
+    it("refuses another user's task", async () => {
+      const theirs = await addParent({ userId: 'u2' });
+      await expect(svc.createManySubtasks('u1', theirs, items('x'))).rejects.toThrow(NotFoundException);
+    });
+
+    it('saves nothing if any of them fails', async () => {
+      const p = await addParent();
+      const [first] = items('a');
+      await expect(svc.createManySubtasks('u1', p, [first, { ...first, title: 'same id' }])).rejects.toThrow();
+      expect(await subtaskTitles(p)).toEqual([]);
+    });
+  });
+
   describe('reorder', () => {
     const titles = async () =>
       (await svc.list('u1', spaces.u1, { from: today, to: today, today })).map((t) => t.title);

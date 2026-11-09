@@ -4,9 +4,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
 import type { Task } from './task-types';
 
-const { create, createMany, createSubtask, update } = vi.hoisted(() => ({
+const { create, createMany, createManySubtasks, createSubtask, update } = vi.hoisted(() => ({
   create: vi.fn(async () => undefined),
   createMany: vi.fn(async () => undefined),
+  createManySubtasks: vi.fn(async () => undefined),
   createSubtask: vi.fn(async () => undefined),
   update: vi.fn(async () => undefined),
 }));
@@ -15,6 +16,7 @@ vi.mock('../hooks/useTaskMutations', () => ({
   useTaskMutations: () => ({
     create: { mutateAsync: create },
     createMany: { mutateAsync: createMany },
+    createManySubtasks: { mutateAsync: createManySubtasks },
     createSubtask: { mutateAsync: createSubtask },
     update: { mutateAsync: update },
   }),
@@ -53,6 +55,24 @@ it('pasting a list into the title previews it and creates it all at once', async
     ],
   });
   expect(onOpenChange).toHaveBeenCalledWith(false);
+});
+
+it('pasting a list into Add subtask creates them all under that task, one level deep', async () => {
+  render(<TaskFormDialogComponent mode="subtask" task={task} defaultDay="2026-11-20" open onOpenChange={onOpenChange} />);
+  await userEvent.click(screen.getByLabelText('Title'));
+  await userEvent.paste('- [ ] One\n    - [ ] Under one\n- [ ] Two');
+  expect(screen.getByRole('heading', { name: 'Paste subtasks' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('Day')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Create 3 subtasks' }));
+  expect(createManySubtasks).toHaveBeenCalledWith({ parentId: 't1', titles: ['One', 'Under one', 'Two'] });
+  expect(createMany).not.toHaveBeenCalled();
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+});
+
+it('Add subtask also offers the paste link', async () => {
+  render(<TaskFormDialogComponent mode="subtask" task={task} defaultDay="2026-11-20" open onOpenChange={onOpenChange} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Paste a list instead' }));
+  expect(screen.getByLabelText('List')).toHaveValue('');
 });
 
 it('pasting a single line stays an ordinary title', async () => {

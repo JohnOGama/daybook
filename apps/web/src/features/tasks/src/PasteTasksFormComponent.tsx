@@ -6,10 +6,11 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useTaskMutations } from '../hooks/useTaskMutations';
-import { describeTaskList, parseTaskList } from './parse-task-list';
+import { countOf, describeTaskList, parseSubtaskList, parseTaskList } from './parse-task-list';
 import { StatusIconComponent } from './StatusIconComponent';
+import type { Task } from './task-types';
 
-type PasteTasksFormProps = { defaultDay: string; initialText: string; onDone: () => void };
+type PasteTasksFormProps = { defaultDay: string; initialText: string; parent?: Task; onDone: () => void };
 
 function PreviewRow({ title }: { title: string }) {
   return (
@@ -20,18 +21,20 @@ function PreviewRow({ title }: { title: string }) {
   );
 }
 
-export function PasteTasksFormComponent({ defaultDay, initialText, onDone }: PasteTasksFormProps) {
-  const { createMany } = useTaskMutations();
+export function PasteTasksFormComponent({ defaultDay, initialText, parent, onDone }: PasteTasksFormProps) {
+  const { createMany, createManySubtasks } = useTaskMutations();
   const [text, setText] = useState(initialText);
   const [day, setDay] = useState(defaultDay);
   const [saving, setSaving] = useState(false);
-  const list = parseTaskList(text);
+  const list = parent ? parseSubtaskList(text) : parseTaskList(text);
+  const summary = parent ? countOf(list.length, 'subtask') : describeTaskList(list);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     try {
-      await createMany.mutateAsync({ day, list });
+      if (parent) await createManySubtasks.mutateAsync({ parentId: parent.id, titles: list.map(({ title }) => title) });
+      else await createMany.mutateAsync({ day, list });
       onDone();
     } catch {
       setSaving(false);
@@ -45,16 +48,18 @@ export function PasteTasksFormComponent({ defaultDay, initialText, onDone }: Pas
         <Textarea
           id="task-list"
           autoFocus
-          placeholder={'- [ ] A task\n    - [ ] A subtask under it'}
+          placeholder={parent ? '- [ ] A subtask\n- [ ] Another subtask' : '- [ ] A task\n    - [ ] A subtask under it'}
           value={text}
           onChange={(event) => setText(event.target.value)}
           className="max-h-32 min-h-24 overflow-y-auto font-mono md:text-xs"
         />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="task-list-day">Day</Label>
-        <Input id="task-list-day" type="date" value={day} onChange={(event) => setDay(event.target.value)} />
-      </div>
+      {!parent && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="task-list-day">Day</Label>
+          <Input id="task-list-day" type="date" value={day} onChange={(event) => setDay(event.target.value)} />
+        </div>
+      )}
       {list.length > 0 && (
         <ul aria-label="Preview" className="max-h-48 overflow-y-auto rounded-md border p-2 text-sm">
           {list.map((task, index) => (
@@ -73,8 +78,8 @@ export function PasteTasksFormComponent({ defaultDay, initialText, onDone }: Pas
           ))}
         </ul>
       )}
-      <Button type="submit" disabled={list.length === 0 || day === '' || saving}>
-        {list.length > 0 ? `Create ${describeTaskList(list)}` : 'Create'}
+      <Button type="submit" disabled={list.length === 0 || (!parent && day === '') || saving}>
+        {list.length > 0 ? `Create ${summary}` : 'Create'}
       </Button>
     </form>
   );

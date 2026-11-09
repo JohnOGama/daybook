@@ -26,10 +26,15 @@ export function isTaskList(text: string): boolean {
   return list.length > 1 || (list[0]?.subtasks.length ?? 0) > 0;
 }
 
-const counted = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+export const parseSubtaskList = (text: string): PastedTask[] =>
+  parseTaskList(text).flatMap(({ title, subtasks }) =>
+    [title, ...subtasks].map((line) => ({ title: line, subtasks: [] })),
+  );
+
+export const countOf = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 export function describeTaskList(list: { subtasks: unknown[] }[]): string {
   const subtasks = list.reduce((total, task) => total + task.subtasks.length, 0);
-  const tasks = counted(list.length, 'task');
-  return subtasks > 0 ? `${tasks} and ${counted(subtasks, 'subtask')}` : tasks;
+  const tasks = countOf(list.length, 'task');
+  return subtasks > 0 ? `${tasks} and ${countOf(subtasks, 'subtask')}` : tasks;
 }
