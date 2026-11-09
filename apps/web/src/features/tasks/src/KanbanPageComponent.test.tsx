@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { KanbanPageComponent } from './KanbanPageComponent';
+import { SpaceSettingsPageComponent } from './SpaceSettingsPageComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
 
 const { active, replace } = vi.hoisted(() => ({
@@ -10,7 +11,7 @@ const { active, replace } = vi.hoisted(() => ({
 
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => active.space,
-  SpaceSettingsComponent: () => <button type="button">Settings</button>,
+  SpaceSettingsComponent: () => <p>settings content</p>,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));
 vi.mock('next/navigation', () => ({
@@ -31,7 +32,14 @@ beforeEach(() => {
   active.space = { id: 's1', title: 'Home', tool: 'list' };
 });
 
-const settings = () => screen.queryByRole('button', { name: 'Settings' });
+const settings = () => screen.queryByRole('link', { name: 'Settings' });
+
+it('opens Settings as a page of its own, under the same tabs', () => {
+  render(<SpaceSettingsPageComponent />);
+  expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+  expect(screen.getByText('settings content')).toBeInTheDocument();
+  expect(settings()).toHaveAttribute('href', '/settings');
+});
 
 it('offers the Kanban tab and Settings in a list space, with Settings last', () => {
   render(<TasksHeaderComponent title="t" subtitle="s" />);

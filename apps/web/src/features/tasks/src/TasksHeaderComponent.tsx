@@ -1,10 +1,10 @@
 'use client';
 
-import { CalendarDays, List, SquareKanban } from 'lucide-react';
+import { CalendarDays, List, Settings, SquareKanban } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Skeleton } from 'skullet/react';
-import { SpaceSettingsComponent, useActiveSpace } from '@/features/spaces';
+import { useActiveSpace } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { hasKanban } from './kanban-columns';
 
@@ -13,6 +13,7 @@ const TABS = [
   { href: '/calendar', label: 'Calendar', Icon: CalendarDays },
 ];
 const KANBAN_TAB = { href: '/kanban', label: 'Kanban', Icon: SquareKanban };
+const SETTINGS_TAB = { href: '/settings', label: 'Settings', Icon: Settings };
 
 type TasksHeaderProps = { title: string; subtitle: string; subtitleLoading?: boolean };
 
@@ -25,8 +26,7 @@ export function TasksHeaderComponent({ title, subtitle, subtitleLoading }: Tasks
     if (value) kept.set(name, value);
   }
   const query = kept.size > 0 ? `?${kept}` : '';
-  const space = useActiveSpace();
-  const tabs = hasKanban(space) ? [...TABS, KANBAN_TAB] : TABS;
+  const tabs = hasKanban(useActiveSpace()) ? [...TABS, KANBAN_TAB, SETTINGS_TAB] : TABS;
 
   return (
     <header>
@@ -51,7 +51,6 @@ export function TasksHeaderComponent({ title, subtitle, subtitleLoading }: Tasks
             {label}
           </Link>
         ))}
-        {space && hasKanban(space) && <SpaceSettingsComponent space={space} />}
       </nav>
     </header>
   );

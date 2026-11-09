@@ -18,28 +18,23 @@ const space: Space = {
   openToday: 0,
 };
 
-async function openSettings(target: Space) {
+function showSettings(target: Space) {
   render(<SpaceSettingsComponent space={target} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Settings' }));
-  return screen.findByRole('switch', { name: 'Carry over unfinished tasks' });
+  return screen.getByRole('switch', { name: 'Carry over unfinished tasks' });
 }
 
 beforeEach(() => vi.clearAllMocks());
 
-it('stays hidden until Settings is clicked', () => {
-  render(<SpaceSettingsComponent space={space} />);
-  expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-});
-
-it('can turn carry over off', async () => {
-  const toggle = await openSettings(space);
+it('shows the option right on the page and can turn it off', async () => {
+  const toggle = showSettings(space);
   expect(toggle).toBeChecked();
+  expect(toggle).toHaveAccessibleDescription(/Finished tasks stay/);
   await userEvent.click(toggle);
   expect(setCarryOver).toHaveBeenCalledWith({ id: 's1', carryOver: false });
 });
 
 it('shows carry over as off and can turn it back on', async () => {
-  const toggle = await openSettings({ ...space, carryOver: false });
+  const toggle = showSettings({ ...space, carryOver: false });
   expect(toggle).not.toBeChecked();
   await userEvent.click(toggle);
   expect(setCarryOver).toHaveBeenCalledWith({ id: 's1', carryOver: true });

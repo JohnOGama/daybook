@@ -48,7 +48,7 @@ export function KanbanCardComponent({ task, onOpen }: { task: Task; onOpen: () =
     <li
       ref={setNodeRef}
       onPointerDown={listeners?.onPointerDown as PointerEventHandler | undefined}
-      className={cn(isDragging && 'opacity-40')}
+      className={cn('group', isDragging && 'opacity-40')}
     >
       <KanbanCardFace
         task={task}
@@ -60,7 +60,7 @@ export function KanbanCardComponent({ task, onOpen }: { task: Task; onOpen: () =
             {...attributes}
             {...listeners}
             aria-label={`Move ${task.title}`}
-            className="grid h-5 w-4 shrink-0 cursor-grab touch-none place-items-center text-muted-foreground/60 hover:text-muted-foreground"
+            className="grid h-5 w-4 shrink-0 cursor-grab touch-none place-items-center text-muted-foreground/60 hover:text-muted-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
           >
             <GripVertical className="size-3.5" aria-hidden />
           </button>

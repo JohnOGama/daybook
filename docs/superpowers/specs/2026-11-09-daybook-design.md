@@ -159,7 +159,7 @@ Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-cre
 - The + beside "Spaces" opens one dialog with a Space/Folder switch. Folder hides the tool. The + on a folder has no switch.
 - The number beside a space counts its unfinished tasks on today, including subtasks **(my call)**.
 - Each List space has its own tasks, Today view, Calendar and carry-forward **(my call)**. Filters and counts cover the open space.
-- The Settings button beside the Kanban tab offers "Carry over unfinished tasks" for that List space, on by default. Off, an unfinished task stays on its planned day instead of moving to today. Finished tasks never carry over either way.
+- The Settings tab beside Kanban opens a page with "Carry over unfinished tasks" for that List space, on by default. Off, an unfinished task stays on its planned day instead of moving to today. Finished tasks never carry over either way.
 - Existing tasks move into a first space named "My List" **(my call)**.
 - Right-clicking a space offers Edit, Duplicate and Delete; a folder offers Edit and Delete. Double-clicking a label also edits it.
 - Duplicating a space copies it into the same folder as "… (copy)" with its unfinished tasks, in order. Finished tasks stay behind **(my call)**.

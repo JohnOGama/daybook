@@ -77,7 +77,7 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
         <TableRow
           ref={setNodeRef}
           style={rowStyle}
-          className={cn('row-enter h-[53px]', isDragging && 'relative z-10 bg-background shadow-md')}
+          className={cn('row-enter group h-[53px]', isDragging && 'relative z-10 bg-background shadow-md')}
         >
           <TableCell className="py-0 pr-0 pl-1.5">
             <div className="flex items-center">
@@ -90,7 +90,7 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
                   {...attributes}
                   {...listeners}
                   aria-label={`Reorder ${task.title}`}
-                  className="size-7 cursor-grab touch-none text-muted-foreground hover:bg-transparent active:cursor-grabbing"
+                  className="size-7 cursor-grab touch-none text-muted-foreground hover:bg-transparent active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                 >
                   <GripVertical className="size-3" aria-hidden />
                 </Button>
