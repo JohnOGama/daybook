@@ -1,9 +1,11 @@
 'use client';
 
+import { Button } from '@/shared/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/shared/components/ui/button';
+import { Skeleton } from 'skullet/react';
+import { useActiveSpace } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 import { useTasks } from '../hooks/useTasks';
@@ -12,6 +14,7 @@ import { daySummary } from './day-summary';
 import { filterTasks } from './filter-tasks';
 import { FiltersMenuComponent } from './FiltersMenuComponent';
 import { MonthGridComponent } from './MonthGridComponent';
+import { sampleMonthTasks } from './sample-tasks';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
 import type { Task } from './task-types';
@@ -27,15 +30,17 @@ export function CalendarPageComponent() {
   const month = monthParam && MONTH_PATTERN.test(monthParam) ? monthParam : today.slice(0, 7);
   const days = monthGrid(month);
 
-  const { data: tasks = [], isPending, isError } = useTasks({ from: days[0], to: days[days.length - 1] });
-  const { data: todayTasks = [] } = useTasks({ from: today, to: today });
+  const { data, isPending, isError } = useTasks({ from: days[0], to: days[days.length - 1] });
+  const tasks = isPending ? sampleMonthTasks(days) : (data ?? []);
+  const { data: todayTasks = [], isPending: isTodayPending } = useTasks({ from: today, to: today });
   const { filters } = useTaskFilters();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Task>();
 
+  const spaceTitle = useActiveSpace()?.title;
   const { total } = daySummary(todayTasks);
   const filterParams = new URLSearchParams(
-    [...params].filter(([name]) => name === 'status' || name === 'high'),
+    [...params].filter(([name]) => ['space', 'status', 'high'].includes(name)),
   );
 
   function goToMonth(target: string) {
@@ -48,7 +53,8 @@ export function CalendarPageComponent() {
     <>
       <TasksHeaderComponent
         title={formatMonthHeading(month)}
-        subtitle={`Today · ${total} ${total === 1 ? 'task' : 'tasks'}`}
+        subtitle={`${spaceTitle} · Today · ${total} ${total === 1 ? 'task' : 'tasks'}`}
+        subtitleLoading={isTodayPending}
       />
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
         <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => goToMonth(shiftMonth(month, -1))}>
@@ -60,24 +66,25 @@ export function CalendarPageComponent() {
         <Button size="sm" onClick={() => goToMonth(today.slice(0, 7))}>
           Today
         </Button>
-        <div className="ml-auto flex items-center gap-2">
+        <div role="group" aria-label="Task actions" className="ml-auto flex items-center gap-1 rounded-xl border bg-card p-1">
           <FiltersMenuComponent />
-          <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             New task
           </Button>
         </div>
       </div>
       {isError && <p className="px-6 pb-3 text-sm text-destructive">Could not load tasks. Please try again.</p>}
-      {isPending && <p className="px-6 pb-3 text-sm text-muted-foreground">Loading tasks…</p>}
-      <MonthGridComponent
-        days={days}
-        month={month}
-        today={today}
-        tasks={filterTasks(tasks, filters)}
-        filterParams={filterParams}
-        onSelectTask={setEditing}
-      />
+      <Skeleton loading={isPending} label="Loading tasks">
+        <MonthGridComponent
+          days={days}
+          month={month}
+          today={today}
+          tasks={filterTasks(tasks, filters)}
+          filterParams={filterParams}
+          onSelectTask={setEditing}
+        />
+      </Skeleton>
       <TaskFormDialogComponent mode="new" defaultDay={today} open={creating} onOpenChange={setCreating} />
       {editing && (
         <TaskFormDialogComponent

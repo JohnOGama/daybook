@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/shared/utils/cn';
 import { dayEntries, dayListHref } from './calendar-grid';
-import type { Task } from './task-types';
+import { STATUS_ACCENTS, type Task } from './task-types';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -18,10 +18,9 @@ type MonthGridProps = {
 };
 
 function entryColor(task: Task): string {
-  if (task.finished) return 'text-slate-400 line-through';
-  if (task.highPriority) return 'bg-orange-100 text-orange-800';
-  if (task.status === 'in_progress') return 'bg-blue-100 text-blue-800';
-  return 'bg-slate-100 text-slate-700';
+  if (task.finished) return 'text-muted-foreground line-through';
+  if (task.highPriority) return 'bg-signal text-background';
+  return cn('bg-current/15', STATUS_ACCENTS[task.status]);
 }
 
 export function MonthGridComponent({ days, month, today, tasks, filterParams, onSelectTask }: MonthGridProps) {
@@ -29,9 +28,9 @@ export function MonthGridComponent({ days, month, today, tasks, filterParams, on
 
   return (
     <div className="overflow-x-auto px-4 pb-6 md:px-6">
-      <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-xl border">
+      <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-2xl border bg-card">
         {WEEKDAYS.map((weekday) => (
-          <div key={weekday} className="bg-sidebar px-2.5 py-2 text-xs font-medium text-slate-600">
+          <div key={weekday} className="bg-secondary px-2.5 py-2 text-xs font-medium text-muted-foreground">
             {weekday}
           </div>
         ))}
@@ -46,7 +45,7 @@ export function MonthGridComponent({ days, month, today, tasks, filterParams, on
               className={cn(
                 'min-h-23 min-w-0 cursor-pointer border-t p-1.5',
                 index % 7 !== 0 && 'border-l',
-                !inMonth && 'bg-slate-50/60',
+                !inMonth && 'bg-muted/30',
               )}
             >
               <Link
@@ -54,7 +53,7 @@ export function MonthGridComponent({ days, month, today, tasks, filterParams, on
                 onClick={(event) => event.stopPropagation()}
                 className={cn(
                   'mb-0.5 grid size-5.5 place-items-center rounded-full text-xs font-medium',
-                  inMonth ? 'text-slate-700' : 'text-slate-400',
+                  inMonth ? 'text-foreground' : 'text-muted-foreground',
                   day === today && 'bg-foreground text-background',
                 )}
               >

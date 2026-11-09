@@ -10,7 +10,10 @@ const { verifyEmail, sendVerificationOtp, push } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/shared/services/auth-client', () => ({
-  authClient: { emailOtp: { verifyEmail, sendVerificationOtp } },
+  authClient: {
+    emailOtp: { verifyEmail, sendVerificationOtp },
+    useSession: () => ({ data: null, isPending: false }),
+  },
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),

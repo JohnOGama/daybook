@@ -1,0 +1,64 @@
+<h2>What the + opens</h2>
+<p class="subtitle">One small dialog for both. Switching to Folder hides the tool, because a folder only groups #s.</p>
+
+<style>
+  .d{--ink:#111827;--muted:#64748b;--line:#e8ecf2;--side:#f6f8fb;--blue:#2563eb;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);font-size:14px;line-height:1.3;color-scheme:light}
+  .d *{box-sizing:border-box}
+  .d svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .d-stage{background:#e9edf3;border-radius:14px;padding:26px 16px;display:flex;justify-content:center;margin-bottom:28px}
+  .d-box{width:100%;max-width:400px;background:#fff;border-radius:14px;padding:20px;box-shadow:0 8px 30px rgba(17,24,39,.14)}
+  .d-top{display:flex;align-items:center;justify-content:space-between}
+  .d-top h4{margin:0;font-size:17px;font-weight:600;color:var(--ink)}
+  .d-x{color:#94a3b8}
+  .d-note{color:var(--muted);font-size:13px;margin-top:3px}
+  .d-seg{display:flex;gap:4px;background:var(--side);border:1px solid var(--line);border-radius:10px;padding:3px;margin-top:16px}
+  .d-seg div{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:34px;border-radius:8px;font-weight:500;color:#64748b}
+  .d-seg .on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(17,24,39,.12)}
+  .d-label{font-size:13px;font-weight:500;margin:14px 0 6px;display:block}
+  .d-input{height:38px;border:1px solid var(--line);border-radius:9px;padding:0 11px;display:flex;align-items:center;color:#94a3b8}
+  .d-tool{display:flex;align-items:center;gap:11px;border:1.5px solid var(--blue);background:#f3f7ff;border-radius:11px;padding:11px}
+  .d-tool i{width:32px;height:32px;border-radius:8px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;font-style:normal}
+  .d-tool b{font-weight:600;display:block}
+  .d-tool span{font-size:12px;color:var(--muted)}
+  .d-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  .d-btn{height:36px;padding:0 14px;border-radius:9px;display:grid;place-items:center;font-weight:500;border:1px solid var(--line);background:#fff}
+  .d-btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+  .d-cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="dh" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></symbol>
+  <symbol id="df" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
+  <symbol id="dl" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+  <symbol id="dx" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<div class="d">
+  <p class="d-cap">The + beside "Spaces", creating a #</p>
+  <div class="d-stage"><div class="d-box">
+    <div class="d-top"><h4>New space</h4><span class="d-x"><svg><use href="#dx"/></svg></span></div>
+    <div class="d-seg"><div class="on"><svg><use href="#dh"/></svg>Space</div><div><svg><use href="#df"/></svg>Folder</div></div>
+    <span class="d-label">Title</span><div class="d-input">e.g. Design Requests</div>
+    <span class="d-label">Tool</span>
+    <div class="d-tool"><i><svg><use href="#dl"/></svg></i><div><b>List</b><span>Plan your days and track tasks</span></div></div>
+    <div class="d-foot"><div class="d-btn">Cancel</div><div class="d-btn dark">Create</div></div>
+  </div></div>
+
+  <p class="d-cap">Same dialog, switched to Folder</p>
+  <div class="d-stage"><div class="d-box">
+    <div class="d-top"><h4>New space</h4><span class="d-x"><svg><use href="#dx"/></svg></span></div>
+    <div class="d-seg"><div><svg><use href="#dh"/></svg>Space</div><div class="on"><svg><use href="#df"/></svg>Folder</div></div>
+    <span class="d-label">Title</span><div class="d-input">e.g. Design Team</div>
+    <div class="d-foot"><div class="d-btn">Cancel</div><div class="d-btn dark">Create</div></div>
+  </div></div>
+
+  <p class="d-cap">The + on a folder: creates a # inside it</p>
+  <div class="d-stage"><div class="d-box">
+    <div class="d-top"><h4>New space</h4><span class="d-x"><svg><use href="#dx"/></svg></span></div>
+    <p class="d-note">In Design Team</p>
+    <span class="d-label">Title</span><div class="d-input">e.g. Design Requests</div>
+    <span class="d-label">Tool</span>
+    <div class="d-tool"><i><svg><use href="#dl"/></svg></i><div><b>List</b><span>Plan your days and track tasks</span></div></div>
+    <div class="d-foot"><div class="d-btn">Cancel</div><div class="d-btn dark">Create</div></div>
+  </div></div>
+</div>

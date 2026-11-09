@@ -1,28 +1,35 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #111827;
-  --card: #ffffff;
-  --card-foreground: #111827;
-  --popover: #ffffff;
-  --popover-foreground: #111827;
-  --primary: #111827;
-  --primary-foreground: #ffffff;
-  --secondary: #f6f8fb;
-  --secondary-foreground: #111827;
-  --muted: #f6f8fb;
-  --muted-foreground: #64748b;
-  --accent: #f1f4f8;
-  --accent-foreground: #111827;
-  --destructive: #dc2626;
-  --border: #e8ecf2;
-  --input: #e8ecf2;
-  --ring: #2563eb;
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --popover: #0d0d0d;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1f1f1f;
+  --muted-foreground: #a3a3a3;
+  --accent: #1f1f1f;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --signal: #d9a514;
+  --status-todo: #94a3b8;
+  --status-progress: #5b9ff0;
+  --status-hold: #a88bf0;
+  --status-done: #4fbf85;
+  --border: #2e2e2e;
+  --input: #2e2e2e;
+  --ring: rgb(255 255 255 / 0.4);
   --radius: 0.625rem;
-  --sidebar: #f6f8fb;
-  --brand: #2563eb;
+  --sidebar: #0a0a0a;
 }
 
 @theme inline {
@@ -41,11 +48,15 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-signal: var(--signal);
+  --color-status-todo: var(--status-todo);
+  --color-status-progress: var(--status-progress);
+  --color-status-hold: var(--status-hold);
+  --color-status-done: var(--status-done);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
-  --color-brand: var(--brand);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -59,5 +70,105 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+  button,
+  a {
+    transition: scale 120ms var(--ease-out);
+  }
+  button:not(:disabled):active,
+  a:active {
+    scale: 0.97;
+  }
+  nav[aria-label="Main"] :is(a, button):active {
+    scale: none;
+  }
+}
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="context-menu-content"],
+[data-slot="context-menu-sub-content"],
+[data-slot="popover-content"],
+[data-slot="select-content"],
+[data-slot="tooltip-content"],
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
+[data-slot="sheet-content"] {
+  border-color: rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.6);
+}
+
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  background-color: var(--popover);
+}
+
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="popover-content"],
+[data-slot="select-content"],
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-content"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-content"],
+[data-slot="sheet-overlay"] {
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-out);
+}
+
+[data-slot][data-state="closed"] {
+  animation-duration: 160ms;
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@keyframes confirm-pulse {
+  50% {
+    scale: 1.18;
+  }
+}
+
+.row-enter {
+  animation: row-enter 220ms var(--ease-out) both;
+  animation-delay: calc(var(--row-index, 0) * 30ms);
+}
+
+[skullet-loading] .row-enter {
+  animation: none;
+}
+
+.confirm-pulse {
+  animation: confirm-pulse 240ms var(--ease-in-out);
+}
+
+@keyframes progress-fill {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.progress-fill {
+  animation: progress-fill 700ms var(--ease-out);
+  transition: transform 500ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

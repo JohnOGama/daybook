@@ -1,5 +1,7 @@
 import { Check } from 'lucide-react';
 import type { FormEventHandler, ReactNode } from 'react';
+import { useRedirectIfSignedIn } from '../hooks/useRedirectIfSignedIn';
+import { AuthCardSkeletonComponent } from './AuthCardSkeletonComponent';
 
 type AuthCardProps = {
   title: string;
@@ -11,6 +13,9 @@ type AuthCardProps = {
 };
 
 export function AuthCardComponent({ title, subtitle, error, onSubmit, children, footer }: AuthCardProps) {
+  const { isSignedOut } = useRedirectIfSignedIn();
+  if (!isSignedOut) return <AuthCardSkeletonComponent />;
+
   return (
     <main className="flex min-h-dvh items-center justify-center bg-sidebar p-4">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-6">

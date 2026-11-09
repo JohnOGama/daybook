@@ -11,6 +11,14 @@ export async function createTestDb(): Promise<Db> {
   return db as unknown as Db;
 }
 
+export async function insertSpace(db: Db, userId: string): Promise<string> {
+  const [space] = await db
+    .insert(schema.spaces)
+    .values({ userId, kind: 'space', title: 'Space', tool: 'list' })
+    .returning();
+  return space.id;
+}
+
 export async function insertUser(db: Db, id: string): Promise<void> {
   await db.insert(schema.user).values({ id, name: id, email: `${id}@example.com` });
 }

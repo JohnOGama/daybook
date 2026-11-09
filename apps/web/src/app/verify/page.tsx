@@ -1,9 +1,9 @@
 import { Suspense } from 'react';
-import { VerifyPageComponent } from '@/features/auth';
+import { AuthCardSkeletonComponent, VerifyPageComponent } from '@/features/auth';
 
 export default function VerifyPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<AuthCardSkeletonComponent />}>
       <VerifyPageComponent />
     </Suspense>
   );

@@ -35,5 +35,7 @@ export function useTaskFilters() {
     apply({ ...filters, high: !filters.high });
   }
 
-  return { filters, toggleStatus, toggleHigh };
+  const clearFilters = () => apply({ statuses: [], high: false });
+
+  return { filters, toggleStatus, toggleHigh, clearFilters };
 }

@@ -29,16 +29,15 @@ If the API runs anywhere other than `http://localhost:4000`, set `API_ORIGIN` fo
 Create the tables:
 
 ```bash
-pnpm --filter api db:migrate
+pnpm run db:migrate
 ```
 
 ## Run
 
-In two terminals:
+This starts the API and web app together:
 
 ```bash
-pnpm --filter api dev
-pnpm --filter web dev
+pnpm run dev
 ```
 
 Open http://localhost:3000.

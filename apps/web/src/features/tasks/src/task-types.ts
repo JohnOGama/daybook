@@ -8,6 +8,8 @@ export type Task = {
   highPriority: boolean;
   finished: boolean;
   day: string;
+  plannedDay: string | null;
+  completedOn: string | null;
   createdAt: string;
   subtasks: Task[];
 };
@@ -24,3 +26,10 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
 };
 
 export const STATUSES = Object.keys(STATUS_LABELS) as TaskStatus[];
+
+export const STATUS_ACCENTS: Record<TaskStatus | 'completed', string> = {
+  todo: 'text-status-todo',
+  in_progress: 'text-status-progress',
+  on_hold: 'text-status-hold',
+  completed: 'text-status-done',
+};

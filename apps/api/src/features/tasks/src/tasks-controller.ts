@@ -12,13 +12,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
 import {
+  copySchema,
+  createManySchema,
   createSubtaskSchema,
   createTaskSchema,
   finishedSchema,
-  parseOrThrow,
   rangeSchema,
+  removeManySchema,
+  reorderSchema,
   todaySchema,
   updateTaskSchema,
 } from './task-schemas.ts';
@@ -31,12 +35,23 @@ export class TasksController {
 
   @Get()
   list(@UserId() userId: string, @Query() query: unknown) {
-    return this.tasks.list(userId, parseOrThrow(rangeSchema, query));
+    const { spaceId, ...range } = parseOrThrow(rangeSchema, query);
+    return this.tasks.list(userId, spaceId, range);
   }
 
   @Post()
   create(@UserId() userId: string, @Body() body: unknown) {
     return this.tasks.create(userId, parseOrThrow(createTaskSchema, body));
+  }
+
+  @Post('bulk')
+  createMany(@UserId() userId: string, @Body() body: unknown) {
+    return this.tasks.createMany(userId, parseOrThrow(createManySchema, body));
+  }
+
+  @Post('bulk-delete')
+  removeMany(@UserId() userId: string, @Body() body: unknown) {
+    return this.tasks.removeMany(userId, parseOrThrow(removeManySchema, body).ids);
   }
 
   @Post(':id/subtasks')
@@ -63,8 +78,23 @@ export class TasksController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    const { finished, today } = parseOrThrow(finishedSchema, body);
-    return this.tasks.setFinished(userId, id, finished, today);
+    const { finished, today, status } = parseOrThrow(finishedSchema, body);
+    return this.tasks.setFinished(userId, id, finished, today, status);
+  }
+
+  @Post(':id/copy')
+  copy(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const { today, spaceId, newIds } = parseOrThrow(copySchema, body);
+    return this.tasks.copy(userId, id, today, spaceId, newIds);
+  }
+
+  @Put('order')
+  reorder(@UserId() userId: string, @Body() body: unknown) {
+    return this.tasks.reorder(userId, parseOrThrow(reorderSchema, body).ids);
   }
 
   @Delete(':id')

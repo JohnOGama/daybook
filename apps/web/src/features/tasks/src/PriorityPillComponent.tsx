@@ -15,9 +15,9 @@ export function PriorityPillComponent({ task }: { task: Task }) {
         aria-label={`Remove high priority from ${task.title}`}
         disabled={task.finished}
         onClick={toggle}
-        className="inline-flex h-6 items-center rounded-full bg-orange-100 px-2.5 text-xs font-semibold text-orange-800"
+        className="inline-flex size-6 items-center justify-center rounded-full text-signal"
       >
-        High
+        <Flag className="size-3.5 fill-current" aria-hidden />
       </button>
     );
   }
@@ -29,7 +29,7 @@ export function PriorityPillComponent({ task }: { task: Task }) {
       type="button"
       aria-label={`Mark ${task.title} high priority`}
       onClick={toggle}
-      className="inline-flex size-6 items-center justify-center rounded-full text-slate-300 hover:text-orange-500"
+      className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground/60 hover:text-signal"
     >
       <Flag className="size-3.5" aria-hidden />
     </button>

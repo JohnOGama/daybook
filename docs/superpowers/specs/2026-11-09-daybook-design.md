@@ -142,9 +142,34 @@ Percent of the viewed day's tasks that are finished, rounded, counting parents a
 - New task asks for a title (1 to 200 characters), day, status and priority. The day defaults to the one being viewed **(my call)**.
 - The row's ⋯ menu offers Edit, Add subtask, Move to another day and Delete **(my call)**.
 - Status and priority can be changed from the pills in the row, as in the first sample.
-- Delete asks for confirmation and is permanent **(my call)**.
+- Delete asks for confirmation and moves the task to Trash.
+- Double-clicking a task's label edits it in place. Enter or clicking away saves, and Escape cancels.
+- Copy, in the ⋯ menu of a top-level task, duplicates it with its subtasks onto the same day as "… (copy)". Everything in the copy starts unfinished, and open items keep their status and priority **(my call)**.
 - New accounts start empty; the sample tasks are not seeded **(my call)**.
 - An empty day shows a short message and a New task button.
+
+## Spaces
+
+Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-create.html), next to this document. This replaces the sidebar's Today item and its filter lists. Filters live in the page's Filters menu.
+
+- A **space** (#) has a title and a tool, and opens that tool's screen. List is the only tool for now; Kanban and Notes are planned.
+- A **folder** only groups spaces. It has a title and no tool. Clicking it opens and closes the group, and its + creates a space inside it. Folders go one level deep.
+- A new person sees a blank page asking for a title and a tool.
+- The + beside "Spaces" opens one dialog with a Space/Folder switch. Folder hides the tool. The + on a folder has no switch.
+- The number beside a space counts its unfinished tasks on today, including subtasks **(my call)**.
+- Each List space has its own tasks, Today view, Calendar and carry-forward **(my call)**. Filters and counts cover the open space.
+- Existing tasks move into a first space named "My List" **(my call)**.
+- Right-clicking a space offers Edit, Duplicate and Delete; a folder offers Edit and Delete. Double-clicking a label also edits it.
+- Duplicating a space copies it into the same folder as "… (copy)" with its unfinished tasks, in order. Finished tasks stay behind **(my call)**.
+- Delete moves spaces, folders, tasks and subtasks to a Trash page, after a confirmation. Restore puts an item back in its original folder, space or parent, and brings back any of those that are also in Trash. Nothing is removed permanently yet **(my call)**.
+- Every change shows immediately and is undone with an error message if the server refuses it. A successful change does not refetch.
+- A top-level task and its subtasks can be copied to another space from Copy to in the ⋯ menu. The copy keeps its title and starts unfinished **(my call)**.
+- Tasks reorder by dragging the handle at the start of a row. Top-level tasks reorder among themselves, and subtasks within their parent **(my call)**.
+- Spaces and folders reorder by dragging the grip that replaces a row's icon on hover. Top-level rows reorder among themselves, and spaces within their folder. New spaces go last **(my call)**.
+- Pasting a multi-line list into New task's title, or choosing "Paste a list instead", opens a preview and creates the whole list at once on the chosen day. Indented lines become subtasks of the line above, and deeper levels flatten to one. Checked items arrive unfinished **(my call)**.
+- Clear table moves every top-level task showing in the List table, with all its subtasks, to Trash after a confirmation. Tasks hidden by filters or Show closed stay **(my call)**.
+- Right-clicking a row offers Edit, Duplicate and Delete. Subtasks offer Edit and Delete **(my call)**.
+- Left out for now: the lock icon, "Browse all projects", and renaming or moving spaces **(my call)**.
 
 ## Accounts and email
 

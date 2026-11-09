@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { AppSkeletonComponent } from '@/shared/components/AppSkeletonComponent';
 import { authClient } from '@/shared/services/auth-client';
 
 export function HomeRedirectComponent() {
@@ -12,5 +13,5 @@ export function HomeRedirectComponent() {
     if (!isPending) router.replace(session ? '/list' : '/sign-in');
   }, [isPending, session, router]);
 
-  return null;
+  return <AppSkeletonComponent />;
 }

@@ -8,6 +8,34 @@
       "when": 1794171889655,
       "tag": "0000_light_purifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794177068679,
+      "tag": "0001_spaces",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794178142894,
+      "tag": "0002_task_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794180448632,
+      "tag": "0003_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794238249594,
+      "tag": "0004_space_position",
+      "breakpoints": true
     }
   ]
 }

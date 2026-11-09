@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type ClipboardEvent, type FormEvent, useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
@@ -14,6 +14,9 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { useTaskMutations } from '../hooks/useTaskMutations';
+import { isTaskList } from './parse-task-list';
+import { PasteTasksFormComponent } from './PasteTasksFormComponent';
+import { StatusIconComponent } from './StatusIconComponent';
 import { STATUS_LABELS, STATUSES, type Task, type TaskStatus } from './task-types';
 
 export type TaskFormMode = 'new' | 'edit' | 'move' | 'subtask';
@@ -33,7 +36,9 @@ const DIALOG_TITLES: Record<TaskFormMode, string> = {
   subtask: 'Add subtask',
 };
 
-function TaskForm({ mode, task, defaultDay, onOpenChange }: Omit<TaskFormDialogProps, 'open'>) {
+type TaskFormProps = Omit<TaskFormDialogProps, 'open'> & { onPasteList: (text: string) => void };
+
+function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFormProps) {
   const mutations = useTaskMutations();
   const isEdit = mode === 'edit';
   const [title, setTitle] = useState(isEdit && task ? task.title : '');
@@ -58,6 +63,13 @@ function TaskForm({ mode, task, defaultDay, onOpenChange }: Omit<TaskFormDialogP
     });
   }
 
+  function handleTitlePaste(event: ClipboardEvent) {
+    const text = event.clipboardData.getData('text/plain');
+    if (mode !== 'new' || !isTaskList(text)) return;
+    event.preventDefault();
+    onPasteList(text);
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -79,7 +91,18 @@ function TaskForm({ mode, task, defaultDay, onOpenChange }: Omit<TaskFormDialogP
             maxLength={200}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
+            onPaste={handleTitlePaste}
           />
+          {mode === 'new' && (
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto self-start p-0 text-xs text-muted-foreground"
+              onClick={() => onPasteList('')}
+            >
+              Paste a list instead
+            </Button>
+          )}
         </div>
       )}
       {hasDay && (
@@ -104,6 +127,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange }: Omit<TaskFormDialogP
               <SelectContent>
                 {STATUSES.map((item) => (
                   <SelectItem key={item} value={item}>
+                    <StatusIconComponent status={item} />
                     {STATUS_LABELS[item]}
                   </SelectItem>
                 ))}
@@ -128,13 +152,28 @@ function TaskForm({ mode, task, defaultDay, onOpenChange }: Omit<TaskFormDialogP
 }
 
 export function TaskFormDialogComponent({ open, onOpenChange, ...formProps }: TaskFormDialogProps) {
+  const [pastedText, setPastedText] = useState<string>();
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setPastedText(undefined);
+    onOpenChange(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{DIALOG_TITLES[formProps.mode]}</DialogTitle>
+          <DialogTitle>{pastedText === undefined ? DIALOG_TITLES[formProps.mode] : 'Paste tasks'}</DialogTitle>
         </DialogHeader>
-        <TaskForm {...formProps} onOpenChange={onOpenChange} />
+        {pastedText === undefined ? (
+          <TaskForm {...formProps} onOpenChange={handleOpenChange} onPasteList={setPastedText} />
+        ) : (
+          <PasteTasksFormComponent
+            defaultDay={formProps.defaultDay}
+            initialText={pastedText}
+            onDone={() => handleOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,22 +1,16 @@
 'use client';
 
 import { MoreHorizontal } from 'lucide-react';
-import { useState } from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { useActiveSpace, useSpaces } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
 import { useTaskMutations } from '../hooks/useTaskMutations';
@@ -26,47 +20,52 @@ import type { Task } from './task-types';
 type TaskRowMenuProps = {
   task: Task;
   onOpenForm: (mode: TaskFormMode) => void;
+  onDelete: () => void;
 };
 
-export function TaskRowMenuComponent({ task, onOpenForm }: TaskRowMenuProps) {
-  const { remove } = useTaskMutations();
-  const [confirming, setConfirming] = useState(false);
+export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenuProps) {
+  const { copy } = useTaskMutations();
+  const { data: spaces = [] } = useSpaces();
+  const activeId = useActiveSpace()?.id;
   const isTopLevel = task.parentId === null;
+  const otherSpaces = spaces.filter((space) => space.kind === 'space' && space.id !== activeId);
 
   return (
-    <>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Actions for ${task.title}`}>
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onOpenForm('edit')}>Edit</DropdownMenuItem>
-          {isTopLevel && (
-            <DropdownMenuItem onSelect={() => onOpenForm('subtask')}>Add subtask</DropdownMenuItem>
-          )}
-          {isTopLevel && !task.finished && (
-            <DropdownMenuItem onSelect={() => onOpenForm('move')}>Move to another day</DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={() => setConfirming(true)}>Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{task.title}"{task.subtasks.length > 0 ? ' and its subtasks' : ''} will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => remove.mutate(task.id)}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`Actions for ${task.title}`}>
+          <MoreHorizontal aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onOpenForm('edit')}>Edit</DropdownMenuItem>
+        {isTopLevel && <DropdownMenuItem onSelect={() => onOpenForm('subtask')}>Add subtask</DropdownMenuItem>}
+        {isTopLevel && !task.finished && (
+          <DropdownMenuItem onSelect={() => onOpenForm('move')}>Move to another day</DropdownMenuItem>
+        )}
+        {isTopLevel && <DropdownMenuItem onSelect={() => copy.mutate({ id: task.id })}>Duplicate</DropdownMenuItem>}
+        {isTopLevel && otherSpaces.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Copy to</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {otherSpaces.map((space) => (
+                <DropdownMenuItem
+                  key={space.id}
+                  onSelect={() =>
+                    copy.mutate(
+                      { id: task.id, targetSpaceId: space.id },
+                      { onSuccess: () => toast.success(`Copied to ${space.title}`) },
+                    )
+                  }
+                >
+                  {space.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
+        <DropdownMenuItem onSelect={onDelete}>Delete</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

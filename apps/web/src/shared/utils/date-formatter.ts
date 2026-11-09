@@ -22,7 +22,12 @@ export function formatDayHeading(day: string): string {
   return `${weekday}, ${date.getDate()} ${month}`;
 }
 
+const shortDate = (date: Date) => `${date.getDate()} ${date.toLocaleDateString('en-GB', { month: 'short' })}`;
+
 export function formatShortDate(iso: string): string {
-  const date = new Date(iso);
-  return `${date.getDate()} ${date.toLocaleDateString('en-GB', { month: 'short' })}`;
+  return shortDate(new Date(iso));
+}
+
+export function formatShortDay(day: string): string {
+  return shortDate(parseDay(day));
 }
