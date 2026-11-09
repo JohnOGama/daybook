@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces as dbSpaces, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { SpacesService } from '../../spaces/src/spaces-service.ts';
+import { TrashService } from '../../trash/src/trash-service.ts';
 import { TasksService } from './tasks-service.ts';
 
 const today = '2026-11-09';
@@ -131,10 +133,12 @@ describe('finishing, subtasks and deletion', () => {
     expect((await read(p)).completedOn).toBeNull();
   });
 
-  it('refuses a subtask under a subtask', async () => {
+  it('allows a subtask under a subtask', async () => {
     const p = await addParent();
     const a = await addSub(p);
-    await expect(svc.createSubtask('u1', a, { title: 'x' })).rejects.toThrow(BadRequestException);
+    const id = '6f1c1e5e-3a3e-4a39-9d6f-0a1d8f6b2c11';
+    await svc.createSubtask('u1', a, { id, title: 'x' });
+    expect((await read(id)).parentId).toBe(a);
   });
 
   it("refuses a subtask under another user's task", async () => {
@@ -261,8 +265,85 @@ describe('finishing, subtasks and deletion', () => {
     });
   });
 
+  describe('deep nesting', () => {
+    const chain = async () => {
+      const root = await addParent();
+      const middle = await addSub(root);
+      const leaf = await addSub(middle);
+      return { root, middle, leaf };
+    };
+    const done = async (id: string) => (await read(id)).completedOn !== null;
+
+    it('finishing the last leaf finishes every parent above it', async () => {
+      const { root, middle, leaf } = await chain();
+      await svc.setFinished('u1', leaf, true, today);
+      expect([await done(leaf), await done(middle), await done(root)]).toEqual([true, true, true]);
+    });
+
+    it('stops going up at a parent with other open work', async () => {
+      const { root, middle, leaf } = await chain();
+      await addSub(root);
+      await svc.setFinished('u1', leaf, true, today);
+      expect([await done(middle), await done(root)]).toEqual([true, false]);
+    });
+
+    it('finishing a task finishes everything under it', async () => {
+      const { root, middle, leaf } = await chain();
+      await svc.setFinished('u1', root, true, today);
+      expect([await done(middle), await done(leaf)]).toEqual([true, true]);
+    });
+
+    it('reopening a leaf reopens every parent but not its siblings', async () => {
+      const { root, middle, leaf } = await chain();
+      const sibling = await addSub(middle);
+      await svc.setFinished('u1', root, true, today);
+      await svc.setFinished('u1', leaf, false, today);
+      expect([await done(leaf), await done(middle), await done(root), await done(sibling)]).toEqual([false, false, false, true]);
+    });
+
+    it('adding a subtask deep inside a finished task reopens the whole chain', async () => {
+      const { root, middle, leaf } = await chain();
+      await svc.setFinished('u1', root, true, today);
+      await svc.createSubtask('u1', leaf, { title: 'new' });
+      expect([await done(leaf), await done(middle), await done(root)]).toEqual([false, false, false]);
+    });
+
+    it('deleting the last open leaf finishes the parents above it', async () => {
+      const { root, middle, leaf } = await chain();
+      const finishedLeaf = await addSub(middle, today);
+      await svc.remove('u1', leaf, today);
+      expect([await done(finishedLeaf), await done(middle), await done(root)]).toEqual([true, true, true]);
+    });
+
+    it('copies the whole tree with the structure intact', async () => {
+      const { root } = await chain();
+      await svc.copy('u1', root, today);
+      const listed = await svc.list('u1', spaces.u1, { from: today, to: today, today });
+      expect(listed).toHaveLength(2);
+      expect(listed[1].subtasks[0].subtasks).toHaveLength(1);
+      expect(listed[1].subtasks[0].subtasks[0].id).not.toBe(listed[0].subtasks[0].subtasks[0].id);
+    });
+
+    it('restoring a deep task brings back its deleted parents and reopens them', async () => {
+      const { root, middle, leaf } = await chain();
+      await svc.remove('u1', leaf, today);
+      await svc.setFinished('u1', middle, true, today);
+      await svc.remove('u1', middle, today);
+      await new TrashService(db).restoreTask('u1', leaf);
+      expect((await read(middle)).deletedAt).toBeNull();
+      expect([await done(middle), await done(root)]).toEqual([false, false]);
+    });
+
+    it('counts a deep open task in its space today', async () => {
+      const { leaf } = await chain();
+      expect(leaf).toBeTruthy();
+      const [space] = (await new SpacesService(db).list('u1', today)).filter((row) => row.id === spaces.u1);
+      expect(space.openToday).toBe(3);
+    });
+  });
+
   describe('createManySubtasks', () => {
-    const items = (...titles: string[]) => titles.map((title) => ({ id: crypto.randomUUID(), title }));
+    const items = (...titles: string[]) => titles.map((title) => ({ id: crypto.randomUUID(), title, subtasks: [] }));
     const subtaskTitles = async (parentId: string) => {
       const listed = await svc.list('u1', spaces.u1, { from: today, to: today, today });
       return listed.find((task) => task.id === parentId)?.subtasks.map((subtask) => subtask.title);
@@ -282,10 +363,15 @@ describe('finishing, subtasks and deletion', () => {
       expect((await read(p)).completedOn).toBeNull();
     });
 
-    it('refuses to nest under a subtask', async () => {
+    it('adds nested subtasks under a subtask', async () => {
       const p = await addParent();
       const sub = await addSub(p);
-      await expect(svc.createManySubtasks('u1', sub, items('x'))).rejects.toThrow(BadRequestException);
+      const [item] = items('child');
+      await svc.createManySubtasks('u1', sub, [{ ...item, subtasks: items('grandchild') }]);
+      const [listed] = await svc.list('u1', spaces.u1, { from: today, to: today, today });
+      expect(listed.subtasks[0].subtasks[0].title).toBe('child');
+      expect(listed.subtasks[0].subtasks[0].subtasks[0].title).toBe('grandchild');
+      expect(listed.subtasks[0].subtasks[0].subtasks[0].day).toBe(today);
     });
 
     it("refuses another user's task", async () => {

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { describeTaskList, isTaskList, parseSubtaskList, parseTaskList } from './parse-task-list';
+import { describeTaskList, isTaskList, parseTaskList } from './parse-task-list';
 
 const sample = `- [ ]  site admin pref → Default order
 - [ ]  Add legacy path
@@ -14,10 +14,13 @@ it('turns a checklist into tasks with subtasks, in order', () => {
   expect(parseTaskList(sample)).toEqual([
     { title: 'site admin pref → Default order', subtasks: [] },
     { title: 'Add legacy path', subtasks: [] },
-    { title: 'If Site SSO', subtasks: ['Enable SSO config in payload'] },
+    { title: 'If Site SSO', subtasks: [{ title: 'Enable SSO config in payload', subtasks: [] }] },
     {
       title: 'If has auto approval feature',
-      subtasks: ['Set the correct email', 'Check the config with previous store'],
+      subtasks: [
+        { title: 'Set the correct email', subtasks: [] },
+        { title: 'Check the config with previous store', subtasks: [] },
+      ],
     },
     { title: 'Enable reCAPTCHA', subtasks: [] },
   ]);
@@ -32,10 +35,16 @@ it.each([
   expect(parseTaskList(text).map((task) => task.title)).toEqual(['One', 'Two', 'Three']);
 });
 
-it('counts tabs as indentation and flattens deeper levels to one', () => {
-  expect(parseTaskList('A\n\tB\n\t\tC\nD')).toEqual([
-    { title: 'A', subtasks: ['B', 'C'] },
+it('counts tabs as indentation and keeps every level of nesting', () => {
+  expect(parseTaskList('A\n\tB\n\t\tC\n\t\t\tE\nD')).toEqual([
+    { title: 'A', subtasks: [{ title: 'B', subtasks: [{ title: 'C', subtasks: [{ title: 'E', subtasks: [] }] }] }] },
     { title: 'D', subtasks: [] },
+  ]);
+});
+
+it('puts a half-way dedent under the nearest shallower line', () => {
+  expect(parseTaskList('A\n    B\n  C')).toEqual([
+    { title: 'A', subtasks: [{ title: 'B', subtasks: [] }, { title: 'C', subtasks: [] }] },
   ]);
 });
 
@@ -60,21 +69,8 @@ it('only treats more than one item as a list', () => {
   expect(isTaskList('One\n  Under it')).toBe(true);
 });
 
-it('flattens every line into one level for subtasks, in order', () => {
-  expect(parseSubtaskList(sample).map((item) => item.title)).toEqual([
-    'site admin pref → Default order',
-    'Add legacy path',
-    'If Site SSO',
-    'Enable SSO config in payload',
-    'If has auto approval feature',
-    'Set the correct email',
-    'Check the config with previous store',
-    'Enable reCAPTCHA',
-  ]);
-  expect(parseSubtaskList(sample).every((item) => item.subtasks.length === 0)).toBe(true);
-});
-
 it('describes the counts', () => {
   expect(describeTaskList([{ subtasks: [] }])).toBe('1 task');
-  expect(describeTaskList([{ subtasks: [1] }, { subtasks: [1, 2] }])).toBe('2 tasks and 3 subtasks');
+  const leaf = { subtasks: [] };
+  expect(describeTaskList([{ subtasks: [leaf] }, { subtasks: [{ subtasks: [leaf] }] }])).toBe('2 tasks and 3 subtasks');
 });

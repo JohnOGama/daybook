@@ -71,8 +71,8 @@ it('hides Copy to when there is no other space', async () => {
   expect(await openMenu(baseTask)).toEqual(['Edit', 'Add subtask', 'Move to another day', 'Duplicate', 'Delete']);
 });
 
-it('subtask offers only Edit and Delete', async () => {
-  expect(await openMenu({ ...baseTask, parentId: 'p1' })).toEqual(['Edit', 'Delete']);
+it('subtask offers Edit, Add subtask and Delete', async () => {
+  expect(await openMenu({ ...baseTask, parentId: 'p1' })).toEqual(['Edit', 'Add subtask', 'Delete']);
 });
 
 it('finished task does not offer Move to another day', async () => {

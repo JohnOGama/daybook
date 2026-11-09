@@ -1,6 +1,6 @@
 import type { Task } from './task-types';
 
-const flatten = (tasks: Task[]) => tasks.flatMap((task) => [task, ...task.subtasks]);
+const flatten = (tasks: Task[]): Task[] => tasks.flatMap((task) => [task, ...flatten(task.subtasks)]);
 
 export function daySummary(tasks: Task[]) {
   const all = flatten(tasks);

@@ -5,12 +5,16 @@ import { toast } from 'sonner';
 import { type Space, useActiveSpace } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
 import { sidebarCounts } from '../src/day-summary';
-import { countOf, describeTaskList, type PastedTask } from '../src/parse-task-list';
+import { countOf, describeTaskList, type PastedTask, totalInList } from '../src/parse-task-list';
 import {
+  allInTree,
   buildCopy,
   buildSubtask,
+  buildSubtaskTree,
   buildTask,
   findFamily,
+  findTask,
+  type NewPastedTask,
   upsertTask,
   withDay,
   withFields,
@@ -37,6 +41,9 @@ import {
 
 type Snapshot = [QueryKey, unknown][];
 type CopyVariables = { id: string; targetSpaceId?: string; newIds?: Record<string, string> };
+
+const withNewIds = (list: PastedTask[]): NewPastedTask[] =>
+  list.map(({ title, subtasks }) => ({ id: crypto.randomUUID(), title, subtasks: withNewIds(subtasks) }));
 
 export function useTaskMutations() {
   const queryClient = useQueryClient();
@@ -112,13 +119,9 @@ export function useTaskMutations() {
 
   const addMany = useMutation({
     ...optimistic(createTasks, ({ spaceId: targetSpaceId, day, tasks }) => {
-      const fields = { status: 'todo', highPriority: false } as const;
       for (const { subtasks, ...task } of tasks) {
-        const parent = buildTask({ ...task, ...fields, day }, today);
-        writeFamily(
-          { ...parent, subtasks: subtasks.map((subtask) => buildSubtask({ ...subtask, ...fields }, parent)) },
-          targetSpaceId,
-        );
+        const parent = buildTask({ ...task, status: 'todo', highPriority: false, day }, today);
+        writeFamily({ ...parent, subtasks: buildSubtaskTree(subtasks, parent) }, targetSpaceId);
       }
     }),
     onSuccess: (_result, { tasks }) => toast.success(`Created ${describeTaskList(tasks)}`),
@@ -126,22 +129,21 @@ export function useTaskMutations() {
 
   const addSubtask = useMutation({
     ...optimistic(createSubtask, ({ parentId, input }) => {
-      changeFamily(parentId, (family) => withSubtask(family, buildSubtask(input, family), today));
+      changeFamily(parentId, (family) => withSubtask(family, buildSubtask(input, findTask(family, parentId) as Task), today));
     }),
     onSuccess: (_result, { input }) => toast.success(`Created "${input.title}"`),
   });
 
   const addSubtasks = useMutation({
     ...optimistic(createSubtasks, ({ parentId, subtasks }) => {
-      const fields = { status: 'todo', highPriority: false } as const;
       changeFamily(parentId, (family) =>
-        subtasks.reduce<Task>(
-          (next, subtask) => withSubtask(next, buildSubtask({ ...subtask, ...fields }, next), today),
+        buildSubtaskTree(subtasks, findTask(family, parentId) as Task).reduce<Task>(
+          (next, subtask) => withSubtask(next, subtask, today),
           family,
         ),
       );
     }),
-    onSuccess: (_result, { subtasks }) => toast.success(`Created ${countOf(subtasks.length, 'subtask')}`),
+    onSuccess: (_result, { subtasks }) => toast.success(`Created ${countOf(totalInList(subtasks), 'subtask')}`),
   });
 
   const update = useMutation(
@@ -216,11 +218,7 @@ export function useTaskMutations() {
         addMany.mutateAsync({
           spaceId,
           day,
-          tasks: list.map(({ title, subtasks }) => ({
-            id: crypto.randomUUID(),
-            title,
-            subtasks: subtasks.map((subtask) => ({ id: crypto.randomUUID(), title: subtask })),
-          })),
+          tasks: withNewIds(list),
         }),
     },
     createSubtask: {
@@ -228,11 +226,8 @@ export function useTaskMutations() {
         addSubtask.mutateAsync({ parentId, input: { ...input, id: crypto.randomUUID() } }),
     },
     createManySubtasks: {
-      mutateAsync: ({ parentId, titles }: { parentId: string; titles: string[] }) =>
-        addSubtasks.mutateAsync({
-          parentId,
-          subtasks: titles.map((title) => ({ id: crypto.randomUUID(), title })),
-        }),
+      mutateAsync: ({ parentId, list }: { parentId: string; list: PastedTask[] }) =>
+        addSubtasks.mutateAsync({ parentId, subtasks: withNewIds(list) }),
     },
     update,
     setFinished,
@@ -240,7 +235,7 @@ export function useTaskMutations() {
       mutate: (variables: CopyVariables, options?: { onSuccess?: () => void }) => {
         const family = familyOf(variables.id);
         const newIds =
-          family && Object.fromEntries([family, ...family.subtasks].map((task) => [task.id, crypto.randomUUID()]));
+          family && Object.fromEntries(allInTree(family).map((task) => [task.id, crypto.randomUUID()]));
         copy.mutate({ ...variables, newIds }, options);
       },
     },

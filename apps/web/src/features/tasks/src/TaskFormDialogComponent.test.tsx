@@ -50,21 +50,27 @@ it('pasting a list into the title previews it and creates it all at once', async
   expect(createMany).toHaveBeenCalledWith({
     day: '2026-11-20',
     list: [
-      { title: 'One', subtasks: ['Under one'] },
+      { title: 'One', subtasks: [{ title: 'Under one', subtasks: [] }] },
       { title: 'Two', subtasks: [] },
     ],
   });
   expect(onOpenChange).toHaveBeenCalledWith(false);
 });
 
-it('pasting a list into Add subtask creates them all under that task, one level deep', async () => {
+it('pasting a list into Add subtask keeps its nesting', async () => {
   render(<TaskFormDialogComponent mode="subtask" task={task} defaultDay="2026-11-20" open onOpenChange={onOpenChange} />);
   await userEvent.click(screen.getByLabelText('Title'));
   await userEvent.paste('- [ ] One\n    - [ ] Under one\n- [ ] Two');
   expect(screen.getByRole('heading', { name: 'Paste subtasks' })).toBeInTheDocument();
   expect(screen.queryByLabelText('Day')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Create 3 subtasks' }));
-  expect(createManySubtasks).toHaveBeenCalledWith({ parentId: 't1', titles: ['One', 'Under one', 'Two'] });
+  expect(createManySubtasks).toHaveBeenCalledWith({
+    parentId: 't1',
+    list: [
+      { title: 'One', subtasks: [{ title: 'Under one', subtasks: [] }] },
+      { title: 'Two', subtasks: [] },
+    ],
+  });
   expect(createMany).not.toHaveBeenCalled();
   expect(onOpenChange).toHaveBeenCalledWith(false);
 });

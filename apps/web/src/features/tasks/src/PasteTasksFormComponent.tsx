@@ -6,19 +6,26 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useTaskMutations } from '../hooks/useTaskMutations';
-import { countOf, describeTaskList, parseSubtaskList, parseTaskList } from './parse-task-list';
+import { countOf, describeTaskList, type PastedTask, parseTaskList, totalInList } from './parse-task-list';
 import { StatusIconComponent } from './StatusIconComponent';
 import type { Task } from './task-types';
 
 type PasteTasksFormProps = { defaultDay: string; initialText: string; parent?: Task; onDone: () => void };
 
-function PreviewRow({ title }: { title: string }) {
-  return (
-    <span className="flex items-start gap-2 py-0.5">
-      <StatusIconComponent status="todo" />
-      <span className="min-w-0 break-words">{title}</span>
-    </span>
-  );
+function PreviewRows({ items }: { items: PastedTask[] }) {
+  return items.map((item, index) => (
+    <li key={index}>
+      <span className="flex items-start gap-2 py-0.5">
+        <StatusIconComponent status="todo" />
+        <span className="min-w-0 break-words">{item.title}</span>
+      </span>
+      {item.subtasks.length > 0 && (
+        <ul className="pl-5 text-muted-foreground">
+          <PreviewRows items={item.subtasks} />
+        </ul>
+      )}
+    </li>
+  ));
 }
 
 export function PasteTasksFormComponent({ defaultDay, initialText, parent, onDone }: PasteTasksFormProps) {
@@ -26,14 +33,14 @@ export function PasteTasksFormComponent({ defaultDay, initialText, parent, onDon
   const [text, setText] = useState(initialText);
   const [day, setDay] = useState(defaultDay);
   const [saving, setSaving] = useState(false);
-  const list = parent ? parseSubtaskList(text) : parseTaskList(text);
-  const summary = parent ? countOf(list.length, 'subtask') : describeTaskList(list);
+  const list = parseTaskList(text);
+  const summary = parent ? countOf(totalInList(list), 'subtask') : describeTaskList(list);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     try {
-      if (parent) await createManySubtasks.mutateAsync({ parentId: parent.id, titles: list.map(({ title }) => title) });
+      if (parent) await createManySubtasks.mutateAsync({ parentId: parent.id, list });
       else await createMany.mutateAsync({ day, list });
       onDone();
     } catch {
@@ -48,7 +55,7 @@ export function PasteTasksFormComponent({ defaultDay, initialText, parent, onDon
         <Textarea
           id="task-list"
           autoFocus
-          placeholder={parent ? '- [ ] A subtask\n- [ ] Another subtask' : '- [ ] A task\n    - [ ] A subtask under it'}
+          placeholder={parent ? '- [ ] A subtask\n    - [ ] One under it' : '- [ ] A task\n    - [ ] A subtask under it'}
           value={text}
           onChange={(event) => setText(event.target.value)}
           className="max-h-32 min-h-24 overflow-y-auto font-mono md:text-xs"
@@ -62,20 +69,7 @@ export function PasteTasksFormComponent({ defaultDay, initialText, parent, onDon
       )}
       {list.length > 0 && (
         <ul aria-label="Preview" className="max-h-48 overflow-y-auto rounded-md border p-2 text-sm">
-          {list.map((task, index) => (
-            <li key={index}>
-              <PreviewRow title={task.title} />
-              {task.subtasks.length > 0 && (
-                <ul className="pl-6 text-muted-foreground">
-                  {task.subtasks.map((subtask, subtaskIndex) => (
-                    <li key={subtaskIndex}>
-                      <PreviewRow title={subtask} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+          <PreviewRows items={list} />
         </ul>
       )}
       <Button type="submit" disabled={list.length === 0 || (!parent && day === '') || saving}>

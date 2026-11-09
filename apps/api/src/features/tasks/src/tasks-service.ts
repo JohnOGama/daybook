@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { and, asc, between, eq, inArray, isNotNull, isNull, lte, or, type SQL } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { spaces, tasks, type TaskStatus } from '../../../shared/db/schema.ts';
@@ -35,6 +36,18 @@ function toDto(row: TaskRow, day: string, subtasks: TaskDto[] = []): TaskDto {
     createdAt: row.createdAt.toISOString(),
     subtasks,
   };
+}
+
+type PastedTask = { id: string; title: string; subtasks: PastedTask[] };
+
+const MAX_PASTED_TASKS = 2000;
+
+function flattenPasted(list: PastedTask[], parentId: string | null): { id: string; title: string; parentId: string | null }[] {
+  return list.flatMap(({ id, title, subtasks }) => [{ id, title, parentId }, ...flattenPasted(subtasks, id)]);
+}
+
+function assertPasteSize(rows: unknown[]): void {
+  if (rows.length > MAX_PASTED_TASKS) throw new BadRequestException('That list is too long to add at once');
 }
 
 function unfinishedFields(row: TaskRow): Pick<TaskRow, 'spaceId' | 'status' | 'highPriority'> {
@@ -80,28 +93,21 @@ export class TasksService {
       .filter(({ day }) => day >= from && day <= to);
     if (placed.length === 0) return [];
 
-    const children = await this.db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.userId, userId),
-          isNull(tasks.deletedAt),
-          inArray(
-            tasks.parentId,
-            placed.map(({ row }) => row.id),
-          ),
-        ),
-      )
-      .orderBy(asc(tasks.position), asc(tasks.createdAt), asc(tasks.id));
-
-    return placed.map(({ row, day }) =>
+    const descendants = await this.descendantsOf(
+      this.db,
+      userId,
+      placed.map(({ row }) => row.id),
+    );
+    const childrenOf = new Map<string | null, TaskRow[]>();
+    for (const child of descendants) childrenOf.set(child.parentId, [...(childrenOf.get(child.parentId) ?? []), child]);
+    const withChildren = (row: TaskRow, day: string): TaskDto =>
       toDto(
         row,
         day,
-        children.filter((child) => child.parentId === row.id).map((child) => toDto(child, day)),
-      ),
-    );
+        (childrenOf.get(row.id) ?? []).map((child) => withChildren(child, day)),
+      );
+
+    return placed.map(({ row, day }) => withChildren(row, day));
   }
 
   async create(
@@ -118,28 +124,25 @@ export class TasksService {
     input: {
       spaceId: string;
       day: string;
-      tasks: { id: string; title: string; subtasks: { id: string; title: string }[] }[];
+      tasks: PastedTask[];
     },
   ): Promise<void> {
     const { spaceId, day, tasks: pasted } = input;
+    const rows = flattenPasted(pasted, null);
+    assertPasteSize(rows);
     const now = Date.now();
     await this.db.transaction(async (tx) => {
       await this.assertTaskSpace(tx, userId, spaceId);
       await tx.insert(tasks).values(
-        pasted.map(({ id, title }, index) => ({
-          id,
-          title,
+        rows.map((row, index) => ({
+          ...row,
           userId,
           spaceId,
-          plannedDay: day,
+          plannedDay: row.parentId === null ? day : null,
           // Unpositioned tasks sort by createdAt, and one insert would otherwise give them all the same time.
           createdAt: new Date(now + index),
         })),
       );
-      const subtasks = pasted.flatMap(({ id: parentId, subtasks: children }) =>
-        children.map(({ id, title }, position) => ({ id, title, userId, spaceId, parentId, position })),
-      );
-      if (subtasks.length > 0) await tx.insert(tasks).values(subtasks);
     });
   }
 
@@ -167,14 +170,13 @@ export class TasksService {
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const task = await this.lockFamily(tx, userId, id);
-      if (task.parentId === null) {
-        const family = or(eq(tasks.id, id), and(eq(tasks.parentId, id), isNull(tasks.deletedAt))) as SQL;
-        await (finished ? this.finish(tx, family, today) : this.reopen(tx, family));
-      } else if (finished) {
-        await this.finish(tx, eq(tasks.id, id), today);
-        await this.finishParentIfAllDone(tx, task.parentId, today);
+      const descendants = await this.descendantsOf(tx, userId, [id]);
+      const subtree = [id, ...descendants.map((row) => row.id)];
+      if (finished) {
+        await this.finish(tx, inArray(tasks.id, subtree), today);
+        await this.finishAncestorsIfAllDone(tx, task.parentId, today);
       } else {
-        await this.reopen(tx, or(eq(tasks.id, id), eq(tasks.id, task.parentId)) as SQL);
+        await this.reopen(tx, inArray(tasks.id, [...subtree, ...(await this.ancestorIds(tx, task))]));
       }
       if (!finished && reopenAs) await tx.update(tasks).set({ status: reopenAs }).where(eq(tasks.id, id));
     });
@@ -187,36 +189,30 @@ export class TasksService {
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const parent = await this.lockFamily(tx, userId, parentId);
-      if (parent.parentId !== null) {
-        throw new BadRequestException('A subtask cannot have subtasks');
-      }
       await tx.insert(tasks).values({ ...input, userId, parentId, spaceId: parent.spaceId });
-      await this.reopen(tx, eq(tasks.id, parentId));
+      await this.reopen(tx, inArray(tasks.id, [parentId, ...(await this.ancestorIds(tx, parent))]));
     });
   }
 
   async createManySubtasks(
     userId: string,
     parentId: string,
-    subtasks: { id: string; title: string }[],
+    subtasks: PastedTask[],
   ): Promise<void> {
+    const rows = flattenPasted(subtasks, parentId);
+    assertPasteSize(rows);
     const now = Date.now();
     await this.db.transaction(async (tx) => {
       const parent = await this.lockFamily(tx, userId, parentId);
-      if (parent.parentId !== null) {
-        throw new BadRequestException('A subtask cannot have subtasks');
-      }
       await tx.insert(tasks).values(
-        subtasks.map(({ id, title }, index) => ({
-          id,
-          title,
+        rows.map((row, index) => ({
+          ...row,
           userId,
-          parentId,
           spaceId: parent.spaceId,
           createdAt: new Date(now + index),
         })),
       );
-      await this.reopen(tx, eq(tasks.id, parentId));
+      await this.reopen(tx, inArray(tasks.id, [parentId, ...(await this.ancestorIds(tx, parent))]));
     });
   }
 
@@ -252,11 +248,7 @@ export class TasksService {
       }
       const spaceId = targetSpaceId ?? original.spaceId;
       if (spaceId !== original.spaceId) await this.assertTaskSpace(tx, userId, spaceId);
-      const subtasks = await tx
-        .select()
-        .from(tasks)
-        .where(and(eq(tasks.parentId, id), isNull(tasks.deletedAt)))
-        .orderBy(asc(tasks.position), asc(tasks.createdAt), asc(tasks.id));
+      const subtasks = await this.descendantsOf(tx, userId, [id]);
 
       const [copy] = await tx
         .insert(tasks)
@@ -274,14 +266,15 @@ export class TasksService {
         .returning({ id: tasks.id });
 
       if (subtasks.length === 0) return;
+      const copiedIds = new Map([[id, copy.id], ...subtasks.map((subtask) => [subtask.id, newIds?.[subtask.id] ?? randomUUID()] as const)]);
       const start = Date.now();
       await tx.insert(tasks).values(
         subtasks.map((subtask, index) => ({
           ...unfinishedFields(subtask),
-          id: newIds?.[subtask.id],
+          id: copiedIds.get(subtask.id),
           spaceId,
           userId,
-          parentId: copy.id,
+          parentId: copiedIds.get(subtask.parentId as string),
           title: subtask.title,
           createdAt: new Date(start + index),
         })),
@@ -293,9 +286,7 @@ export class TasksService {
     await this.db.transaction(async (tx) => {
       const task = await this.lockFamily(tx, userId, id);
       await tx.update(tasks).set({ deletedAt: new Date() }).where(eq(tasks.id, id));
-      if (task.parentId !== null) {
-        await this.finishParentIfAllDone(tx, task.parentId, today);
-      }
+      await this.finishAncestorsIfAllDone(tx, task.parentId, today);
     });
   }
 
@@ -317,12 +308,35 @@ export class TasksService {
 
   private async lockFamily(tx: Db, userId: string, id: string): Promise<TaskRow> {
     const task = await this.findOwned(tx, userId, id);
-    await tx
-      .select({ id: tasks.id })
-      .from(tasks)
-      .where(eq(tasks.id, task.parentId ?? task.id))
-      .for('update');
+    const rootId = (await this.ancestorIds(tx, task)).at(-1) ?? task.id;
+    await tx.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, rootId)).for('update');
     return this.findOwned(tx, userId, id);
+  }
+
+  private async ancestorIds(db: Db, task: Pick<TaskRow, 'parentId'>): Promise<string[]> {
+    const ids: string[] = [];
+    let parentId = task.parentId;
+    while (parentId) {
+      ids.push(parentId);
+      const [parent] = await db.select({ parentId: tasks.parentId }).from(tasks).where(eq(tasks.id, parentId));
+      parentId = parent?.parentId ?? null;
+    }
+    return ids;
+  }
+
+  private async descendantsOf(db: Db, userId: string, parentIds: string[]): Promise<TaskRow[]> {
+    const descendants: TaskRow[] = [];
+    let level = parentIds;
+    while (level.length > 0) {
+      const children = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), isNull(tasks.deletedAt), inArray(tasks.parentId, level)))
+        .orderBy(asc(tasks.position), asc(tasks.createdAt), asc(tasks.id));
+      descendants.push(...children);
+      level = children.map((child) => child.id);
+    }
+    return descendants;
   }
 
   private async finish(tx: Db, scope: SQL, today: string): Promise<void> {
@@ -339,13 +353,17 @@ export class TasksService {
       .where(and(scope, isNotNull(tasks.completedOn)));
   }
 
-  private async finishParentIfAllDone(tx: Db, parentId: string, today: string): Promise<void> {
-    const subtasks = await tx
-      .select({ completedOn: tasks.completedOn })
-      .from(tasks)
-      .where(and(eq(tasks.parentId, parentId), isNull(tasks.deletedAt)));
-    if (subtasks.length > 0 && subtasks.every((subtask) => subtask.completedOn !== null)) {
+  private async finishAncestorsIfAllDone(tx: Db, startId: string | null, today: string): Promise<void> {
+    let parentId = startId;
+    while (parentId) {
+      const subtasks = await tx
+        .select({ completedOn: tasks.completedOn })
+        .from(tasks)
+        .where(and(eq(tasks.parentId, parentId), isNull(tasks.deletedAt)));
+      if (subtasks.length === 0 || subtasks.some((subtask) => subtask.completedOn === null)) return;
       await this.finish(tx, eq(tasks.id, parentId), today);
+      const [parent] = await tx.select({ parentId: tasks.parentId }).from(tasks).where(eq(tasks.id, parentId));
+      parentId = parent?.parentId ?? null;
     }
   }
 

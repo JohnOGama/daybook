@@ -1,4 +1,5 @@
 import { addDays, localDay } from '@/shared/utils/date-formatter';
+import { allInTree } from './task-cache';
 import type { Task } from './task-types';
 
 const VISIBLE_ENTRIES = 3;
@@ -19,7 +20,7 @@ export function monthGrid(month: string): string[] {
 }
 
 export function dayEntries(tasks: Task[]): { shown: Task[]; more: number } {
-  const entries = tasks.flatMap((task) => [task, ...task.subtasks]);
+  const entries = tasks.flatMap(allInTree);
   return {
     shown: entries.slice(0, VISIBLE_ENTRIES),
     more: Math.max(0, entries.length - VISIBLE_ENTRIES),

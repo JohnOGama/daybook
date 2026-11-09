@@ -99,14 +99,21 @@ export class TrashService {
 
       await tx.update(tasks).set({ deletedAt: null }).where(eq(tasks.id, id));
       await this.restoreSpaceChain(tx, task.spaceId);
-      if (task.parentId === null) return;
 
-      await tx.update(tasks).set({ deletedAt: null }).where(eq(tasks.id, task.parentId));
-      if (task.completedOn === null) {
-        await tx
+      let parentId = task.parentId;
+      while (parentId) {
+        const [parent] = await tx
           .update(tasks)
-          .set({ completedOn: null, status: 'todo' })
-          .where(and(eq(tasks.id, task.parentId), isNotNull(tasks.completedOn)));
+          .set({ deletedAt: null })
+          .where(eq(tasks.id, parentId))
+          .returning({ parentId: tasks.parentId });
+        if (task.completedOn === null) {
+          await tx
+            .update(tasks)
+            .set({ completedOn: null, status: 'todo' })
+            .where(and(eq(tasks.id, parentId), isNotNull(tasks.completedOn)));
+        }
+        parentId = parent?.parentId ?? null;
       }
     });
   }

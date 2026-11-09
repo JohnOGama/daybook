@@ -1,3 +1,4 @@
+import type { NewPastedTask } from './task-cache';
 import type { Task, TaskStatus } from './task-types';
 
 export type TaskFields = { title: string; status: TaskStatus; highPriority: boolean };
@@ -27,11 +28,7 @@ export async function fetchTasks(range: {
 export const createTask = (input: NewTaskFields & { day: string; spaceId: string }) =>
   send('/api/tasks', 'POST', input);
 
-export type NewTaskList = {
-  spaceId: string;
-  day: string;
-  tasks: { id: string; title: string; subtasks: { id: string; title: string }[] }[];
-};
+export type NewTaskList = { spaceId: string; day: string; tasks: NewPastedTask[] };
 
 export const createTasks = (input: NewTaskList) => send('/api/tasks/bulk', 'POST', input);
 
@@ -43,7 +40,7 @@ export const createSubtasks = ({
   subtasks,
 }: {
   parentId: string;
-  subtasks: { id: string; title: string }[];
+  subtasks: NewPastedTask[];
 }) => send(`/api/tasks/${parentId}/subtasks/bulk`, 'POST', { subtasks });
 
 export const updateTask =({ id, input }: { id: string; input: TaskChanges }) =>

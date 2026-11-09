@@ -34,6 +34,59 @@ function task(id: string, fields: Partial<Task> = {}): Task {
 
 const sub = (id: string, fields: Partial<Task> = {}) => task(id, { parentId: 'p', plannedDay: null, ...fields });
 
+describe('deep nesting', () => {
+  const tree = (leaves: Task[] = [sub('leaf', { parentId: 'mid' })]) =>
+    task('p', { subtasks: [sub('mid', { subtasks: leaves })] });
+  const states = (root: Task) => [root.finished, root.subtasks[0].finished, root.subtasks[0].subtasks[0]?.finished];
+
+  it('finds a family from its deepest task', () => {
+    expect(findFamily([tree()], 'leaf')?.id).toBe('p');
+  });
+
+  it('finishing the last leaf finishes every parent', () => {
+    expect(states(withFinished(tree(), 'leaf', true, today))).toEqual([true, true, true]);
+  });
+
+  it('stops going up at a parent with other open work', () => {
+    const root = task('p', { subtasks: [tree().subtasks[0], sub('other')] });
+    expect(states(withFinished(root, 'leaf', true, today))).toEqual([false, true, true]);
+  });
+
+  it('finishing the root finishes everything under it', () => {
+    expect(states(withFinished(tree(), 'p', true, today))).toEqual([true, true, true]);
+  });
+
+  it('reopening a leaf reopens its parents and moves the family back to its day', () => {
+    const finished = withFinished(tree(), 'p', true, '2026-11-12');
+    const reopened = withFinished(finished, 'leaf', false, '2026-11-12');
+    expect(states(reopened)).toEqual([false, false, false]);
+    expect(reopened.subtasks[0].subtasks[0].day).toBe('2026-11-12');
+  });
+
+  it('adds a subtask at any depth and reopens the chain', () => {
+    const finished = withFinished(tree(), 'p', true, today);
+    const next = withSubtask(finished, sub('new', { parentId: 'leaf' }), today);
+    expect(states(next)).toEqual([false, false, false]);
+    expect(next.subtasks[0].subtasks[0].subtasks[0].id).toBe('new');
+  });
+
+  it('removing the last open leaf finishes the parents', () => {
+    const root = tree([sub('leaf', { parentId: 'mid' }), sub('done', { parentId: 'mid', finished: true })]);
+    const next = withoutSubtask(root, 'leaf', today);
+    expect([next.finished, next.subtasks[0].finished]).toEqual([true, true]);
+  });
+
+  it('renames at any depth', () => {
+    expect(withFields(tree(), 'leaf', { title: 'New' }).subtasks[0].subtasks[0].title).toBe('New');
+  });
+
+  it('copies the whole tree with new ids', () => {
+    const copy = buildCopy(tree(), { p: 'p2', mid: 'mid2', leaf: 'leaf2' }, true, today);
+    expect(copy.subtasks[0]).toMatchObject({ id: 'mid2', parentId: 'p2' });
+    expect(copy.subtasks[0].subtasks[0]).toMatchObject({ id: 'leaf2', parentId: 'mid2' });
+  });
+});
+
 describe('findFamily', () => {
   const list = [task('a'), task('p', { subtasks: [sub('s')] })];
 

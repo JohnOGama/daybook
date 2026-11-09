@@ -52,10 +52,15 @@ export class SpacesService {
         .where(and(eq(tasks.userId, userId), isNull(tasks.completedOn), isNull(tasks.deletedAt))),
     ]);
 
-    const plannedDays = new Map(openTasks.map((task) => [task.id, task.plannedDay]));
+    const openById = new Map(openTasks.map((task) => [task.id, task]));
+    const plannedDayOf = (task: (typeof openTasks)[number]): string | null | undefined => {
+      if (!task.parentId) return task.plannedDay;
+      const parent = openById.get(task.parentId);
+      return parent && plannedDayOf(parent);
+    };
     const counts = new Map<string, number>();
     for (const task of openTasks) {
-      const day = task.parentId ? plannedDays.get(task.parentId) : task.plannedDay;
+      const day = plannedDayOf(task);
       if (day && day <= today) counts.set(task.spaceId, (counts.get(task.spaceId) ?? 0) + 1);
     }
 
@@ -161,15 +166,19 @@ export class SpacesService {
         })),
       );
 
-      const subtasks = await tx
-        .select()
-        .from(tasks)
-        .where(and(inArray(tasks.parentId, [...copiedIds.keys()]), isNull(tasks.deletedAt)))
-        .orderBy(...inOrder);
-      if (subtasks.length > 0) {
+      let level = [...copiedIds.keys()];
+      while (level.length > 0) {
+        const subtasks = await tx
+          .select()
+          .from(tasks)
+          .where(and(inArray(tasks.parentId, level), isNull(tasks.deletedAt)))
+          .orderBy(...inOrder);
+        if (subtasks.length === 0) break;
+        for (const subtask of subtasks) copiedIds.set(subtask.id, randomUUID());
         await tx.insert(tasks).values(
           subtasks.map((subtask, position) => ({
             ...shared,
+            id: copiedIds.get(subtask.id),
             parentId: copiedIds.get(subtask.parentId as string),
             title: subtask.title,
             status: subtask.completedOn ? ('todo' as const) : subtask.status,
@@ -177,6 +186,7 @@ export class SpacesService {
             position,
           })),
         );
+        level = subtasks.map((subtask) => subtask.id);
       }
       return toDto(copy, 0);
     });

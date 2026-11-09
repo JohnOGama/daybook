@@ -58,7 +58,7 @@ describe('TasksService listing and editing', () => {
     const item = (title: string, subtasks: string[] = []) => ({
       id: crypto.randomUUID(),
       title,
-      subtasks: subtasks.map((subtask) => ({ id: crypto.randomUUID(), title: subtask })),
+      subtasks: subtasks.map((subtask) => ({ id: crypto.randomUUID(), title: subtask, subtasks: [] })),
     });
 
     it('creates tasks and subtasks in the pasted order, after what is already there', async () => {
@@ -83,7 +83,7 @@ describe('TasksService listing and editing', () => {
 
     it('saves nothing if any part of the list fails', async () => {
       const first = item('first');
-      const clash = { ...item('second'), subtasks: [{ id: first.id, title: 'same id as a task' }] };
+      const clash = { ...item('second'), subtasks: [{ id: first.id, title: 'same id as a task', subtasks: [] }] };
       await expect(
         svc.createMany('u1', { spaceId: spaces.u1, day: today, tasks: [first, clash] }),
       ).rejects.toThrow();

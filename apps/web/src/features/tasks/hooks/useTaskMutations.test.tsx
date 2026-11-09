@@ -131,7 +131,7 @@ describe('useTaskMutations', () => {
       void result.current.createMany.mutateAsync({
         day: today,
         list: [
-          { title: 'One', subtasks: ['Under one'] },
+          { title: 'One', subtasks: [{ title: 'Under one', subtasks: [] }] },
           { title: 'Two', subtasks: [] },
         ],
       });
@@ -165,14 +165,36 @@ describe('useTaskMutations', () => {
     api.createSubtasks.mockReturnValue(never());
     const result = setup();
     act(() => {
-      void result.current.createManySubtasks.mutateAsync({ parentId: 'a', titles: ['One', 'Two'] });
+      void result.current.createManySubtasks.mutateAsync({
+        parentId: 'a',
+        list: [
+          { title: 'One', subtasks: [{ title: 'Under one', subtasks: [] }] },
+          { title: 'Two', subtasks: [] },
+        ],
+      });
     });
     await waitFor(() => expect(cached()[0].subtasks.map((t) => t.title)).toEqual(['One', 'Two']));
-    expect(cached()[0].subtasks[0]).toMatchObject({ parentId: 'a', day: today, finished: false });
+    const [one] = cached()[0].subtasks;
+    expect(one).toMatchObject({ parentId: 'a', day: today, finished: false });
+    expect(one.subtasks[0]).toMatchObject({ title: 'Under one', parentId: one.id, day: today });
     expect(api.createSubtasks.mock.calls[0][0]).toMatchObject({
       parentId: 'a',
-      subtasks: cached()[0].subtasks.map(({ id, title }) => ({ id, title })),
+      subtasks: [{ id: one.id, subtasks: [{ id: one.subtasks[0].id }] }, { title: 'Two' }],
     });
+  });
+
+  it('adds a subtask under a subtask at once', async () => {
+    client.setQueryData(todayKey, [task('a', { subtasks: [task('child', { parentId: 'a', plannedDay: null })] })]);
+    api.createSubtask.mockReturnValue(never());
+    const result = setup();
+    act(() => {
+      void result.current.createSubtask.mutateAsync({
+        parentId: 'child',
+        input: { title: 'Deep', status: 'todo', highPriority: false },
+      });
+    });
+    await waitFor(() => expect(cached()[0].subtasks[0].subtasks[0]?.title).toBe('Deep'));
+    expect(cached()[0].subtasks[0].subtasks[0].parentId).toBe('child');
   });
 
   it('removes a task at once', async () => {

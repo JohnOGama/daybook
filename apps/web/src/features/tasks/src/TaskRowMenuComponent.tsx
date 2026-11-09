@@ -39,7 +39,7 @@ export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenu
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onOpenForm('edit')}>Edit</DropdownMenuItem>
-        {isTopLevel && <DropdownMenuItem onSelect={() => onOpenForm('subtask')}>Add subtask</DropdownMenuItem>}
+        <DropdownMenuItem onSelect={() => onOpenForm('subtask')}>Add subtask</DropdownMenuItem>
         {isTopLevel && !task.finished && (
           <DropdownMenuItem onSelect={() => onOpenForm('move')}>Move to another day</DropdownMenuItem>
         )}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { keepRowInTable, TaskTableComponent } from './TaskTableComponent';
 import type { Task } from './task-types';
@@ -54,6 +55,31 @@ it('counts subtasks only against their own siblings', () => {
   expect(handle('a')).toBeInTheDocument();
   expect(handle('a1')).not.toBeInTheDocument();
   expect(handle('b1')).toBeInTheDocument();
+});
+
+const deepTask = () =>
+  task('a', {
+    subtasks: [
+      task('b', {
+        parentId: 'a',
+        subtasks: [task('c', { parentId: 'b', subtasks: [task('d', { parentId: 'c' })] })],
+      }),
+    ],
+  });
+
+it('shows every level, each indented further than the last', () => {
+  renderTable([deepTask()]);
+  const finishBox = (title: string) => screen.getByRole('checkbox', { name: `Finish ${title}` });
+  const indent = (title: string) => (finishBox(title).parentElement as HTMLElement).style.paddingLeft;
+  expect(finishBox('d')).toBeInTheDocument();
+  expect([indent('b'), indent('c'), indent('d')]).toEqual(['0px', '20px', '40px']);
+});
+
+it('collapsing a middle level hides only what is under it', async () => {
+  renderTable([deepTask()]);
+  await userEvent.click(screen.getByRole('button', { name: 'Collapse c' }));
+  expect(screen.getByRole('checkbox', { name: 'Finish c' })).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: 'Finish d' })).not.toBeInTheDocument();
 });
 
 it('shows the completed date, or a dash when the task is open', () => {

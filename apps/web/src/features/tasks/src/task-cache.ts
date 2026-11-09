@@ -4,36 +4,51 @@ import type { Task, TaskStatus } from './task-types';
 type DayRange = { from: string; to: string };
 type TaskFieldChanges = Partial<Pick<Task, 'title' | 'status' | 'highPriority'>>;
 type NewTaskFields = { id: string; title: string; status: TaskStatus; highPriority: boolean };
+export type NewPastedTask = { id: string; title: string; subtasks: NewPastedTask[] };
 
 const notBefore = (day: string, today: string) => (day < today ? today : day);
 
-const withSubtaskDays = (task: Task): Task => ({
+const containsTask = (task: Task, id: string): boolean =>
+  task.id === id || task.subtasks.some((subtask) => containsTask(subtask, id));
+
+export const findTask = (task: Task, id: string): Task | undefined => {
+  if (task.id === id) return task;
+  for (const subtask of task.subtasks) {
+    const found = findTask(subtask, id);
+    if (found) return found;
+  }
+  return undefined;
+};
+
+export const allInTree = (task: Task): Task[] => [task, ...task.subtasks.flatMap(allInTree)];
+
+const withTreeDay = (task: Task, day: string): Task => ({
   ...task,
-  subtasks: task.subtasks.map((subtask) => ({ ...subtask, day: task.day })),
+  day,
+  subtasks: task.subtasks.map((subtask) => withTreeDay(subtask, day)),
 });
 
-const finish = (task: Task, today: string): Task =>
-  task.finished ? task : withSubtaskDays({ ...task, finished: true, completedOn: today, day: today });
+const finishOne = (task: Task, today: string): Task =>
+  task.finished ? task : { ...task, finished: true, completedOn: today };
 
-const finishSubtask = (subtask: Task, today: string): Task =>
-  subtask.finished ? subtask : { ...subtask, finished: true, completedOn: today };
+const reopenOne = (task: Task): Task =>
+  task.finished ? { ...task, finished: false, completedOn: null, status: 'todo' } : task;
 
-const reopen = (task: Task, today: string): Task =>
-  task.finished
-    ? withSubtaskDays({
-        ...task,
-        finished: false,
-        completedOn: null,
-        status: 'todo',
-        day: notBefore(task.plannedDay ?? today, today),
-      })
-    : task;
+const finishTree = (task: Task, today: string): Task =>
+  finishOne({ ...task, subtasks: task.subtasks.map((subtask) => finishTree(subtask, today)) }, today);
 
-const reopenSubtask = (subtask: Task): Task =>
-  subtask.finished ? { ...subtask, finished: false, completedOn: null, status: 'todo' } : subtask;
+const reopenTree = (task: Task): Task =>
+  reopenOne({ ...task, subtasks: task.subtasks.map(reopenTree) });
+
+const allFinished = (subtasks: Task[]) => subtasks.length > 0 && subtasks.every((subtask) => subtask.finished);
+
+function placedOnDay(before: Task, after: Task, today: string): Task {
+  if (after.finished === before.finished) return after;
+  return withTreeDay(after, after.finished ? today : notBefore(after.plannedDay ?? today, today));
+}
 
 export function findFamily(tasks: Task[], id: string): Task | undefined {
-  return tasks.find((task) => task.id === id || task.subtasks.some((subtask) => subtask.id === id));
+  return tasks.find((task) => containsTask(task, id));
 }
 
 export function upsertTask(tasks: Task[], range: DayRange, next: Task): Task[] {
@@ -46,39 +61,44 @@ export function upsertTask(tasks: Task[], range: DayRange, next: Task): Task[] {
 
 export function withFields(family: Task, id: string, fields: TaskFieldChanges): Task {
   if (family.id === id) return { ...family, ...fields };
-  return {
-    ...family,
-    subtasks: family.subtasks.map((subtask) => (subtask.id === id ? { ...subtask, ...fields } : subtask)),
-  };
+  return { ...family, subtasks: family.subtasks.map((subtask) => withFields(subtask, id, fields)) };
+}
+
+function changeFinished(task: Task, id: string, finished: boolean, today: string): Task {
+  if (task.id === id) return finished ? finishTree(task, today) : reopenTree(task);
+  if (!containsTask(task, id)) return task;
+  const next = { ...task, subtasks: task.subtasks.map((subtask) => changeFinished(subtask, id, finished, today)) };
+  if (!finished) return reopenOne(next);
+  return allFinished(next.subtasks) ? finishOne(next, today) : next;
 }
 
 export function withFinished(family: Task, id: string, finished: boolean, today: string): Task {
-  if (family.id === id) {
-    return finished
-      ? finish({ ...family, subtasks: family.subtasks.map((subtask) => finishSubtask(subtask, today)) }, today)
-      : reopen({ ...family, subtasks: family.subtasks.map(reopenSubtask) }, today);
-  }
-  const subtasks = family.subtasks.map((subtask) => {
-    if (subtask.id !== id) return subtask;
-    return finished ? finishSubtask(subtask, today) : reopenSubtask(subtask);
-  });
-  const next = { ...family, subtasks };
-  if (!finished) return reopen(next, today);
-  return subtasks.every((subtask) => subtask.finished) ? finish(next, today) : next;
+  return placedOnDay(family, changeFinished(family, id, finished, today), today);
 }
 
 export function withDay(family: Task, day: string, today: string): Task {
-  return withSubtaskDays({ ...family, plannedDay: day, day: notBefore(day, today) });
+  return withTreeDay({ ...family, plannedDay: day }, notBefore(day, today));
+}
+
+function addToParent(task: Task, subtask: Task): Task {
+  if (task.id === subtask.parentId) return reopenOne({ ...task, subtasks: [...task.subtasks, subtask] });
+  if (!containsTask(task, subtask.parentId as string)) return task;
+  return reopenOne({ ...task, subtasks: task.subtasks.map((child) => addToParent(child, subtask)) });
 }
 
 export function withSubtask(family: Task, subtask: Task, today: string): Task {
-  return reopen({ ...family, subtasks: [...family.subtasks, subtask] }, today);
+  return placedOnDay(family, addToParent(family, subtask), today);
+}
+
+function removeFromTree(task: Task, id: string, today: string): Task {
+  if (!containsTask(task, id)) return task;
+  const subtasks = task.subtasks.filter((subtask) => subtask.id !== id).map((subtask) => removeFromTree(subtask, id, today));
+  const next = { ...task, subtasks };
+  return allFinished(subtasks) ? finishOne(next, today) : next;
 }
 
 export function withoutSubtask(family: Task, id: string, today: string): Task {
-  const subtasks = family.subtasks.filter((subtask) => subtask.id !== id);
-  const next = { ...family, subtasks };
-  return subtasks.length > 0 && subtasks.every((subtask) => subtask.finished) ? finish(next, today) : next;
+  return placedOnDay(family, removeFromTree(family, id, today), today);
 }
 
 export function buildTask(fields: NewTaskFields & { day: string }, today: string): Task {
@@ -113,6 +133,12 @@ export function buildSubtask(fields: NewTaskFields, parent: Task): Task {
   };
 }
 
+export const buildSubtaskTree = (items: NewPastedTask[], parent: Task): Task[] =>
+  items.map(({ subtasks, ...fields }) => {
+    const node = buildSubtask({ ...fields, status: 'todo', highPriority: false }, parent);
+    return { ...node, subtasks: buildSubtaskTree(subtasks, node) };
+  });
+
 export function buildCopy(
   family: Task,
   newIds: Record<string, string>,
@@ -121,19 +147,20 @@ export function buildCopy(
 ): Task {
   const createdAt = new Date().toISOString();
   const day = notBefore(family.day, today);
-  const unfinished = (task: Task): Task => ({
+  const unfinished = (task: Task, parentId: string | null): Task => ({
     ...task,
     id: newIds[task.id],
+    parentId,
     status: task.finished ? 'todo' : task.status,
     finished: false,
     completedOn: null,
     day,
     createdAt,
+    subtasks: task.subtasks.map((subtask) => unfinished(subtask, newIds[task.id])),
   });
   return {
-    ...unfinished(family),
+    ...unfinished(family, null),
     title: sameSpace ? copyTitle(family.title) : family.title,
     plannedDay: family.day,
-    subtasks: family.subtasks.map((subtask) => ({ ...unfinished(subtask), parentId: newIds[family.id] })),
   };
 }

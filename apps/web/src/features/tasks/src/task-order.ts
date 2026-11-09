@@ -8,10 +8,12 @@ export function moveId(ids: string[], activeId: string, overId: string): string[
 }
 
 export function siblingIds(tasks: Task[], id: string): string[] {
-  const group = tasks.some((task) => task.id === id)
-    ? tasks
-    : (tasks.find((task) => task.subtasks.some((subtask) => subtask.id === id))?.subtasks ?? []);
-  return group.map((task) => task.id);
+  if (tasks.some((task) => task.id === id)) return tasks.map((task) => task.id);
+  for (const task of tasks) {
+    const siblings = siblingIds(task.subtasks, id);
+    if (siblings.length > 0) return siblings;
+  }
+  return [];
 }
 
 function orderGroup(group: Task[], ranks: Map<string, number>): Task[] {
@@ -22,5 +24,7 @@ function orderGroup(group: Task[], ranks: Map<string, number>): Task[] {
 
 export function applyOrder(tasks: Task[], ids: string[]): Task[] {
   const ranks = new Map(ids.map((id, index) => [id, index]));
-  return orderGroup(tasks, ranks).map((task) => ({ ...task, subtasks: orderGroup(task.subtasks, ranks) }));
+  const ordered = (group: Task[]): Task[] =>
+    orderGroup(group, ranks).map((task) => ({ ...task, subtasks: ordered(task.subtasks) }));
+  return ordered(tasks);
 }

@@ -13,19 +13,18 @@ export const createTaskSchema = z.object({
   status: status.optional(),
   highPriority: z.boolean().optional(),
 });
+const pastedTask = z.object({
+  id: z.uuid(),
+  title,
+  get subtasks() {
+    return z.array(pastedTask).max(500);
+  },
+});
+
 export const createManySchema = z.object({
   spaceId: z.uuid(),
   day,
-  tasks: z
-    .array(
-      z.object({
-        id: z.uuid(),
-        title,
-        subtasks: z.array(z.object({ id: z.uuid(), title })).max(200),
-      }),
-    )
-    .min(1)
-    .max(500),
+  tasks: z.array(pastedTask).min(1).max(500),
 });
 export const createSubtaskSchema =z.object({
   id: z.uuid().optional(),
@@ -34,7 +33,7 @@ export const createSubtaskSchema =z.object({
   highPriority: z.boolean().optional(),
 });
 export const createManySubtasksSchema = z.object({
-  subtasks: z.array(z.object({ id: z.uuid(), title })).min(1).max(200),
+  subtasks: z.array(pastedTask).min(1).max(500),
 });
 export const updateTaskSchema =z.object({
   title: title.optional(),

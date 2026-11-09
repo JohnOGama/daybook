@@ -11,7 +11,7 @@ function matches(task: Task, filters: TaskFilters): boolean {
 export function filterTasks(tasks: Task[], filters: TaskFilters): Task[] {
   if (filters.statuses.length === 0 && !filters.high) return tasks;
   return tasks.flatMap((task) => {
-    const subtasks = task.subtasks.filter((subtask) => matches(subtask, filters));
+    const subtasks = filterTasks(task.subtasks, filters);
     return matches(task, filters) || subtasks.length > 0 ? [{ ...task, subtasks }] : [];
   });
 }

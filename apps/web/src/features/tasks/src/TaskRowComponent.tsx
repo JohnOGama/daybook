@@ -19,13 +19,18 @@ import type { Task } from './task-types';
 
 type TaskRowProps = {
   task: Task;
+  depth?: number;
   rowIndex: number;
   canReorder: boolean;
   expanded?: boolean;
   onToggleExpanded?: () => void;
 };
 
-export function TaskRowComponent({ task, rowIndex, canReorder, expanded, onToggleExpanded }: TaskRowProps) {
+const INDENT_PX = 20;
+// ponytail: indentation stops growing here so very deep titles stay readable; a breadcrumb view could replace it
+const MAX_INDENT_LEVELS = 10;
+
+export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expanded, onToggleExpanded }: TaskRowProps) {
   const { setFinished } = useTaskMutations();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -42,6 +47,18 @@ export function TaskRowComponent({ task, rowIndex, canReorder, expanded, onToggl
       onCheckedChange={(checked) => setFinished.mutate({ id: task.id, finished: checked === true })}
       className={cn(setFinished.isPending && finished && 'confirm-pulse')}
     />
+  );
+
+  const expandToggle = task.subtasks.length > 0 && (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={`${expanded ? 'Collapse' : 'Expand'} ${task.title}`}
+      onClick={onToggleExpanded}
+      className="grid size-5 place-items-center text-muted-foreground"
+    >
+      {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronRight className="size-4" aria-hidden />}
+    </button>
   );
 
   const rowStyle = {
@@ -74,26 +91,16 @@ export function TaskRowComponent({ task, rowIndex, canReorder, expanded, onToggl
               ) : (
                 <span className="w-4" aria-hidden />
               )}
-              {task.subtasks.length > 0 && (
-                <button
-                  type="button"
-                  aria-expanded={expanded}
-                  aria-label={`${expanded ? 'Collapse' : 'Expand'} ${task.title}`}
-                  onClick={onToggleExpanded}
-                  className="grid size-5 place-items-center text-muted-foreground"
-                >
-                  {expanded ? (
-                    <ChevronDown className="size-4" aria-hidden />
-                  ) : (
-                    <ChevronRight className="size-4" aria-hidden />
-                  )}
-                </button>
-              )}
+              {!isSubtask && expandToggle}
             </div>
           </td>
           <td>{!isSubtask && finishBox}</td>
           <td className="pr-3">
-            <div className={cn('flex items-center gap-3', isSubtask && 'pl-1')}>
+            <div
+              className={cn('flex items-center', isSubtask ? 'gap-1.5' : 'gap-3')}
+              style={isSubtask ? { paddingLeft: (Math.min(depth, MAX_INDENT_LEVELS) - 1) * INDENT_PX } : undefined}
+            >
+              {isSubtask && <span className="grid w-5 shrink-0 place-items-center">{expandToggle}</span>}
               {isSubtask && finishBox}
               <TaskTitleComponent task={task} finished={finished} />
             </div>

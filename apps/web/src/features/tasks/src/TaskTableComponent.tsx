@@ -57,6 +57,29 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
   let rowCount = 0;
   const nextRowIndex = () => Math.min(rowCount++, MAX_STAGGERED_ROWS);
 
+  function renderRows(rows: Task[], listId: string, depth: number) {
+    return (
+      <SortableContext id={listId} items={rows.map((row) => row.id)} strategy={verticalListSortingStrategy}>
+        {rows.map((task) => {
+          const expanded = !collapsed.has(task.id);
+          return (
+            <Fragment key={task.id}>
+              <TaskRowComponent
+                task={task}
+                depth={depth}
+                rowIndex={nextRowIndex()}
+                canReorder={rows.length > 1}
+                expanded={expanded}
+                onToggleExpanded={() => toggle(task.id)}
+              />
+              {expanded && draggingId !== task.id && task.subtasks.length > 0 && renderRows(task.subtasks, task.id, depth + 1)}
+            </Fragment>
+          );
+        })}
+      </SortableContext>
+    );
+  }
+
   return (
     <div className="mx-4 mb-6 overflow-x-auto rounded-2xl border bg-card md:mx-6">
       <DndContext
@@ -132,38 +155,7 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
             </tr>
           </thead>
           <tbody>
-            <SortableContext id="tasks" items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-              {tasks.map((task) => {
-                const expanded = !collapsed.has(task.id);
-                return (
-                  <Fragment key={task.id}>
-                    <TaskRowComponent
-                      task={task}
-                      rowIndex={nextRowIndex()}
-                      canReorder={tasks.length > 1}
-                      expanded={expanded}
-                      onToggleExpanded={() => toggle(task.id)}
-                    />
-                    {expanded && draggingId !== task.id && (
-                      <SortableContext
-                        id={task.id}
-                        items={task.subtasks.map((subtask) => subtask.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {task.subtasks.map((subtask) => (
-                          <TaskRowComponent
-                            key={subtask.id}
-                            task={subtask}
-                            rowIndex={nextRowIndex()}
-                            canReorder={task.subtasks.length > 1}
-                          />
-                        ))}
-                      </SortableContext>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </SortableContext>
+            {renderRows(tasks, 'tasks', 0)}
           </tbody>
         </table>
       </DndContext>

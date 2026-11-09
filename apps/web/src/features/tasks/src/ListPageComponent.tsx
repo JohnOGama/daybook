@@ -24,10 +24,8 @@ import type { Task } from './task-types';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-const withoutFinished = (tasks: Task[]) =>
-  tasks
-    .filter((task) => !task.finished)
-    .map((task) => ({ ...task, subtasks: task.subtasks.filter((subtask) => !subtask.finished) }));
+const withoutFinished = (tasks: Task[]): Task[] =>
+  tasks.filter((task) => !task.finished).map((task) => ({ ...task, subtasks: withoutFinished(task.subtasks) }));
 
 export function ListPageComponent() {
   const params = useSearchParams();

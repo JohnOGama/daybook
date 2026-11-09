@@ -167,7 +167,8 @@ Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-cre
 - A top-level task and its subtasks can be copied to another space from Copy to in the ⋯ menu. The copy keeps its title and starts unfinished **(my call)**.
 - Tasks reorder by dragging the handle at the start of a row. Top-level tasks reorder among themselves, and subtasks within their parent **(my call)**.
 - Spaces and folders reorder by dragging the grip that replaces a row's icon on hover. Top-level rows reorder among themselves, and spaces within their folder. New spaces go last **(my call)**.
-- Pasting a multi-line list into New task's title, or choosing "Paste a list instead", opens a preview and creates the whole list at once on the chosen day. Indented lines become subtasks of the line above, and deeper levels flatten to one. Checked items arrive unfinished. Add subtask works the same way, and every line becomes a subtask of that task **(my call)**.
+- Pasting a multi-line list into New task's title, or choosing "Paste a list instead", opens a preview and creates the whole list at once on the chosen day. Indented lines become subtasks of the line above, to any depth. Checked items arrive unfinished. Add subtask works the same way, under that task **(my call)**.
+- Subtasks can have their own subtasks, with no depth limit. Finishing a task finishes everything under it, and finishing the last open child finishes its parent, up the chain. Reopening a task or adding a child reopens its parents **(my call)**.
 - Clear table moves every top-level task showing in the List table, with all its subtasks, to Trash after a confirmation. Tasks hidden by filters or Show closed stay **(my call)**.
 - Right-clicking a row offers Edit, Duplicate and Delete. Subtasks offer Edit and Delete **(my call)**.
 - Left out for now: the lock icon, "Browse all projects", and renaming or moving spaces **(my call)**.
