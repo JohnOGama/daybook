@@ -1,8 +1,12 @@
 'use client';
 
 import { Flag } from 'lucide-react';
+import { badgeVariants } from '@/shared/components/ui/badge';
+import { cn } from '@/shared/utils/cn';
 import { useTaskMutations } from '../hooks/useTaskMutations';
 import type { Task } from './task-types';
+
+const PILL_CLASS = cn(badgeVariants({ variant: 'outline' }), 'gap-1 px-1.5 text-muted-foreground [&>svg]:size-3.5');
 
 export function PriorityPillComponent({ task }: { task: Task }) {
   const { update } = useTaskMutations();
@@ -15,9 +19,10 @@ export function PriorityPillComponent({ task }: { task: Task }) {
         aria-label={`Remove high priority from ${task.title}`}
         disabled={task.finished}
         onClick={toggle}
-        className="inline-flex size-6 items-center justify-center rounded-full text-signal"
+        className={cn(PILL_CLASS, !task.finished && 'cursor-pointer hover:bg-accent')}
       >
-        <Flag className="size-3.5 fill-current" aria-hidden />
+        <Flag className="fill-current text-signal" aria-hidden />
+        High
       </button>
     );
   }
@@ -29,9 +34,10 @@ export function PriorityPillComponent({ task }: { task: Task }) {
       type="button"
       aria-label={`Mark ${task.title} high priority`}
       onClick={toggle}
-      className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground/60 hover:text-signal"
+      className={cn(PILL_CLASS, 'cursor-pointer hover:bg-accent')}
     >
-      <Flag className="size-3.5" aria-hidden />
+      <Flag aria-hidden />
+      Normal
     </button>
   );
 }

@@ -69,6 +69,44 @@ describe('SpacesService', () => {
     });
   });
 
+  describe('carry over', () => {
+    const yesterday = '2026-11-08';
+    const add = (title: string, userId = 'u1') => svc.create(userId, { kind: 'space', title, tool: 'list' });
+    const addTask = (userId: string, spaceId: string, plannedDay: string, completedOn?: string) =>
+      db.insert(tasks).values({ userId, spaceId, title: 't', plannedDay, completedOn });
+
+    it('is on for a new space', async () => {
+      expect((await add('Home')).carryOver).toBe(true);
+    });
+
+    it('counts yesterday\'s open task today only while it is on', async () => {
+      const space = await add('Home');
+      await addTask('u1', space.id, yesterday);
+      await addTask('u1', space.id, today);
+      await addTask('u1', space.id, yesterday, yesterday);
+      expect((await svc.list('u1', today))[0].openToday).toBe(2);
+      await svc.setCarryOver('u1', space.id, false);
+      expect((await svc.list('u1', today))[0]).toMatchObject({ carryOver: false, openToday: 1 });
+    });
+
+    it('is kept when a space is duplicated', async () => {
+      const space = await add('Home');
+      await svc.setCarryOver('u1', space.id, false);
+      expect((await svc.duplicate('u1', space.id)).carryOver).toBe(false);
+    });
+
+    it("refuses another user's space", async () => {
+      const theirs = await add('Theirs', 'u2');
+      await expect(svc.setCarryOver('u1', theirs.id, false)).rejects.toThrow(NotFoundException);
+      expect((await svc.list('u2', today))[0].carryOver).toBe(true);
+    });
+
+    it('only applies to a List space', async () => {
+      const notebook = await svc.create('u1', { kind: 'space', title: 'Book', tool: 'notebook' });
+      await expect(svc.setCarryOver('u1', notebook.id, false)).rejects.toThrow(NotFoundException);
+    });
+  });
+
   it('creates a folder with no tool', async () => {
     const folder = await svc.create('u1', { kind: 'folder', title: 'Team' });
     expect(folder).toMatchObject({ kind: 'folder', tool: null });

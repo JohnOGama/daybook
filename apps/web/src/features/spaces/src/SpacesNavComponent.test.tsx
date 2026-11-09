@@ -10,6 +10,7 @@ const space = (id: string, title: string, fields: Partial<Space> = {}): Space =>
   kind: 'space',
   title,
   tool: 'list',
+  carryOver: true,
   createdAt: '',
   openToday: 0,
   ...fields,

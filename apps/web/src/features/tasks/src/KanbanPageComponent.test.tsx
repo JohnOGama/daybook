@@ -8,7 +8,10 @@ const { active, replace } = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => active.space }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => active.space,
+  SpaceSettingsComponent: () => <button type="button">Settings</button>,
+}));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -28,15 +31,19 @@ beforeEach(() => {
   active.space = { id: 's1', title: 'Home', tool: 'list' };
 });
 
-it('offers the Kanban tab in a list space', () => {
+const settings = () => screen.queryByRole('button', { name: 'Settings' });
+
+it('offers the Kanban tab and Settings in a list space, with Settings last', () => {
   render(<TasksHeaderComponent title="t" subtitle="s" />);
   expect(kanbanTab()).toHaveAttribute('href', '/kanban');
+  expect(kanbanTab()?.nextElementSibling).toBe(settings());
 });
 
-it('hides the Kanban tab for any other tool', () => {
+it('hides the Kanban tab and Settings for any other tool', () => {
   active.space.tool = 'notes';
   render(<TasksHeaderComponent title="t" subtitle="s" />);
   expect(kanbanTab()).not.toBeInTheDocument();
+  expect(settings()).not.toBeInTheDocument();
 });
 
 it('shows the board in a list space', () => {

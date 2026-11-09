@@ -49,6 +49,7 @@ const SAMPLE_SPACES: Space[] = ['My first list', 'Weekly plans', 'Side project']
   kind: 'space',
   title,
   tool: 'list',
+  carryOver: true,
   createdAt: '',
   openToday: 0,
 }));

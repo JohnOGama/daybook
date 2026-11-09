@@ -28,7 +28,10 @@ export async function createSpace(input: NewSpaceInput): Promise<Space> {
 export const updateSpaceTitle = ({ id, title }: { id: string; title: string }) =>
   send(`/api/spaces/${id}`, 'PATCH', 'That name could not be saved. Please try again.', { title });
 
-export const reorderSpaces = (ids: string[]) =>
+export const setSpaceCarryOver = ({ id, carryOver }: { id: string; carryOver: boolean }) =>
+  send(`/api/spaces/${id}/carry-over`, 'PUT', 'That setting could not be saved. Please try again.', { carryOver });
+
+export const reorderSpaces =(ids: string[]) =>
   send('/api/spaces/order', 'PUT', 'That order could not be saved. Please try again.', { ids });
 
 export const duplicateSpace =({ source, id }: { source: Space; id: string }) =>

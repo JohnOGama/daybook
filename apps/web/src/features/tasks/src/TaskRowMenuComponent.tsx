@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useActiveSpace, useSpaces } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
@@ -33,8 +33,13 @@ export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenu
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Actions for ${task.title}`}>
-          <MoreHorizontal aria-hidden />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Actions for ${task.title}`}
+          className="size-8 text-muted-foreground data-[state=open]:bg-muted"
+        >
+          <MoreVertical aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

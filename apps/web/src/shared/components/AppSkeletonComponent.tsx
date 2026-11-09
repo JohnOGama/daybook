@@ -3,7 +3,7 @@ import { PageSkeletonComponent } from './PageSkeletonComponent';
 
 export function AppSkeletonComponent() {
   return (
-    <div className="flex min-h-dvh bg-sidebar">
+    <div className="flex h-dvh overflow-hidden bg-sidebar">
       <aside aria-hidden className="hidden w-56 shrink-0 flex-col gap-3 p-3 md:flex">
         <SkeletonBox width="100%" height={54} radius={16} />
         <SkeletonBox className="mt-5" width={72} height={16} />

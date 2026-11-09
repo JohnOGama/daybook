@@ -37,7 +37,8 @@ export function ListPageComponent() {
   const { filters, clearFilters } = useTaskFilters();
   const [creating, setCreating] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const spaceTitle = useActiveSpace()?.title;
+  const space = useActiveSpace();
+  const spaceTitle = space?.title;
 
   const filtered = filterTasks(tasks, filters);
   const visible = params.get('closed') === '0' ? withoutFinished(filtered) : filtered;
@@ -52,7 +53,11 @@ export function ListPageComponent() {
         <EmptyStateComponent
           icon={<EmptyDayIcon />}
           title={day === today ? 'Nothing planned for today' : 'Nothing planned for this day'}
-          description="Add a task, and it carries forward until you finish it."
+          description={
+            space?.carryOver === false
+              ? 'Add a task and it stays on this day.'
+              : 'Add a task, and it carries forward until you finish it.'
+          }
           action={<Button onClick={() => setCreating(true)}>New task</Button>}
         />
       );

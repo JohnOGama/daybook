@@ -10,6 +10,7 @@ export function buildSpace(input: NewSpaceInput): Space {
     kind: input.kind,
     title: input.title.trim(),
     tool: input.kind === 'space' ? input.tool : null,
+    carryOver: true,
     createdAt: new Date().toISOString(),
     openToday: 0,
   };
@@ -17,6 +18,9 @@ export function buildSpace(input: NewSpaceInput): Space {
 
 export const renameSpace = (spaces: Space[], id: string, title: string): Space[] =>
   spaces.map((space) => (space.id === id ? { ...space, title } : space));
+
+export const withCarryOver = (spaces: Space[], id: string, carryOver: boolean): Space[] =>
+  spaces.map((space) => (space.id === id ? { ...space, carryOver } : space));
 
 export function applySpaceOrder(spaces: Space[], ids: string[]): Space[] {
   const rank = (space: Space) => {

@@ -17,6 +17,7 @@ export const createSpaceSchema = z.discriminatedUnion('kind', [
 export const listSpacesSchema = z.object({ today: z.iso.date() });
 export const renameSpaceSchema = z.object({ title });
 export const duplicateSpaceSchema = z.object({ id });
-export const reorderSpacesSchema = z.object({ ids: z.array(z.uuid()).min(1).max(1000) });
+export const carryOverSchema = z.object({ carryOver: z.boolean() });
+export const reorderSpacesSchema =z.object({ ids: z.array(z.uuid()).min(1).max(1000) });
 
 export type CreateSpaceInput = z.infer<typeof createSpaceSchema>;

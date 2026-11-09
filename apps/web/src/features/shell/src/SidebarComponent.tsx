@@ -22,7 +22,7 @@ export function SidebarComponent() {
   }
 
   return (
-    <nav aria-label="Main" className="flex w-full flex-col">
+    <nav aria-label="Main" className="flex min-h-full w-full flex-col">
       <div className="flex items-center gap-2.5 rounded-2xl border bg-card p-3 font-semibold">
         <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Check className="size-4" strokeWidth={3} aria-hidden />
@@ -32,7 +32,7 @@ export function SidebarComponent() {
 
       <SpacesNavComponent renderSpaceSummary={(space) => <SpaceSummaryComponent spaceId={space.id} />} />
 
-      <div className="mt-8 md:sticky md:top-[calc(100dvh-5.75rem)]">
+      <div className="mt-auto pt-8">
         <Link
           href="/trash"
           aria-current={isTrash ? 'page' : undefined}

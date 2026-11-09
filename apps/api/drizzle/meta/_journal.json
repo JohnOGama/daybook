@@ -43,6 +43,13 @@
       "when": 1794240640969,
       "tag": "0005_notebook_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794245579720,
+      "tag": "0006_space_carry_over",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ export type SpaceDto = {
   kind: SpaceRow['kind'];
   title: string;
   tool: SpaceRow['tool'];
+  carryOver: boolean;
   createdAt: string;
   openToday: number;
 };
@@ -25,6 +26,7 @@ function toDto(row: SpaceRow, openToday: number): SpaceDto {
     kind: row.kind,
     title: row.title,
     tool: row.tool,
+    carryOver: row.carryOver,
     createdAt: row.createdAt.toISOString(),
     openToday,
   };
@@ -58,10 +60,13 @@ export class SpacesService {
       const parent = openById.get(task.parentId);
       return parent && plannedDayOf(parent);
     };
+    const carriesOver = new Map(rows.map((row) => [row.id, row.carryOver]));
     const counts = new Map<string, number>();
     for (const task of openTasks) {
       const day = plannedDayOf(task);
-      if (day && day <= today) counts.set(task.spaceId, (counts.get(task.spaceId) ?? 0) + 1);
+      if (day && (day === today || (day < today && carriesOver.get(task.spaceId)))) {
+        counts.set(task.spaceId, (counts.get(task.spaceId) ?? 0) + 1);
+      }
     }
 
     const visibleIds = new Set(rows.map((row) => row.id));
@@ -113,6 +118,15 @@ export class SpacesService {
     });
   }
 
+  async setCarryOver(userId: string, id: string, carryOver: boolean): Promise<void> {
+    const updated = await this.db
+      .update(spaces)
+      .set({ carryOver })
+      .where(and(eq(spaces.id, id), eq(spaces.userId, userId), eq(spaces.tool, 'list'), isNull(spaces.deletedAt)))
+      .returning({ id: spaces.id });
+    if (updated.length === 0) throw new NotFoundException('Space not found');
+  }
+
   async duplicate(userId: string, id: string, newId?: string): Promise<SpaceDto> {
     return this.db.transaction(async (tx) => {
       const [source] = await tx
@@ -130,6 +144,7 @@ export class SpacesService {
           parentId: source.parentId,
           kind: 'space',
           tool: source.tool,
+          carryOver: source.carryOver,
           title: copyTitle(source.title),
         })
         .returning();

@@ -68,6 +68,7 @@ export class TasksService {
     range: { from: string; to: string; today: string },
   ): Promise<TaskDto[]> {
     const { from, to, today } = range;
+    const carryOver = await this.carriesOver(this.db, userId, spaceId);
     const candidates = await this.db
       .select()
       .from(tasks)
@@ -88,7 +89,7 @@ export class TasksService {
     const placed = candidates
       .map((row) => ({
         row,
-        day: appearsOn({ plannedDay: row.plannedDay as string, completedOn: row.completedOn }, today),
+        day: appearsOn({ plannedDay: row.plannedDay as string, completedOn: row.completedOn }, today, carryOver),
       }))
       .filter(({ day }) => day >= from && day <= to);
     if (placed.length === 0) return [];
@@ -261,6 +262,7 @@ export class TasksService {
           plannedDay: appearsOn(
             { plannedDay: original.plannedDay as string, completedOn: original.completedOn },
             today,
+            await this.carriesOver(tx, userId, original.spaceId),
           ),
         })
         .returning({ id: tasks.id });
@@ -295,6 +297,14 @@ export class TasksService {
       .update(tasks)
       .set({ deletedAt: new Date() })
       .where(and(eq(tasks.userId, userId), isNull(tasks.parentId), isNull(tasks.deletedAt), inArray(tasks.id, ids)));
+  }
+
+  private async carriesOver(db: Db, userId: string, spaceId: string): Promise<boolean> {
+    const [space] = await db
+      .select({ carryOver: spaces.carryOver })
+      .from(spaces)
+      .where(and(eq(spaces.id, spaceId), eq(spaces.userId, userId)));
+    return space?.carryOver ?? true;
   }
 
   private async assertTaskSpace(db: Db, userId: string, spaceId: string): Promise<void> {

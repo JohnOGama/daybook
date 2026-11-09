@@ -1,6 +1,9 @@
 'use client';
 
+import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
+import { TableCell, TableRow } from '@/shared/components/ui/table';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
@@ -9,6 +12,7 @@ import { cn } from '@/shared/utils/cn';
 import { formatShortDate, formatShortDay } from '@/shared/utils/date-formatter';
 import { useTaskMutations } from '../hooks/useTaskMutations';
 import { PriorityPillComponent } from './PriorityPillComponent';
+import { StatusIconComponent } from './StatusIconComponent';
 import { StatusPillComponent } from './StatusPillComponent';
 import { TaskDeleteDialogComponent } from './TaskDeleteDialogComponent';
 import { TaskFormDialogComponent, type TaskFormMode } from './TaskFormDialogComponent';
@@ -70,32 +74,34 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
   return (
     <>
       <TaskRowContextMenuComponent task={task} onOpenForm={setFormMode} onDelete={() => setDeleting(true)}>
-        <tr
+        <TableRow
           ref={setNodeRef}
           style={rowStyle}
-          className={cn('row-enter group h-[46px] border-b bg-card last:border-b-0', isDragging && 'relative z-10 shadow-md')}
+          className={cn('row-enter h-[53px]', isDragging && 'relative z-10 bg-background shadow-md')}
         >
-          <td className="pl-1.5">
-            <div className="flex items-center gap-0.5">
+          <TableCell className="py-0 pr-0 pl-1.5">
+            <div className="flex items-center">
               {canReorder ? (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   ref={setActivatorNodeRef}
                   {...attributes}
                   {...listeners}
                   aria-label={`Reorder ${task.title}`}
-                  className="grid h-6 w-4 cursor-grab touch-none place-items-center text-muted-foreground/60 group-hover:opacity-100 hover:text-muted-foreground focus-visible:opacity-100 active:cursor-grabbing md:opacity-0"
+                  className="size-7 cursor-grab touch-none text-muted-foreground hover:bg-transparent active:cursor-grabbing"
                 >
-                  <GripVertical className="size-3.5" aria-hidden />
-                </button>
+                  <GripVertical className="size-3" aria-hidden />
+                </Button>
               ) : (
-                <span className="w-4" aria-hidden />
+                <span className="w-7" aria-hidden />
               )}
               {!isSubtask && expandToggle}
             </div>
-          </td>
-          <td>{!isSubtask && finishBox}</td>
-          <td className="pr-3">
+          </TableCell>
+          <TableCell className="p-0">{!isSubtask && finishBox}</TableCell>
+          <TableCell className="py-0 pr-3 pl-0">
             <div
               className={cn('flex items-center', isSubtask ? 'gap-1.5' : 'gap-3')}
               style={isSubtask ? { paddingLeft: (Math.min(depth, MAX_INDENT_LEVELS) - 1) * INDENT_PX } : undefined}
@@ -104,19 +110,26 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
               {isSubtask && finishBox}
               <TaskTitleComponent task={task} finished={finished} />
             </div>
-          </td>
-          <td className="pl-3">{!task.finished && <StatusPillComponent task={task} />}</td>
-          <td className="pl-3">
+          </TableCell>
+          <TableCell className="px-3 py-0">
+            {task.finished ? (
+              <Badge variant="outline" className="gap-1 px-1.5 text-muted-foreground [&>svg]:size-3.5">
+                <StatusIconComponent status="completed" />
+                Completed
+              </Badge>
+            ) : (
+              <StatusPillComponent task={task} />
+            )}
+          </TableCell>
+          <TableCell className="px-3 py-0">
             <PriorityPillComponent task={task} />
-          </td>
-          <td className="truncate pl-3 text-[13px] text-muted-foreground">{formatShortDate(task.createdAt)}</td>
-          <td className="truncate pl-3 text-[13px] text-muted-foreground">
-            {task.completedOn ? formatShortDay(task.completedOn) : '-'}
-          </td>
-          <td className="pr-2">
+          </TableCell>
+          <TableCell className="truncate px-3 py-0">{formatShortDate(task.createdAt)}</TableCell>
+          <TableCell className="truncate px-3 py-0">{task.completedOn ? formatShortDay(task.completedOn) : '-'}</TableCell>
+          <TableCell className="py-0 pr-2 pl-0 text-right">
             <TaskRowMenuComponent task={task} onOpenForm={setFormMode} onDelete={() => setDeleting(true)} />
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       </TaskRowContextMenuComponent>
       {formMode && (
         <TaskFormDialogComponent

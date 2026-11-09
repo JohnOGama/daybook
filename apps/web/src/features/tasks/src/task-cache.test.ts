@@ -34,6 +34,37 @@ function task(id: string, fields: Partial<Task> = {}): Task {
 
 const sub = (id: string, fields: Partial<Task> = {}) => task(id, { parentId: 'p', plannedDay: null, ...fields });
 
+describe('with carry over turned off', () => {
+  const past = '2026-11-01';
+
+  it('shows a new task on a past day instead of today', () => {
+    const fields = { id: 'n', title: 'New', day: past, status: 'todo', highPriority: false } as const;
+    expect(buildTask(fields, today, false).day).toBe(past);
+  });
+
+  it('moving a task to a past day keeps it there', () => {
+    expect(withDay(task('p'), past, today, false).day).toBe(past);
+  });
+
+  it('reopening sends a task back to its planned day', () => {
+    const family = task('p', { finished: true, completedOn: today, plannedDay: past });
+    expect(withFinished(family, 'p', false, today, false).day).toBe(past);
+  });
+
+  it('adding a subtask to a finished task sends it back to its planned day', () => {
+    const family = task('p', { finished: true, completedOn: today, plannedDay: past });
+    expect(withSubtask(family, sub('s'), today, false).day).toBe(past);
+  });
+
+  it('still shows a finished task today', () => {
+    expect(withFinished(task('p', { day: past, plannedDay: past }), 'p', true, today, false).day).toBe(today);
+  });
+
+  it('keeps a copy on the day it was copied from', () => {
+    expect(buildCopy(task('p', { day: past }), { p: 'q' }, true, today, false).day).toBe(past);
+  });
+});
+
 describe('deep nesting', () => {
   const tree = (leaves: Task[] = [sub('leaf', { parentId: 'mid' })]) =>
     task('p', { subtasks: [sub('mid', { subtasks: leaves })] });

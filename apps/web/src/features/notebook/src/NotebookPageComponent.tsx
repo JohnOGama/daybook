@@ -43,7 +43,7 @@ export function NotebookPageComponent() {
 
   return (
     <div className="flex flex-col md:flex-row">
-      <aside className="shrink-0 border-b md:sticky md:top-2 md:h-[calc(100dvh-1rem)] md:w-72 md:overflow-y-auto md:border-r md:border-b-0">
+      <aside className="shrink-0 border-b md:sticky md:top-0 md:h-[calc(100dvh-1rem)] md:w-72 md:overflow-y-auto md:border-r md:border-b-0">
         <Skeleton loading={isPending} label="Loading pages">
           <PageListComponent title={space?.title} pages={pages} activeId={active?.id} hrefOf={hrefOf} onAddPage={addPage} />
         </Skeleton>

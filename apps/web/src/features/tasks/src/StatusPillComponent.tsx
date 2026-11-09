@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, ChevronDown } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { badgeVariants } from '@/shared/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,7 @@ import {
 import { cn } from '@/shared/utils/cn';
 import { useTaskMutations } from '../hooks/useTaskMutations';
 import { StatusIconComponent } from './StatusIconComponent';
-import { STATUS_ACCENTS, STATUS_LABELS, STATUSES, type Task, type TaskStatus } from './task-types';
+import { STATUS_LABELS, STATUSES, type Task, type TaskStatus } from './task-types';
 
 export function StatusPillComponent({ task }: { task: Task }) {
   const { update } = useTaskMutations();
@@ -21,13 +22,12 @@ export function StatusPillComponent({ task }: { task: Task }) {
       <DropdownMenuTrigger
         aria-label={`Status of ${task.title}: ${STATUS_LABELS[task.status]}`}
         className={cn(
-          'inline-flex h-6 items-center gap-1 rounded-full bg-current/15 pr-2.5 pl-1.5 text-xs font-semibold whitespace-nowrap',
-          STATUS_ACCENTS[task.status],
+          badgeVariants({ variant: 'outline' }),
+          'cursor-pointer gap-1 px-1.5 text-muted-foreground outline-none hover:bg-accent [&>svg]:size-3.5',
         )}
       >
         <StatusIconComponent status={task.status} />
         {STATUS_LABELS[task.status]}
-        <ChevronDown className="size-3" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-44">
         <DropdownMenuRadioGroup

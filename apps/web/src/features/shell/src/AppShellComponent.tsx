@@ -27,11 +27,11 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
   if (!session) return <AppSkeletonComponent />;
 
   return (
-    <div className="flex min-h-dvh bg-sidebar">
-      <aside className="hidden w-56 shrink-0 p-3 md:flex">
+    <div className="flex h-dvh overflow-hidden bg-sidebar">
+      <aside className="hidden w-56 shrink-0 overflow-y-auto p-3 md:flex">
         <SidebarComponent />
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col md:py-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:py-2">
         <div className="flex items-center gap-2 p-2 md:hidden">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -39,14 +39,14 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
                 <Menu aria-hidden />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 bg-sidebar p-3">
+            <SheetContent side="left" className="w-64 overflow-y-auto bg-sidebar p-3">
               <SheetTitle className="sr-only">Menu</SheetTitle>
               <SidebarComponent />
             </SheetContent>
           </Sheet>
           <span className="font-semibold">Daybook</span>
         </div>
-        <main className="flex-1 bg-background md:rounded-l-2xl md:border-l">
+        <main className="min-h-0 flex-1 overflow-y-auto bg-background md:rounded-l-2xl md:border-l">
           {pathname === '/trash' ? children : <SpaceGateComponent>{children}</SpaceGateComponent>}
         </main>
       </div>

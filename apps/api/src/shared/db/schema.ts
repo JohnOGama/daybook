@@ -34,6 +34,7 @@ export const spaces = pgTable(
     kind: spaceKind('kind').notNull(),
     title: text('title').notNull(),
     tool: spaceTool('tool'),
+    carryOver: boolean('carry_over').notNull().default(true),
     position: integer('position'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

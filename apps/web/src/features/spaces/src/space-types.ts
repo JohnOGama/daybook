@@ -6,6 +6,7 @@ export type Space = {
   kind: 'folder' | 'space';
   title: string;
   tool: SpaceTool | null;
+  carryOver: boolean;
   createdAt: string;
   openToday: number;
 };

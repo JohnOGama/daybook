@@ -242,7 +242,13 @@ export function SelectionToolbarComponent({ editor }: { editor: Editor }) {
       editor={editor}
       appendTo={() => document.body}
       className="z-50"
-      options={{ placement: 'bottom-start', offset: 8, flip: true, shift: { padding: 8 } }}
+      options={{
+        placement: 'bottom-start',
+        offset: 8,
+        flip: true,
+        shift: { padding: 8 },
+        scrollTarget: document.querySelector('main') ?? window,
+      }}
     >
       <SelectionPanel editor={editor} />
     </BubbleMenu>

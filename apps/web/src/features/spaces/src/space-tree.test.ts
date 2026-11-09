@@ -3,7 +3,7 @@ import { buildSpaceTree, resolveActiveSpace } from './space-tree';
 import type { Space } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, createdAt: '', openToday: 0, ...fields };
 }
 
 const folder = space('team', { kind: 'folder', tool: null });

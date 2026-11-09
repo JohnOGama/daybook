@@ -1,10 +1,14 @@
 import { expect, it } from 'vitest';
-import { addSpace, applySpaceOrder, buildSpace, duplicateOf, removeSpace, renameSpace } from './space-cache';
+import { addSpace, applySpaceOrder, buildSpace, duplicateOf, removeSpace, renameSpace, withCarryOver } from './space-cache';
 import type { Space } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, createdAt: '', openToday: 0, ...fields };
 }
+
+it('changes carry over on only the matching space', () => {
+  expect(withCarryOver([space('a'), space('b')], 'a', false).map((s) => s.carryOver)).toEqual([false, true]);
+});
 
 it('adds a space at the end', () => {
   expect(addSpace([space('a')], space('b')).map((s) => s.id)).toEqual(['a', 'b']);

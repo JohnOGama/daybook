@@ -15,6 +15,7 @@ import {
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
 import {
+  carryOverSchema,
   createSpaceSchema,
   duplicateSpaceSchema,
   listSpacesSchema,
@@ -41,6 +42,11 @@ export class SpacesController {
   @Put('order')
   reorder(@UserId() userId: string, @Body() body: unknown) {
     return this.spaces.reorder(userId, parseOrThrow(reorderSpacesSchema, body).ids);
+  }
+
+  @Put(':id/carry-over')
+  setCarryOver(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.spaces.setCarryOver(userId, id, parseOrThrow(carryOverSchema, body).carryOver);
   }
 
   @Patch(':id')

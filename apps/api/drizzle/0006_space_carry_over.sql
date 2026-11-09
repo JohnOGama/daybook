@@ -1,0 +1,1 @@
+ALTER TABLE "spaces" ADD COLUMN "carry_over" boolean DEFAULT true NOT NULL;

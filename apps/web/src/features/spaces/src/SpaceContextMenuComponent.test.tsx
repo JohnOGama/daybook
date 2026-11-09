@@ -15,6 +15,7 @@ const space: Space = {
   kind: 'space',
   title: 'Home',
   tool: 'list',
+  carryOver: true,
   createdAt: '',
   openToday: 0,
 };

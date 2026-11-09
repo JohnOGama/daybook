@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces as dbSpaces, tasks } from '../../../shared/db/schema.ts';
@@ -35,6 +36,40 @@ describe('TasksService listing and editing', () => {
     await insertUser(db, 'u2');
     spaces = { u1: await insertSpace(db, 'u1'), u2: await insertSpace(db, 'u2') };
     svc = new TasksService(db);
+  });
+
+  describe('with carry over turned off', () => {
+    const yesterday = '2026-11-08';
+    const onYesterday = { from: yesterday, to: yesterday, today };
+
+    beforeEach(() => db.update(dbSpaces).set({ carryOver: false }).where(eq(dbSpaces.id, spaces.u1)));
+
+    it("leaves yesterday's open task on yesterday", async () => {
+      const row = await addTask({ plannedDay: yesterday });
+      expect(await svc.list('u1', spaces.u1, onlyToday)).toEqual([]);
+      expect(await svc.list('u1', spaces.u1, onYesterday)).toMatchObject([{ id: row.id, day: yesterday }]);
+    });
+
+    it('still shows a finished task on the day it was finished', async () => {
+      const row = await addTask({ plannedDay: yesterday, completedOn: today });
+      expect(await svc.list('u1', spaces.u1, onlyToday)).toMatchObject([{ id: row.id, day: today }]);
+    });
+
+    it('keeps a duplicate on the original day', async () => {
+      const row = await addTask({ plannedDay: yesterday });
+      await svc.copy('u1', row.id, today);
+      expect(await svc.list('u1', spaces.u1, onYesterday)).toHaveLength(2);
+    });
+
+    it("does not change another space's tasks", async () => {
+      await addTask({ userId: 'u2', plannedDay: yesterday });
+      expect(await svc.list('u2', spaces.u2, onlyToday)).toHaveLength(1);
+    });
+  });
+
+  it("carries yesterday's open task to today by default", async () => {
+    const row = await addTask({ plannedDay: '2026-11-08' });
+    expect(await svc.list('u1', spaces.u1, onlyToday)).toMatchObject([{ id: row.id, day: today }]);
   });
 
   describe('removeMany', () => {

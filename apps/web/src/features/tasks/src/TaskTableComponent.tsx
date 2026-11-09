@@ -11,6 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Fragment, useState } from 'react';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
 import { withinSameList } from '@/shared/utils/within-same-list';
 import { useColumnWidths } from '../hooks/useColumnWidths';
 import { useTaskMutations } from '../hooks/useTaskMutations';
@@ -81,7 +82,7 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
   }
 
   return (
-    <div className="mx-4 mb-6 overflow-x-auto rounded-2xl border bg-card md:mx-6">
+    <div className="mx-4 mb-6 overflow-hidden rounded-lg border md:mx-6">
       <DndContext
         id="task-table"
         sensors={sensors}
@@ -91,7 +92,7 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggingId(undefined)}
       >
-        <table className="w-full table-fixed text-sm" style={{ minWidth: tableMinWidth(widths) }}>
+        <Table className="table-fixed" style={{ minWidth: tableMinWidth(widths) }}>
           <colgroup>
             <col className="w-14" />
             <col className="w-7" />
@@ -102,18 +103,18 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
             <col style={{ width: widths.completed }} />
             <col className="w-12" />
           </colgroup>
-          <thead className="bg-secondary text-left text-[13px] text-muted-foreground">
-            <tr className="h-10 border-b">
-              <th scope="col">
+          <TableHeader className="bg-muted">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">
                 <span className="sr-only">Reorder and expand</span>
-              </th>
-              <th scope="col">
+              </TableHead>
+              <TableHead scope="col">
                 <span className="sr-only">Finished</span>
-              </th>
-              <th scope="col" className="font-medium">
+              </TableHead>
+              <TableHead scope="col" className="px-0">
                 Task
-              </th>
-              <th scope="col" className="relative pl-3 font-medium">
+              </TableHead>
+              <TableHead scope="col" className="relative px-3">
                 <ColumnResizerComponent
                   boundary={{ right: 'status' }}
                   label="Resize Task and Status columns"
@@ -121,8 +122,8 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
                   onChange={setWidths}
                 />
                 Status
-              </th>
-              <th scope="col" className="relative pl-3 font-medium">
+              </TableHead>
+              <TableHead scope="col" className="relative px-3">
                 <ColumnResizerComponent
                   boundary={{ left: 'status', right: 'priority' }}
                   label="Resize Status and Priority columns"
@@ -130,8 +131,8 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
                   onChange={setWidths}
                 />
                 Priority
-              </th>
-              <th scope="col" className="relative pl-3 font-medium">
+              </TableHead>
+              <TableHead scope="col" className="relative px-3">
                 <ColumnResizerComponent
                   boundary={{ left: 'priority', right: 'created' }}
                   label="Resize Priority and Created columns"
@@ -139,8 +140,8 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
                   onChange={setWidths}
                 />
                 Created
-              </th>
-              <th scope="col" className="relative pl-3 font-medium">
+              </TableHead>
+              <TableHead scope="col" className="relative px-3">
                 <ColumnResizerComponent
                   boundary={{ left: 'created', right: 'completed' }}
                   label="Resize Created and Completed at columns"
@@ -148,16 +149,14 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
                   onChange={setWidths}
                 />
                 Completed at
-              </th>
-              <th scope="col">
+              </TableHead>
+              <TableHead scope="col">
                 <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {renderRows(tasks, 'tasks', 0)}
-          </tbody>
-        </table>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{renderRows(tasks, 'tasks', 0)}</TableBody>
+        </Table>
       </DndContext>
     </div>
   );

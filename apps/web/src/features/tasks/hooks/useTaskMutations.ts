@@ -48,7 +48,9 @@ const withNewIds = (list: PastedTask[]): NewPastedTask[] =>
 export function useTaskMutations() {
   const queryClient = useQueryClient();
   const today = useToday();
-  const spaceId = useActiveSpace()?.id as string;
+  const space = useActiveSpace();
+  const spaceId = space?.id as string;
+  const carryOver = space?.carryOver !== false;
 
   const taskCaches = () => queryClient.getQueriesData<Task[]>({ queryKey: ['tasks'] });
 
@@ -112,7 +114,7 @@ export function useTaskMutations() {
 
   const create = useMutation({
     ...optimistic(createTask, (input) => {
-      writeFamily(buildTask(input, today), input.spaceId);
+      writeFamily(buildTask(input, today, carryOver), input.spaceId);
     }),
     onSuccess: (_result, { title }) => toast.success(`Created "${title}"`),
   });
@@ -120,7 +122,7 @@ export function useTaskMutations() {
   const addMany = useMutation({
     ...optimistic(createTasks, ({ spaceId: targetSpaceId, day, tasks }) => {
       for (const { subtasks, ...task } of tasks) {
-        const parent = buildTask({ ...task, status: 'todo', highPriority: false, day }, today);
+        const parent = buildTask({ ...task, status: 'todo', highPriority: false, day }, today, carryOver);
         writeFamily({ ...parent, subtasks: buildSubtaskTree(subtasks, parent) }, targetSpaceId);
       }
     }),
@@ -129,7 +131,9 @@ export function useTaskMutations() {
 
   const addSubtask = useMutation({
     ...optimistic(createSubtask, ({ parentId, input }) => {
-      changeFamily(parentId, (family) => withSubtask(family, buildSubtask(input, findTask(family, parentId) as Task), today));
+      changeFamily(parentId, (family) =>
+        withSubtask(family, buildSubtask(input, findTask(family, parentId) as Task), today, carryOver),
+      );
     }),
     onSuccess: (_result, { input }) => toast.success(`Created "${input.title}"`),
   });
@@ -138,7 +142,7 @@ export function useTaskMutations() {
     ...optimistic(createSubtasks, ({ parentId, subtasks }) => {
       changeFamily(parentId, (family) =>
         buildSubtaskTree(subtasks, findTask(family, parentId) as Task).reduce<Task>(
-          (next, subtask) => withSubtask(next, subtask, today),
+          (next, subtask) => withSubtask(next, subtask, today, carryOver),
           family,
         ),
       );
@@ -151,7 +155,7 @@ export function useTaskMutations() {
       const { day, ...fields } = input;
       changeFamily(id, (family) => {
         const changed = withFields(family, id, fields);
-        return day ? withDay(changed, day, today) : changed;
+        return day ? withDay(changed, day, today, carryOver) : changed;
       });
     }),
   );
@@ -162,7 +166,7 @@ export function useTaskMutations() {
         setTaskFinished(id, finished, today, status),
       ({ id, finished, status }) =>
         changeFamily(id, (family) => {
-          const changed = withFinished(family, id, finished, today);
+          const changed = withFinished(family, id, finished, today, carryOver);
           return status ? withFields(changed, id, { status }) : changed;
         }),
     ),
@@ -175,7 +179,7 @@ export function useTaskMutations() {
         const family = familyOf(id);
         if (!family || !newIds) return;
         const target = targetSpaceId ?? spaceId;
-        writeFamily(buildCopy(family, newIds, target === spaceId, today), target);
+        writeFamily(buildCopy(family, newIds, target === spaceId, today, carryOver), target);
       },
     ),
     onSuccess: (_result, { targetSpaceId }) => {

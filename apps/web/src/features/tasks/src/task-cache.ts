@@ -6,7 +6,7 @@ type TaskFieldChanges = Partial<Pick<Task, 'title' | 'status' | 'highPriority'>>
 type NewTaskFields = { id: string; title: string; status: TaskStatus; highPriority: boolean };
 export type NewPastedTask = { id: string; title: string; subtasks: NewPastedTask[] };
 
-const notBefore = (day: string, today: string) => (day < today ? today : day);
+const shownDay = (day: string, today: string, carryOver: boolean) => (carryOver && day < today ? today : day);
 
 const containsTask = (task: Task, id: string): boolean =>
   task.id === id || task.subtasks.some((subtask) => containsTask(subtask, id));
@@ -42,9 +42,9 @@ const reopenTree = (task: Task): Task =>
 
 const allFinished = (subtasks: Task[]) => subtasks.length > 0 && subtasks.every((subtask) => subtask.finished);
 
-function placedOnDay(before: Task, after: Task, today: string): Task {
+function placedOnDay(before: Task, after: Task, today: string, carryOver: boolean): Task {
   if (after.finished === before.finished) return after;
-  return withTreeDay(after, after.finished ? today : notBefore(after.plannedDay ?? today, today));
+  return withTreeDay(after, after.finished ? today : shownDay(after.plannedDay ?? today, today, carryOver));
 }
 
 export function findFamily(tasks: Task[], id: string): Task | undefined {
@@ -72,12 +72,12 @@ function changeFinished(task: Task, id: string, finished: boolean, today: string
   return allFinished(next.subtasks) ? finishOne(next, today) : next;
 }
 
-export function withFinished(family: Task, id: string, finished: boolean, today: string): Task {
-  return placedOnDay(family, changeFinished(family, id, finished, today), today);
+export function withFinished(family: Task, id: string, finished: boolean, today: string, carryOver = true): Task {
+  return placedOnDay(family, changeFinished(family, id, finished, today), today, carryOver);
 }
 
-export function withDay(family: Task, day: string, today: string): Task {
-  return withTreeDay({ ...family, plannedDay: day }, notBefore(day, today));
+export function withDay(family: Task, day: string, today: string, carryOver = true): Task {
+  return withTreeDay({ ...family, plannedDay: day }, shownDay(day, today, carryOver));
 }
 
 function addToParent(task: Task, subtask: Task): Task {
@@ -86,8 +86,8 @@ function addToParent(task: Task, subtask: Task): Task {
   return reopenOne({ ...task, subtasks: task.subtasks.map((child) => addToParent(child, subtask)) });
 }
 
-export function withSubtask(family: Task, subtask: Task, today: string): Task {
-  return placedOnDay(family, addToParent(family, subtask), today);
+export function withSubtask(family: Task, subtask: Task, today: string, carryOver = true): Task {
+  return placedOnDay(family, addToParent(family, subtask), today, carryOver);
 }
 
 function removeFromTree(task: Task, id: string, today: string): Task {
@@ -98,10 +98,10 @@ function removeFromTree(task: Task, id: string, today: string): Task {
 }
 
 export function withoutSubtask(family: Task, id: string, today: string): Task {
-  return placedOnDay(family, removeFromTree(family, id, today), today);
+  return placedOnDay(family, removeFromTree(family, id, today), today, true);
 }
 
-export function buildTask(fields: NewTaskFields & { day: string }, today: string): Task {
+export function buildTask(fields: NewTaskFields & { day: string }, today: string, carryOver = true): Task {
   return {
     id: fields.id,
     parentId: null,
@@ -109,7 +109,7 @@ export function buildTask(fields: NewTaskFields & { day: string }, today: string
     status: fields.status,
     highPriority: fields.highPriority,
     finished: false,
-    day: notBefore(fields.day, today),
+    day: shownDay(fields.day, today, carryOver),
     plannedDay: fields.day,
     completedOn: null,
     createdAt: new Date().toISOString(),
@@ -144,9 +144,10 @@ export function buildCopy(
   newIds: Record<string, string>,
   sameSpace: boolean,
   today: string,
+  carryOver = true,
 ): Task {
   const createdAt = new Date().toISOString();
-  const day = notBefore(family.day, today);
+  const day = shownDay(family.day, today, carryOver);
   const unfinished = (task: Task, parentId: string | null): Task => ({
     ...task,
     id: newIds[task.id],
