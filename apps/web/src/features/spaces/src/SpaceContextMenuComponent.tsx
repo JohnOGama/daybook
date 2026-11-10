@@ -19,7 +19,9 @@ import {
 } from '@/shared/components/ui/context-menu';
 import { useDeleteSpace } from '../hooks/useDeleteSpace';
 import { useDuplicateSpace } from '../hooks/useDuplicateSpace';
-import type { Space } from './space-types';
+import type { Space, SpaceTool } from './space-types';
+
+const CONTENT_NAMES: Record<SpaceTool, string> = { list: 'tasks', notebook: 'pages', vault: 'items' };
 
 type SpaceContextMenuProps = {
   space: Space;
@@ -46,7 +48,9 @@ export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceCont
           }}
         >
           <ContextMenuItem onSelect={() => (editChosen.current = true)}>Edit</ContextMenuItem>
-          {!isFolder && <ContextMenuItem onSelect={() => duplicateSpace.mutate(space)}>Duplicate</ContextMenuItem>}
+          {!isFolder && space.tool !== 'vault' && (
+            <ContextMenuItem onSelect={() => duplicateSpace.mutate(space)}>Duplicate</ContextMenuItem>
+          )}
           <ContextMenuItem onSelect={() => setConfirming(true)}>Delete</ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -58,7 +62,7 @@ export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceCont
             <AlertDialogDescription>
               {isFolder
                 ? `"${space.title}", the spaces inside it, and all their tasks will move to Trash. You can restore them from there.`
-                : `"${space.title}" and all its ${space.tool === 'notebook' ? 'pages' : 'tasks'} will move to Trash. You can restore them from there.`}
+                : `"${space.title}" and all its ${CONTENT_NAMES[space.tool ?? 'list']} will move to Trash. You can restore them from there.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

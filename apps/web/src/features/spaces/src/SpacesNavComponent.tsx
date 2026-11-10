@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BookOpen, Folder, FolderOpen, GripVertical, Hash, Plus } from 'lucide-react';
+import { BookOpen, Lock, Folder, FolderOpen, GripVertical, Hash, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -33,7 +33,7 @@ import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
 import { buildSpaceTree, type SpaceNode, spaceHref } from './space-tree';
-import type { Space } from './space-types';
+import type { Space, SpaceTool } from './space-types';
 
 type CreatingState = { parentFolder?: Space };
 type RenderSpaceSummary = (space: Space) => ReactNode;
@@ -84,6 +84,8 @@ function ReorderHandle({ title, sortable }: { title: string; sortable: Sortable 
   );
 }
 
+const TOOL_ICONS: Record<SpaceTool, typeof Hash> = { list: Hash, notebook: BookOpen, vault: Lock };
+
 type SpaceRowProps = {
   space: Space;
   isActive: boolean;
@@ -95,7 +97,7 @@ type SpaceRowProps = {
 function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceRowProps) {
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({ id: space.id });
-  const Icon = space.tool === 'notebook' ? BookOpen : Hash;
+  const Icon = TOOL_ICONS[space.tool ?? 'list'];
   const icon = <Icon className="size-4 shrink-0" aria-hidden />;
 
   return (

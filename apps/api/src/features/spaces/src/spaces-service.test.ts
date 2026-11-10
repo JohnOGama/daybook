@@ -243,7 +243,7 @@ describe('SpacesService', () => {
     });
   });
 
-  it('counts unfinished tasks on today, including subtasks and overdue tasks', async () => {
+  it('counts unfinished top-level tasks on today, including overdue ones but not subtasks', async () => {
     const spaceId = await insertSpace(db, 'u1');
     const base = { userId: 'u1', spaceId, title: 't' };
     const [parent] = await db.insert(tasks).values({ ...base, plannedDay: '2026-11-05' }).returning();
@@ -252,7 +252,12 @@ describe('SpacesService', () => {
     await db.insert(tasks).values({ ...base, plannedDay: today, completedOn: today });
     await db.insert(tasks).values({ ...base, plannedDay: '2026-11-20' });
     const [listed] = await svc.list('u1', today);
-    expect(listed.openToday).toBe(2);
+    expect(listed.openToday).toBe(1);
+  });
+
+  it('refuses to duplicate a vault space', async () => {
+    const vault = await svc.create('u1', { kind: 'space', title: 'V', tool: 'vault' });
+    await expect(svc.duplicate('u1', vault.id)).rejects.toThrow(BadRequestException);
   });
 
   it('does not count subtasks of a task planned for a future day', async () => {

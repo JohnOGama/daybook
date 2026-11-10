@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
-import { tasks } from '../../../shared/db/schema.ts';
+import { tasks, vaultItems } from '../../../shared/db/schema.ts';
 import { createTestDb, insertUser } from '../../../shared/db/test-db.ts';
 import { SpacesService } from '../../spaces/src/spaces-service.ts';
 import { TasksService } from '../../tasks/src/tasks-service.ts';
@@ -200,6 +200,37 @@ describe('TrashService', () => {
     it("refuses another user's space", async () => {
       await spaces.remove('u1', spaceId);
       await expect(trash.restoreSpace('u2', spaceId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('vault items', () => {
+    const iv = Buffer.alloc(12, 1).toString('base64');
+    const ciphertext = Buffer.alloc(32, 2).toString('base64');
+    let vaultSpaceId: string;
+    let itemId: string;
+
+    beforeEach(async () => {
+      vaultSpaceId = (await spaces.create('u1', { kind: 'space', title: 'Safe', tool: 'vault' })).id;
+      itemId = crypto.randomUUID();
+      await db.insert(vaultItems).values({ id: itemId, userId: 'u1', spaceId: vaultSpaceId, iv, ciphertext, deletedAt: new Date() });
+    });
+
+    it('lists a deleted vault item without a readable title', async () => {
+      expect(await trash.list('u1')).toMatchObject([
+        { id: itemId, type: 'vault-item', title: 'Encrypted item', location: 'Safe', payload: { iv, ciphertext } },
+      ]);
+    });
+
+    it('restores a vault item and its space', async () => {
+      await spaces.remove('u1', vaultSpaceId);
+      await trash.restoreVaultItem('u1', itemId);
+      const [row] = await db.select().from(vaultItems).where(eq(vaultItems.id, itemId));
+      expect(row.deletedAt).toBeNull();
+      expect((await spaces.list('u1', today)).map((space) => space.id)).toContain(vaultSpaceId);
+    });
+
+    it("refuses another user's vault item", async () => {
+      await expect(trash.restoreVaultItem('u2', itemId)).rejects.toThrow(NotFoundException);
     });
   });
 

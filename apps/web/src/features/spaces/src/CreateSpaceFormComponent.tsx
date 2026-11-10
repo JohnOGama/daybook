@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Folder, Hash, List } from 'lucide-react';
+import { BookOpen, Folder, Hash, List, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
@@ -21,6 +21,7 @@ type CreateSpaceFormProps = {
 const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   list: <List className="size-[18px]" aria-hidden />,
   notebook: <BookOpen className="size-[18px]" aria-hidden />,
+  vault: <Lock className="size-[18px]" aria-hidden />,
 };
 
 export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, onCancel }: CreateSpaceFormProps) {

@@ -12,6 +12,7 @@ const COLLECTIONS: Record<TrashItem['type'], string> = {
   space: 'spaces',
   folder: 'spaces',
   page: 'pages',
+  'vault-item': 'vault-items',
 };
 
 export async function restoreItem(item: TrashItem): Promise<void> {

@@ -334,11 +334,10 @@ describe('finishing, subtasks and deletion', () => {
       expect([await done(middle), await done(root)]).toEqual([false, false]);
     });
 
-    it('counts a deep open task in its space today', async () => {
-      const { leaf } = await chain();
-      expect(leaf).toBeTruthy();
+    it('counts a nested family once in its space today', async () => {
+      await chain();
       const [space] = (await new SpacesService(db).list('u1', today)).filter((row) => row.id === spaces.u1);
-      expect(space.openToday).toBe(3);
+      expect(space.openToday).toBe(1);
     });
   });
 

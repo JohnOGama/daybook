@@ -1,8 +1,10 @@
 'use client';
 
 import { Button } from '@/shared/components/ui/button';
-import { CheckSquare, FileText, Folder, Hash, ListTree } from 'lucide-react';
+import { CheckSquare, FileText, Folder, Hash, ListTree, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Skeleton } from 'skullet/react';
+import { decryptJson, type ItemContent, useVaultSession } from '@/features/vault';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyTrashIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { formatShortDate } from '@/shared/utils/date-formatter';
@@ -16,7 +18,30 @@ const ICONS: Record<TrashItem['type'], typeof Hash> = {
   space: Hash,
   folder: Folder,
   page: FileText,
+  'vault-item': Lock,
 };
+
+function VaultItemTitle({ item }: { item: TrashItem }) {
+  const { key } = useVaultSession();
+  const [name, setName] = useState<string>();
+
+  useEffect(() => {
+    setName(undefined);
+    if (!key || !item.payload) return;
+    let isCurrent = true;
+    decryptJson<ItemContent>(key, item.id, item.payload).then(
+      (content) => {
+        if (isCurrent) setName(content.name);
+      },
+      () => {},
+    );
+    return () => {
+      isCurrent = false;
+    };
+  }, [key, item]);
+
+  return key && name ? name : item.title;
+}
 
 const SAMPLE_ITEMS: TrashItem[] = ['sample-1', 'sample-2', 'sample-3'].map((id) => ({
   id,
@@ -59,7 +84,9 @@ export function TrashPageComponent() {
               <li key={`${item.type}-${item.id}`} className="row-enter flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0 md:px-6">
                 <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  <p className="truncate text-sm font-medium">
+                    {item.type === 'vault-item' ? <VaultItemTitle item={item} /> : item.title}
+                  </p>
                   {item.location && <p className="truncate text-xs text-muted-foreground">{item.location}</p>}
                 </div>
                 <span className="shrink-0 text-[13px] text-muted-foreground">{formatShortDate(item.deletedAt)}</span>

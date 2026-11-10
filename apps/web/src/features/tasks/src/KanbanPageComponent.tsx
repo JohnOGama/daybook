@@ -10,11 +10,12 @@ import { useToday } from '@/shared/hooks/useToday';
 import { formatDayHeading } from '@/shared/utils/date-formatter';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 import { useTasks } from '../hooks/useTasks';
-import { daySummary } from './day-summary';
+import { openTaskCount } from './day-summary';
 import { filterTasks } from './filter-tasks';
 import { FiltersMenuComponent } from './FiltersMenuComponent';
 import { hasKanban } from './kanban-columns';
 import { KanbanBoardComponent } from './KanbanBoardComponent';
+import { countOf } from './parse-task-list';
 import { SAMPLE_TASKS } from './sample-tasks';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
 import { TaskProgressComponent } from './TaskProgressComponent';
@@ -37,13 +38,12 @@ export function KanbanPageComponent() {
   if (unavailable) return null;
 
   const tasks = isPending ? SAMPLE_TASKS : (data ?? []);
-  const { total } = daySummary(tasks);
 
   return (
     <div className="flex flex-col md:h-[calc(100dvh-1rem)]">
       <TasksHeaderComponent
         title={formatDayHeading(today)}
-        subtitle={`${space?.title} · Today · ${total} ${total === 1 ? 'task' : 'tasks'}`}
+        subtitle={`${space?.title} · Today · ${countOf(openTaskCount(tasks), 'task')}`}
         subtitleLoading={isPending}
       />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 md:px-6">

@@ -95,3 +95,12 @@ it('says a folder goes to Trash with its spaces', async () => {
   const dialog = await askToDelete(folder);
   expect(dialog).toHaveTextContent('"Team", the spaces inside it, and all their tasks will move to Trash');
 });
+
+it('offers no Duplicate for a vault space', async () => {
+  expect(await rightClick({ ...space, tool: 'vault' })).toEqual(['Edit', 'Delete']);
+});
+
+it('says a vault goes to Trash with its items', async () => {
+  const dialog = await askToDelete({ ...space, tool: 'vault' });
+  expect(dialog).toHaveTextContent('all its items');
+});

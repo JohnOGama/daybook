@@ -10,10 +10,11 @@ import { useToday } from '@/shared/hooks/useToday';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 import { useTasks } from '../hooks/useTasks';
 import { formatMonthHeading, monthGrid, shiftMonth } from './calendar-grid';
-import { daySummary } from './day-summary';
+import { openTaskCount } from './day-summary';
 import { filterTasks } from './filter-tasks';
 import { FiltersMenuComponent } from './FiltersMenuComponent';
 import { MonthGridComponent } from './MonthGridComponent';
+import { countOf } from './parse-task-list';
 import { sampleMonthTasks } from './sample-tasks';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
@@ -38,7 +39,6 @@ export function CalendarPageComponent() {
   const [editing, setEditing] = useState<Task>();
 
   const spaceTitle = useActiveSpace()?.title;
-  const { total } = daySummary(todayTasks);
   const filterParams = new URLSearchParams(
     [...params].filter(([name]) => ['space', 'status', 'high'].includes(name)),
   );
@@ -53,7 +53,7 @@ export function CalendarPageComponent() {
     <>
       <TasksHeaderComponent
         title={formatMonthHeading(month)}
-        subtitle={`${spaceTitle} · Today · ${total} ${total === 1 ? 'task' : 'tasks'}`}
+        subtitle={`${spaceTitle} · Today · ${countOf(openTaskCount(todayTasks), 'task')}`}
         subtitleLoading={isTodayPending}
       />
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">

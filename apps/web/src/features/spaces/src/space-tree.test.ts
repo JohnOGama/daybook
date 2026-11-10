@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { buildSpaceTree, resolveActiveSpace } from './space-tree';
-import type { Space } from './space-types';
+import { buildSpaceTree, isOnWrongScreen, resolveActiveSpace, spaceHref } from './space-tree';
+import type { Space, SpaceTool } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
   return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, createdAt: '', openToday: 0, ...fields };
@@ -35,4 +35,20 @@ it('never treats a folder as the active space', () => {
 
 it('has no active space when only folders exist', () => {
   expect(resolveActiveSpace([folder], null)).toBeUndefined();
+});
+
+it('links a vault to its screen', () => {
+  expect(spaceHref({ id: 'a', tool: 'vault' })).toBe('/vault?space=a');
+});
+
+it.each([
+  ['vault', '/vault', false],
+  ['vault', '/list', true],
+  ['notebook', '/vault', true],
+  ['list', '/vault', true],
+  ['list', '/kanban', false],
+  ['list', '/settings', false],
+  ['notebook', '/notebook', false],
+])('%s on %s: wrong screen %s', (tool, path, wrong) => {
+  expect(isOnWrongScreen(tool as SpaceTool, path)).toBe(wrong);
 });

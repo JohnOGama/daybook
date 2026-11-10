@@ -46,6 +46,8 @@ Open http://localhost:3000.
 
 Sign-in and code requests are not rate limited yet. Better Auth only enables its limiter when `NODE_ENV=production`, and behind the Next.js rewrite it can't see the visitor's IP, so everyone would share one limit. Before the app is public, have your host or proxy set a trusted client IP header, then set `rateLimit: { enabled: true }` and `advanced.ipAddress` in `apps/api/src/features/auth/src/create-auth.ts`.
 
+The Vault only works over HTTPS or on localhost, because browsers limit Web Crypto to secure connections. Serve the app over HTTPS and add a Content-Security-Policy so injected scripts can't read an unlocked vault.
+
 ## Test
 
 ```bash

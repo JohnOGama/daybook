@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { keepRowInTable, TaskTableComponent } from './TaskTableComponent';
 import type { Task } from './task-types';
 
@@ -55,6 +55,82 @@ it('counts subtasks only against their own siblings', () => {
   expect(handle('a')).toBeInTheDocument();
   expect(handle('a1')).not.toBeInTheDocument();
   expect(handle('b1')).toBeInTheDocument();
+});
+
+type ObserverCallback = (entries: { isIntersecting: boolean }[]) => void;
+let watching: ObserverCallback | undefined;
+
+beforeEach(() => {
+  localStorage.clear();
+  watching = undefined;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(private callback: ObserverCallback) {}
+      observe() {
+        watching = this.callback;
+      }
+      disconnect() {
+        watching = undefined;
+      }
+    },
+  );
+});
+
+const manyTasks = (count: number) => Array.from({ length: count }, (_, index) => task(`t${index + 1}`));
+const finishBoxes = () => screen.queryAllByRole('checkbox', { name: /^Finish / });
+const button = (name: string) => screen.getByRole('button', { name });
+const reachEnd = () => act(() => watching?.([{ isIntersecting: true }]));
+
+it('does not watch for more when everything is showing', () => {
+  renderTable(manyTasks(10));
+  expect(finishBoxes()).toHaveLength(10);
+  expect(watching).toBeUndefined();
+});
+
+it('adds tasks each time the end is reached, then stops watching', () => {
+  renderTable(manyTasks(25));
+  expect(finishBoxes()).toHaveLength(10);
+
+  reachEnd();
+  expect(finishBoxes()).toHaveLength(20);
+
+  reachEnd();
+  expect(finishBoxes()).toHaveLength(25);
+  expect(watching).toBeUndefined();
+});
+
+it('adds nothing while the end is out of view', () => {
+  renderTable(manyTasks(25));
+  act(() => watching?.([{ isIntersecting: false }]));
+  expect(finishBoxes()).toHaveLength(10);
+});
+
+it('counts top-level tasks and keeps subtasks with their parent', () => {
+  const [first, ...rest] = manyTasks(11);
+  renderTable([{ ...first, subtasks: [task('child', { parentId: 't1' })] }, ...rest]);
+  expect(finishBoxes()).toHaveLength(11);
+  expect(screen.getByRole('checkbox', { name: 'Finish child' })).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: 'Finish t11' })).not.toBeInTheDocument();
+});
+
+it('keeps a task collapsed after a refresh', async () => {
+  const tasks = [task('a', { subtasks: [task('a1', { parentId: 'a' })] })];
+  const { unmount } = render(<TaskTableComponent tasks={tasks} allTasks={tasks} />);
+  await userEvent.click(button('Collapse a'));
+  unmount();
+
+  render(<TaskTableComponent tasks={tasks} allTasks={tasks} />);
+  expect(screen.queryByRole('checkbox', { name: 'Finish a1' })).not.toBeInTheDocument();
+  await userEvent.click(button('Expand a'));
+  expect(screen.getByRole('checkbox', { name: 'Finish a1' })).toBeInTheDocument();
+});
+
+it('ignores unreadable saved collapse data', () => {
+  localStorage.setItem('daybook.collapsed-tasks', 'not json');
+  const tasks = [task('a', { subtasks: [task('a1', { parentId: 'a' })] })];
+  renderTable(tasks);
+  expect(screen.getByRole('checkbox', { name: 'Finish a1' })).toBeInTheDocument();
 });
 
 const deepTask = () =>

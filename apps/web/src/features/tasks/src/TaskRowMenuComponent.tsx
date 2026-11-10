@@ -23,12 +23,39 @@ type TaskRowMenuProps = {
   onDelete: () => void;
 };
 
-export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenuProps) {
+function CopyToMenu({ task }: { task: Task }) {
   const { copy } = useTaskMutations();
   const { data: spaces = [] } = useSpaces();
   const activeId = useActiveSpace()?.id;
-  const isTopLevel = task.parentId === null;
   const otherSpaces = spaces.filter((space) => space.tool === 'list' && space.id !== activeId);
+
+  if (otherSpaces.length === 0) return null;
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>Copy to</DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        {otherSpaces.map((space) => (
+          <DropdownMenuItem
+            key={space.id}
+            onSelect={() =>
+              copy.mutate(
+                { id: task.id, targetSpaceId: space.id },
+                { onSuccess: () => toast.success(`Copied to ${space.title}`) },
+              )
+            }
+          >
+            {space.title}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+}
+
+export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenuProps) {
+  const { copy } = useTaskMutations();
+  const isTopLevel = task.parentId === null;
 
   return (
     <DropdownMenu modal={false}>
@@ -49,26 +76,7 @@ export function TaskRowMenuComponent({ task, onOpenForm, onDelete }: TaskRowMenu
           <DropdownMenuItem onSelect={() => onOpenForm('move')}>Move to another day</DropdownMenuItem>
         )}
         {isTopLevel && <DropdownMenuItem onSelect={() => copy.mutate({ id: task.id })}>Duplicate</DropdownMenuItem>}
-        {isTopLevel && otherSpaces.length > 0 && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Copy to</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {otherSpaces.map((space) => (
-                <DropdownMenuItem
-                  key={space.id}
-                  onSelect={() =>
-                    copy.mutate(
-                      { id: task.id, targetSpaceId: space.id },
-                      { onSuccess: () => toast.success(`Copied to ${space.title}`) },
-                    )
-                  }
-                >
-                  {space.title}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
+        {isTopLevel && <CopyToMenu task={task} />}
         <DropdownMenuItem onSelect={onDelete}>Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

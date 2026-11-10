@@ -7,14 +7,14 @@ import { PageSkeletonComponent } from '@/shared/components/PageSkeletonComponent
 import { useActiveSpace } from '../hooks/useActiveSpace';
 import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
-import { spaceHref } from './space-tree';
+import { isOnWrongScreen, spaceHref } from './space-tree';
 
 export function SpaceGateComponent({ children }: { children: ReactNode }) {
   const { data: spaces, isPending, isError } = useSpaces();
   const active = useActiveSpace();
   const router = useRouter();
-  const onNotebookScreen = usePathname() === '/notebook';
-  const correctScreen = active && (active.tool === 'notebook') !== onNotebookScreen ? spaceHref(active) : undefined;
+  const pathname = usePathname();
+  const correctScreen = active && isOnWrongScreen(active.tool, pathname) ? spaceHref(active) : undefined;
 
   useEffect(() => {
     if (correctScreen) router.replace(correctScreen);

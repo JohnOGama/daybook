@@ -22,6 +22,11 @@ export class TrashController {
     return this.trash.restorePage(userId, id);
   }
 
+  @Post('vault-items/:id/restore')
+  restoreVaultItem(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.trash.restoreVaultItem(userId, id);
+  }
+
   @Post('spaces/:id/restore')
   restoreSpace(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.trash.restoreSpace(userId, id);

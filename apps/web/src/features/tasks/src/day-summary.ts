@@ -13,11 +13,12 @@ export function daySummary(tasks: Task[]) {
   };
 }
 
+export const openTaskCount = (tasks: Task[]) => tasks.filter((task) => !task.finished).length;
+
 export function sidebarCounts(tasks: Task[]) {
   const open = flatten(tasks).filter((task) => !task.finished);
   const withStatus = (status: Task['status']) => open.filter((task) => task.status === status).length;
   return {
-    open: open.length,
     todo: withStatus('todo'),
     inProgress: withStatus('in_progress'),
     onHold: withStatus('on_hold'),

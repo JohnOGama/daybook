@@ -1,10 +1,11 @@
 'use client';
 
 import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createContext, useContext } from 'react';
 import { toast } from 'sonner';
 import { type Space, useActiveSpace } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
-import { sidebarCounts } from '../src/day-summary';
+import { openTaskCount } from '../src/day-summary';
 import { countOf, describeTaskList, type PastedTask, totalInList } from '../src/parse-task-list';
 import {
   allInTree,
@@ -45,7 +46,7 @@ type CopyVariables = { id: string; targetSpaceId?: string; newIds?: Record<strin
 const withNewIds = (list: PastedTask[]): NewPastedTask[] =>
   list.map(({ title, subtasks }) => ({ id: crypto.randomUUID(), title, subtasks: withNewIds(subtasks) }));
 
-export function useTaskMutations() {
+export function useCreateTaskMutations() {
   const queryClient = useQueryClient();
   const today = useToday();
   const space = useActiveSpace();
@@ -83,9 +84,9 @@ export function useTaskMutations() {
   function refreshOpenCount() {
     const todayTasks = queryClient.getQueryData<Task[]>(['tasks', spaceId, today, today, today]);
     if (!todayTasks) return;
-    const { open } = sidebarCounts(todayTasks);
+    const openToday = openTaskCount(todayTasks);
     queryClient.setQueriesData<Space[]>({ queryKey: ['spaces'] }, (spaces) =>
-      spaces?.map((space) => (space.id === spaceId ? { ...space, openToday: open } : space)),
+      spaces?.map((space) => (space.id === spaceId ? { ...space, openToday } : space)),
     );
   }
 
@@ -247,4 +248,18 @@ export function useTaskMutations() {
     remove,
     removeMany,
   };
+}
+
+type AllTaskMutations = ReturnType<typeof useCreateTaskMutations>;
+
+export type TaskMutations = {
+  [Name in keyof AllTaskMutations]: Pick<AllTaskMutations[Name], Extract<keyof AllTaskMutations[Name], 'mutate' | 'mutateAsync'>>;
+};
+
+export const TaskMutationsContext = createContext<TaskMutations | null>(null);
+
+export function useTaskMutations(): TaskMutations {
+  const mutations = useContext(TaskMutationsContext);
+  if (!mutations) throw new Error('useTaskMutations must be used inside TaskMutationsProviderComponent');
+  return mutations;
 }

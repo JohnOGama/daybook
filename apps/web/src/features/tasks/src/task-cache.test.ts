@@ -70,6 +70,14 @@ describe('deep nesting', () => {
     task('p', { subtasks: [sub('mid', { subtasks: leaves })] });
   const states = (root: Task) => [root.finished, root.subtasks[0].finished, root.subtasks[0].subtasks[0]?.finished];
 
+  it('leaves tasks outside the change untouched, so their rows need no redraw', () => {
+    const root = task('p', { subtasks: [sub('a'), sub('b')] });
+    const renamed = withFields(root, 'a', { title: 'New' });
+    expect(renamed.subtasks[1]).toBe(root.subtasks[1]);
+    expect(renamed.subtasks[0]).not.toBe(root.subtasks[0]);
+    expect(withFinished(root, 'a', true, today).subtasks[1]).toBe(root.subtasks[1]);
+  });
+
   it('finds a family from its deepest task', () => {
     expect(findFamily([tree()], 'leaf')?.id).toBe('p');
   });

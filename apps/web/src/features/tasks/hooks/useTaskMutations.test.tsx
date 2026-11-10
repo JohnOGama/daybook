@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '../src/task-types';
-import { useTaskMutations } from './useTaskMutations';
+import { useCreateTaskMutations } from './useTaskMutations';
 
 const api = vi.hoisted(() => ({
   copyTask: vi.fn(),
@@ -53,7 +53,7 @@ describe('useTaskMutations', () => {
   let client: QueryClient;
   const cached = (key = todayKey) => client.getQueryData<Task[]>(key) ?? [];
   const setup = () =>
-    renderHook(() => useTaskMutations(), {
+    renderHook(() => useCreateTaskMutations(), {
       wrapper: ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
       ),

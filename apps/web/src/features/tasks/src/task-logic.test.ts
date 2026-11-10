@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daySummary, sidebarCounts } from './day-summary';
+import { daySummary, openTaskCount, sidebarCounts } from './day-summary';
 import { filterTasks } from './filter-tasks';
 import type { Task } from './task-types';
 
@@ -42,14 +42,19 @@ describe('daySummary', () => {
   });
 });
 
+describe('openTaskCount', () => {
+  it('counts unfinished top-level tasks, not their subtasks', () => {
+    expect(openTaskCount(sample)).toBe(4);
+  });
+});
+
 describe('sidebarCounts', () => {
   it('matches the mockup', () => {
-    expect(sidebarCounts(sample)).toEqual({ open: 5, todo: 4, inProgress: 1, onHold: 0, high: 3 });
+    expect(sidebarCounts(sample)).toEqual({ todo: 4, inProgress: 1, onHold: 0, high: 3 });
   });
 
   it('skips finished tasks', () => {
     expect(sidebarCounts([task('a', { finished: true, highPriority: true })])).toEqual({
-      open: 0,
       todo: 0,
       inProgress: 0,
       onHold: 0,

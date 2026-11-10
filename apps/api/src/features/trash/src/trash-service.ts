@@ -1,14 +1,15 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
+import { notebookPages, spaces, tasks, vaultItems } from '../../../shared/db/schema.ts';
 
 export type TrashItem = {
   id: string;
-  type: 'task' | 'subtask' | 'space' | 'folder' | 'page';
+  type: 'task' | 'subtask' | 'space' | 'folder' | 'page' | 'vault-item';
   title: string;
   location: string | null;
   deletedAt: string;
+  payload?: { iv: string; ciphertext: string };
 };
 
 @Injectable()
@@ -16,7 +17,7 @@ export class TrashService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   async list(userId: string): Promise<TrashItem[]> {
-    const [allSpaces, deletedTasks, deletedPages] = await Promise.all([
+    const [allSpaces, deletedTasks, deletedPages, deletedVaultItems] = await Promise.all([
       this.db.select().from(spaces).where(eq(spaces.userId, userId)),
       this.db
         .select()
@@ -26,6 +27,10 @@ export class TrashService {
         .select()
         .from(notebookPages)
         .where(and(eq(notebookPages.userId, userId), isNotNull(notebookPages.deletedAt))),
+      this.db
+        .select()
+        .from(vaultItems)
+        .where(and(eq(vaultItems.userId, userId), isNotNull(vaultItems.deletedAt))),
     ]);
     const spacesById = new Map(allSpaces.map((space) => [space.id, space]));
     const parentIds = deletedTasks.flatMap((task) => (task.parentId ? [task.parentId] : []));
@@ -74,7 +79,32 @@ export class TrashService {
       }),
     );
 
-    return [...taskItems, ...spaceItems, ...pageItems].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+    const vaultTrashItems = deletedVaultItems.map(
+      (item): TrashItem => ({
+        id: item.id,
+        type: 'vault-item',
+        title: 'Encrypted item',
+        location: spacePath(item.spaceId),
+        deletedAt: (item.deletedAt as Date).toISOString(),
+        payload: { iv: item.iv, ciphertext: item.ciphertext },
+      }),
+    );
+
+    return [...taskItems, ...spaceItems, ...pageItems, ...vaultTrashItems].sort((a, b) =>
+      b.deletedAt.localeCompare(a.deletedAt),
+    );
+  }
+
+  async restoreVaultItem(userId: string, id: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [item] = await tx
+        .update(vaultItems)
+        .set({ deletedAt: null })
+        .where(and(eq(vaultItems.id, id), eq(vaultItems.userId, userId), isNotNull(vaultItems.deletedAt)))
+        .returning({ spaceId: vaultItems.spaceId });
+      if (!item) throw new NotFoundException('Not in the trash');
+      await this.restoreSpaceChain(tx, item.spaceId);
+    });
   }
 
   async restorePage(userId: string, id: string): Promise<void> {

@@ -12,20 +12,17 @@ import { formatDayHeading } from '@/shared/utils/date-formatter';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 import { useTasks } from '../hooks/useTasks';
 import { ClearTableDialogComponent } from './ClearTableDialogComponent';
-import { daySummary } from './day-summary';
-import { filterTasks } from './filter-tasks';
+import { openTaskCount } from './day-summary';
+import { filterTasks, withoutFinished } from './filter-tasks';
+import { countOf } from './parse-task-list';
 import { SAMPLE_TASKS } from './sample-tasks';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
 import { TaskProgressComponent } from './TaskProgressComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
 import { TaskTableComponent } from './TaskTableComponent';
 import { TaskToolbarComponent } from './TaskToolbarComponent';
-import type { Task } from './task-types';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-const withoutFinished = (tasks: Task[]): Task[] =>
-  tasks.filter((task) => !task.finished).map((task) => ({ ...task, subtasks: withoutFinished(task.subtasks) }));
 
 export function ListPageComponent() {
   const params = useSearchParams();
@@ -44,8 +41,7 @@ export function ListPageComponent() {
   const visible = params.get('closed') === '0' ? withoutFinished(filtered) : filtered;
   const clearable = tasks.filter((task) => visible.some(({ id }) => id === task.id));
 
-  const { total } = daySummary(tasks);
-  const count = `${total} ${total === 1 ? 'task' : 'tasks'}`;
+  const count = countOf(openTaskCount(tasks), 'task');
 
   function renderEmptyState() {
     if (tasks.length === 0) {
@@ -102,7 +98,9 @@ export function ListPageComponent() {
       </TaskToolbarComponent>
       <Skeleton loading={isPending} label="Loading tasks">
         {isError && <p className="px-6 py-8 text-sm text-destructive">Could not load tasks. Please try again.</p>}
-        {!isError && visible.length > 0 && <TaskTableComponent tasks={visible} allTasks={tasks} />}
+        {!isError && visible.length > 0 && (
+          <TaskTableComponent key={`${space?.id}:${day}`} tasks={visible} allTasks={tasks} />
+        )}
         {!isError && visible.length === 0 && renderEmptyState()}
       </Skeleton>
       <TaskFormDialogComponent mode="new" defaultDay={day} open={creating} onOpenChange={setCreating} />

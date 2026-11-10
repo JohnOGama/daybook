@@ -1,4 +1,4 @@
-export type SpaceTool = 'list' | 'notebook';
+export type SpaceTool = 'list' | 'notebook' | 'vault';
 
 export type Space = {
   id: string;
@@ -20,4 +20,5 @@ export type NewSpaceInput = CreateSpaceInput & { id: string };
 export const TOOLS: { id: SpaceTool; label: string; description: string }[] = [
   { id: 'list', label: 'List', description: 'Plan your days and track tasks' },
   { id: 'notebook', label: 'Notebook', description: 'Write pages with rich text' },
+  { id: 'vault', label: 'Vault', description: 'Keep cards, IDs and keys encrypted' },
 ];

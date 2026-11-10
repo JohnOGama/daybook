@@ -1,3 +1,4 @@
+import { sameTasks } from './filter-tasks';
 import type { Task } from './task-types';
 
 export function moveId(ids: string[], activeId: string, overId: string): string[] {
@@ -25,6 +26,9 @@ function orderGroup(group: Task[], ranks: Map<string, number>): Task[] {
 export function applyOrder(tasks: Task[], ids: string[]): Task[] {
   const ranks = new Map(ids.map((id, index) => [id, index]));
   const ordered = (group: Task[]): Task[] =>
-    orderGroup(group, ranks).map((task) => ({ ...task, subtasks: ordered(task.subtasks) }));
+    orderGroup(group, ranks).map((task) => {
+      const subtasks = ordered(task.subtasks);
+      return sameTasks(subtasks, task.subtasks) ? task : { ...task, subtasks };
+    });
   return ordered(tasks);
 }

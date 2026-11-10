@@ -61,6 +61,7 @@ export function upsertTask(tasks: Task[], range: DayRange, next: Task): Task[] {
 
 export function withFields(family: Task, id: string, fields: TaskFieldChanges): Task {
   if (family.id === id) return { ...family, ...fields };
+  if (!containsTask(family, id)) return family;
   return { ...family, subtasks: family.subtasks.map((subtask) => withFields(subtask, id, fields)) };
 }
 

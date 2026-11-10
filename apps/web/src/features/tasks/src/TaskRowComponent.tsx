@@ -7,7 +7,7 @@ import { TableCell, TableRow } from '@/shared/components/ui/table';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, memo, useState } from 'react';
 import { cn } from '@/shared/utils/cn';
 import { formatShortDate, formatShortDay } from '@/shared/utils/date-formatter';
 import { useTaskMutations } from '../hooks/useTaskMutations';
@@ -24,23 +24,31 @@ import type { Task } from './task-types';
 type TaskRowProps = {
   task: Task;
   depth?: number;
-  rowIndex: number;
+  enterIndex?: number;
   canReorder: boolean;
   expanded?: boolean;
-  onToggleExpanded?: () => void;
+  onToggleExpanded?: (id: string) => void;
 };
 
 const INDENT_PX = 20;
 // ponytail: indentation stops growing here so very deep titles stay readable; a breadcrumb view could replace it
 const MAX_INDENT_LEVELS = 10;
 
-export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expanded, onToggleExpanded }: TaskRowProps) {
+export const TaskRowComponent = memo(function TaskRowComponent({
+  task,
+  depth = 0,
+  enterIndex,
+  canReorder,
+  expanded,
+  onToggleExpanded,
+}: TaskRowProps) {
   const { setFinished } = useTaskMutations();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
   const [formMode, setFormMode] = useState<TaskFormMode>();
   const [deleting, setDeleting] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
   const isSubtask = task.parentId !== null;
   const { finished } = task;
 
@@ -48,8 +56,12 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
     <Checkbox
       aria-label={`Finish ${task.title}`}
       checked={finished}
-      onCheckedChange={(checked) => setFinished.mutate({ id: task.id, finished: checked === true })}
-      className={cn(setFinished.isPending && finished && 'confirm-pulse')}
+      onCheckedChange={(checked) => {
+        setJustFinished(checked === true);
+        setFinished.mutate({ id: task.id, finished: checked === true });
+      }}
+      onAnimationEnd={() => setJustFinished(false)}
+      className={cn(justFinished && 'confirm-pulse')}
     />
   );
 
@@ -58,7 +70,7 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
       type="button"
       aria-expanded={expanded}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${task.title}`}
-      onClick={onToggleExpanded}
+      onClick={() => onToggleExpanded?.(task.id)}
       className="grid size-5 place-items-center text-muted-foreground"
     >
       {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronRight className="size-4" aria-hidden />}
@@ -66,7 +78,7 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
   );
 
   const rowStyle = {
-    '--row-index': rowIndex,
+    '--row-index': enterIndex,
     transform: CSS.Translate.toString(transform),
     transition,
   } as CSSProperties;
@@ -77,7 +89,11 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
         <TableRow
           ref={setNodeRef}
           style={rowStyle}
-          className={cn('row-enter group h-[53px]', isDragging && 'relative z-10 bg-background shadow-md')}
+          className={cn(
+            'group h-[53px]',
+            enterIndex !== undefined && 'row-enter',
+            isDragging && 'relative z-10 bg-background shadow-md',
+          )}
         >
           <TableCell className="py-0 pr-0 pl-1.5">
             <div className="flex items-center">
@@ -140,7 +156,7 @@ export function TaskRowComponent({ task, depth = 0, rowIndex, canReorder, expand
           onOpenChange={(open) => !open && setFormMode(undefined)}
         />
       )}
-      <TaskDeleteDialogComponent task={task} open={deleting} onOpenChange={setDeleting} />
+      {deleting && <TaskDeleteDialogComponent task={task} open onOpenChange={setDeleting} />}
     </>
   );
-}
+});

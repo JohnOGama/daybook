@@ -68,7 +68,7 @@ On narrow screens the sidebar collapses behind a menu button **(my call)**.
 
 ### List tab
 
-- Heading: the full date, such as "Monday, 9 November", then "Today · 6 tasks". Other days drop "Today".
+- Heading: the full date, such as "Monday, 9 November", then "Today · 6 tasks", counting unfinished top-level tasks only. Other days drop "Today".
 - Previous day, next day, and a Today button.
 - Show closed, Filters, New task.
 - Progress card: percentage, "1 of 6 done", "3 high priority left", and a bar.
@@ -152,12 +152,13 @@ Percent of the viewed day's tasks that are finished, rounded, counting parents a
 
 Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-create.html), next to this document. This replaces the sidebar's Today item and its filter lists. Filters live in the page's Filters menu.
 
-- A **space** (#) has a title and a tool, and opens that tool's screen. The tools are List and Notebook. Each List space also has a Kanban tab.
+- A **space** (#) has a title and a tool, and opens that tool's screen. The tools are List, Notebook and Vault (see [the Vault design](2026-11-10-vault-design.md)). Each List space also has a Kanban tab.
 - A **Notebook** space holds pages, newest first, listed beside the editor. Add page creates a blank one. Pages are rich text and save automatically. The formatting toolbar stays hidden until text is highlighted, then floats beside the selection. Right-clicking a page offers Delete, which moves it to Trash after a confirmation **(my call)**.
 - A **folder** only groups spaces. It has a title and no tool. Clicking it opens and closes the group, and its + creates a space inside it. Folders go one level deep.
 - A new person sees a blank page asking for a title and a tool.
 - The + beside "Spaces" opens one dialog with a Space/Folder switch. Folder hides the tool. The + on a folder has no switch.
-- The number beside a space counts its unfinished tasks on today, including subtasks **(my call)**.
+- The number beside a space counts its unfinished top-level tasks on today. Subtasks and finished tasks are not counted.
+- The sidebar is resized by dragging its right edge, between 180 and 420 pixels, and the width is saved in the browser **(my call)**.
 - Each List space has its own tasks, Today view, Calendar and carry-forward **(my call)**. Filters and counts cover the open space.
 - The Settings tab beside Kanban opens a page with "Carry over unfinished tasks" for that List space, on by default. Off, an unfinished task stays on its planned day instead of moving to today. Finished tasks never carry over either way.
 - Existing tasks move into a first space named "My List" **(my call)**.
@@ -171,6 +172,7 @@ Approved mockups: [spaces.html](spaces.html) and [spaces-create.html](spaces-cre
 - Pasting a multi-line list into New task's title, or choosing "Paste a list instead", opens a preview and creates the whole list at once on the chosen day. Indented lines become subtasks of the line above, to any depth. Checked items arrive unfinished. Add subtask works the same way, under that task **(my call)**.
 - Subtasks can have their own subtasks, with no depth limit. Finishing a task finishes everything under it, and finishing the last open child finishes its parent, up the chain. Reopening a task or adding a child reopens its parents **(my call)**.
 - Clear table moves every top-level task showing in the List table, with all its subtasks, to Trash after a confirmation. Tasks hidden by filters or Show closed stay **(my call)**.
+- The List table scrolls infinitely, showing 10 top-level tasks and adding 10 more as you near the end, and each task's subtasks stay with it. Collapsed tasks stay collapsed after a refresh, saved in the browser **(my call)**.
 - Right-clicking a row offers Edit, Duplicate and Delete. Subtasks offer Edit and Delete **(my call)**.
 - Left out for now: the lock icon, "Browse all projects", and renaming or moving spaces **(my call)**.
 

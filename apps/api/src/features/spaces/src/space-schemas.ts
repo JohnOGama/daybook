@@ -9,7 +9,7 @@ export const createSpaceSchema = z.discriminatedUnion('kind', [
     id,
     kind: z.literal('space'),
     title,
-    tool: z.enum(['list', 'notebook']),
+    tool: z.enum(['list', 'notebook', 'vault']),
     parentId: z.uuid().optional(),
   }),
 ]);

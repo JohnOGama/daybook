@@ -21,7 +21,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault']);
 
 export const spaces = pgTable(
   'spaces',
@@ -63,6 +63,38 @@ export const notebookPages = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [index('notebook_pages_space_idx').on(t.spaceId)],
+);
+
+export const vaults = pgTable('vaults', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  salt: text('salt').notNull(),
+  iterations: integer('iterations').notNull(),
+  wrappedKey: text('wrapped_key').notNull(),
+  recoverySalt: text('recovery_salt').notNull(),
+  recoveryWrappedKey: text('recovery_wrapped_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const vaultItems = pgTable(
+  'vault_items',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    iv: text('iv').notNull(),
+    ciphertext: text('ciphertext').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('vault_items_space_idx').on(t.spaceId)],
 );
 
 export const tasks = pgTable(

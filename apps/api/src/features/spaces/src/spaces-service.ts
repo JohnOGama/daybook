@@ -44,28 +44,23 @@ export class SpacesService {
         .where(and(eq(spaces.userId, userId), isNull(spaces.deletedAt)))
         .orderBy(asc(spaces.position), asc(spaces.createdAt), asc(spaces.id)),
       this.db
-        .select({
-          id: tasks.id,
-          spaceId: tasks.spaceId,
-          parentId: tasks.parentId,
-          plannedDay: tasks.plannedDay,
-        })
+        .select({ spaceId: tasks.spaceId, plannedDay: tasks.plannedDay })
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), isNull(tasks.completedOn), isNull(tasks.deletedAt))),
+        .where(
+          and(
+            eq(tasks.userId, userId),
+            isNull(tasks.parentId),
+            isNull(tasks.completedOn),
+            isNull(tasks.deletedAt),
+          ),
+        ),
     ]);
 
-    const openById = new Map(openTasks.map((task) => [task.id, task]));
-    const plannedDayOf = (task: (typeof openTasks)[number]): string | null | undefined => {
-      if (!task.parentId) return task.plannedDay;
-      const parent = openById.get(task.parentId);
-      return parent && plannedDayOf(parent);
-    };
     const carriesOver = new Map(rows.map((row) => [row.id, row.carryOver]));
     const counts = new Map<string, number>();
-    for (const task of openTasks) {
-      const day = plannedDayOf(task);
-      if (day && (day === today || (day < today && carriesOver.get(task.spaceId)))) {
-        counts.set(task.spaceId, (counts.get(task.spaceId) ?? 0) + 1);
+    for (const { spaceId, plannedDay } of openTasks) {
+      if (plannedDay && (plannedDay === today || (plannedDay < today && carriesOver.get(spaceId)))) {
+        counts.set(spaceId, (counts.get(spaceId) ?? 0) + 1);
       }
     }
 
@@ -135,6 +130,7 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
+      if (source.tool === 'vault') throw new BadRequestException('A vault space cannot be duplicated');
 
       const [copy] = await tx
         .insert(spaces)

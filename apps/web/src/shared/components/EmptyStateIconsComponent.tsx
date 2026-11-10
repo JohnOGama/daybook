@@ -91,6 +91,20 @@ export function EmptyNotebookIcon() {
   );
 }
 
+export function EmptyVaultIcon() {
+  return (
+    <EmptyIcon>
+      <Solid>
+        <rect x="14" y="28" width="36" height="26" rx="4" />
+        <path d="M22 28v-8a10 10 0 0 1 20 0v8" />
+      </Solid>
+      <Missing>
+        <path d="M32 38v6" />
+      </Missing>
+    </EmptyIcon>
+  );
+}
+
 export function FirstSpaceIcon() {
   return (
     <EmptyIcon>

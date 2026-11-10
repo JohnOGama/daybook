@@ -24,6 +24,7 @@ export function useRestoreItem() {
       void queryClient.invalidateQueries({ queryKey: ['spaces'] });
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['pages'] });
+      void queryClient.invalidateQueries({ queryKey: ['vault-items'] });
       void queryClient.invalidateQueries({ queryKey: ['trash'] });
     },
   });
