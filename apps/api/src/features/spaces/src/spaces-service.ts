@@ -15,6 +15,7 @@ export type SpaceDto = {
   title: string;
   tool: SpaceRow['tool'];
   carryOver: boolean;
+  locked: boolean;
   createdAt: string;
   openToday: number;
 };
@@ -27,6 +28,7 @@ function toDto(row: SpaceRow, openToday: number): SpaceDto {
     title: row.title,
     tool: row.tool,
     carryOver: row.carryOver,
+    locked: row.lockHash !== null,
     createdAt: row.createdAt.toISOString(),
     openToday,
   };
@@ -130,7 +132,9 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
-      if (source.tool === 'vault') throw new BadRequestException('A vault space cannot be duplicated');
+      if (source.tool === 'vault' || source.tool === 'budget') {
+        throw new BadRequestException(`A ${source.tool} space cannot be duplicated`);
+      }
 
       const [copy] = await tx
         .insert(spaces)
@@ -141,6 +145,7 @@ export class SpacesService {
           kind: 'space',
           tool: source.tool,
           carryOver: source.carryOver,
+          lockHash: source.lockHash,
           title: copyTitle(source.title),
         })
         .returning();
@@ -151,7 +156,7 @@ export class SpacesService {
         .where(and(eq(notebookPages.spaceId, id), isNull(notebookPages.deletedAt)));
       if (pages.length > 0) {
         await tx.insert(notebookPages).values(
-          pages.map(({ title, content, createdAt }) => ({ userId, spaceId: copy.id, title, content, createdAt })),
+          pages.map(({ title, content, position, createdAt }) => ({ userId, spaceId: copy.id, title, content, position, createdAt })),
         );
       }
 

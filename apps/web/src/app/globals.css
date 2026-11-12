@@ -25,6 +25,8 @@
   --status-progress: #5b9ff0;
   --status-hold: #a88bf0;
   --status-done: #4fbf85;
+  --money-in: #4fbf85;
+  --money-out: #f07167;
   --border: #2e2e2e;
   --input: #2e2e2e;
   --ring: rgb(255 255 255 / 0.4);
@@ -53,6 +55,8 @@
   --color-status-progress: var(--status-progress);
   --color-status-hold: var(--status-hold);
   --color-status-done: var(--status-done);
+  --color-money-in: var(--money-in);
+  --color-money-out: var(--money-out);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -272,6 +276,74 @@
   height: 0;
   color: var(--muted-foreground);
   pointer-events: none;
+}
+
+/* Book reader and print */
+.book-prose {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+}
+
+.book-prose .page-content {
+  min-height: 0;
+  font-size: 18px;
+  line-height: 1.75;
+}
+
+.book-prose .page-content > p + p {
+  margin-top: 0;
+  text-indent: 1.5em;
+}
+
+.book-prose .page-content input {
+  pointer-events: none;
+}
+
+.book-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 2.2cm 2cm;
+  }
+
+  html,
+  body {
+    height: auto;
+    background: #fff !important;
+  }
+
+  body > :not(.book-print) {
+    display: none !important;
+  }
+
+  .book-print {
+    --foreground: #111;
+    --muted-foreground: #555;
+    --border: #ccc;
+    --muted: #eee;
+    --card: #f4f4f4;
+    display: block;
+    color: var(--foreground);
+  }
+
+  .book-print .page-content {
+    font-size: 11.5pt;
+  }
+
+  .book-print .book-title-page {
+    padding-top: 30vh;
+  }
+
+  .book-print .book-contents,
+  .book-print .book-chapter {
+    break-before: page;
+    border-top: 0;
+  }
+
+  .book-print :is(h1, h2, h3) {
+    break-after: avoid;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

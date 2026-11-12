@@ -39,6 +39,17 @@ beforeEach(() => {
   query.current = 'space=s1';
 });
 
+it('puts the page it opens by default in the URL, so reordering cannot switch it', () => {
+  showPages([page('a', 'Launch'), page('b', 'Plans')]);
+  expect(replace).toHaveBeenCalledWith('/notebook?space=s1&page=a');
+  vi.clearAllMocks();
+  query.current = 'space=s1&page=a';
+  usePages.mockReturnValue({ data: [page('b', 'Plans'), page('a', 'Launch')], isPending: false, isError: false });
+  render(<NotebookPageComponent />);
+  expect(screen.getAllByText('Editing Launch')).toHaveLength(2);
+  expect(replace).not.toHaveBeenCalled();
+});
+
 it('lists the pages with a preview and opens the first one', () => {
   showPages([page('a', 'Launch', 'Get ready'), page('b', '')]);
   expect(screen.getByRole('link', { name: /Launch/ })).toHaveTextContent('Get ready');

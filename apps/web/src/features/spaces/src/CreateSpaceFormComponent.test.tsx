@@ -16,6 +16,7 @@ const folder: Space = {
   title: 'Design Team',
   tool: null,
   carryOver: true,
+  locked: false,
   createdAt: '',
   openToday: 0,
 };

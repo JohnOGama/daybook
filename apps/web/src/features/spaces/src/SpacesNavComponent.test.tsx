@@ -11,6 +11,7 @@ const space = (id: string, title: string, fields: Partial<Space> = {}): Space =>
   title,
   tool: 'list',
   carryOver: true,
+  locked: false,
   createdAt: '',
   openToday: 0,
   ...fields,
@@ -45,10 +46,10 @@ it('links each space to its tool with its count', () => {
 
 it('shows an open folder icon while open and a closed one while closed', async () => {
   const toggle = screen.getByRole('button', { name: 'Design Team' });
-  expect(toggle.querySelector('.lucide-folder-open')).toBeInTheDocument();
+  expect(toggle.querySelector('[data-glyph="folder-open"]')).toBeInTheDocument();
   await userEvent.click(toggle);
-  expect(toggle.querySelector('.lucide-folder-open')).not.toBeInTheDocument();
-  expect(toggle.querySelector('.lucide-folder')).toBeInTheDocument();
+  expect(toggle.querySelector('[data-glyph="folder-open"]')).not.toBeInTheDocument();
+  expect(toggle.querySelector('[data-glyph="folder"]')).toBeInTheDocument();
 });
 
 it('double-clicking a space edits its label and Enter saves', async () => {

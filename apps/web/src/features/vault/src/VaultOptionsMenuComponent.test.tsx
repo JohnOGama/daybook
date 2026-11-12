@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
   saveRecoveryWrap: vi.fn(),
 }));
 
-vi.mock('./download-file', () => ({ downloadFile: state.downloadFile }));
+vi.mock('@/shared/utils/download-file', () => ({ downloadFile: state.downloadFile }));
 vi.mock('./vault-api', () => ({ savePasscodeWrap: state.savePasscodeWrap, saveRecoveryWrap: state.saveRecoveryWrap }));
 vi.mock('./vault-crypto', async (original) => ({
   ...(await original<typeof import('./vault-crypto')>()),

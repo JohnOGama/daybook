@@ -14,6 +14,7 @@ const space: Space = {
   title: 'Home',
   tool: 'list',
   carryOver: true,
+  locked: false,
   createdAt: '',
   openToday: 0,
 };
@@ -39,3 +40,4 @@ it('shows carry over as off and can turn it back on', async () => {
   await userEvent.click(toggle);
   expect(setCarryOver).toHaveBeenCalledWith({ id: 's1', carryOver: true });
 });
+

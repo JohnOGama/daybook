@@ -4,14 +4,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useActiveSpace } from '@/features/spaces';
 import type { NotebookPage, PageChanges } from '../src/page-types';
-import { createPage, deletePage, updatePage } from '../src/pages-api';
+import { createPage, deletePage, reorderPages, updatePage } from '../src/pages-api';
 
 // Runs page requests one at a time, so typing in a new page can't reach the server before the page exists.
 const scope = { id: 'notebook-pages' };
 
 export function usePageMutations() {
   const queryClient = useQueryClient();
-  const spaceId = useActiveSpace()?.id as string;
+  const space = useActiveSpace();
+  const spaceId = space?.id as string;
+  const addsAtEnd = space?.tool === 'book';
   const key = ['pages', spaceId];
 
   const writePages = (change: (pages: NotebookPage[]) => NotebookPage[]) =>
@@ -24,7 +26,7 @@ export function usePageMutations() {
     scope,
     mutationFn: ({ page }: { page: NotebookPage }) => createPage({ id: page.id, spaceId }),
     onMutate: ({ page }) => {
-      writePages((pages) => [page, ...pages]);
+      writePages((pages) => (addsAtEnd ? [...pages, page] : [page, ...pages]));
     },
     onError: (error: Error, { page }) => {
       writePages((pages) => pages.filter(({ id }) => id !== page.id));
@@ -57,11 +59,25 @@ export function usePageMutations() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['trash'] }),
   });
 
+  const reorder = useMutation({
+    scope,
+    mutationFn: (ids: string[]) => reorderPages({ spaceId, ids }),
+    onMutate: (ids) => {
+      const previous = queryClient.getQueryData<NotebookPage[]>(key);
+      writePages((pages) => [...pages].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)));
+      return previous;
+    },
+    onError: (error: Error, _ids, previous) => {
+      queryClient.setQueryData(key, previous);
+      toast.error(error.message);
+    },
+  });
+
   function create() {
     const page: NotebookPage = { id: crypto.randomUUID(), title: '', content: null, createdAt: new Date().toISOString() };
     addPage.mutate({ page });
     return page.id;
   }
 
-  return { create, save, remove, patchPage };
+  return { create, save, remove, reorder, patchPage };
 }

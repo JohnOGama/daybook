@@ -10,10 +10,13 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
+import { SpaceLockService } from '../../spaces/index.ts';
 import {
   copySchema,
   createManySchema,
@@ -32,11 +35,15 @@ import { TasksService } from './tasks-service.ts';
 @UseGuards(AuthGuard)
 @Controller('tasks')
 export class TasksController {
-  constructor(@Inject(TasksService) private readonly tasks: TasksService) {}
+  constructor(
+    @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(SpaceLockService) private readonly lock: SpaceLockService,
+  ) {}
 
   @Get()
-  list(@UserId() userId: string, @Query() query: unknown) {
+  async list(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId, ...range } = parseOrThrow(rangeSchema, query);
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
     return this.tasks.list(userId, spaceId, range);
   }
 

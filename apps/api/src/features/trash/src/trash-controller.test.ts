@@ -6,6 +6,7 @@ import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { spaces, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
+import { SpaceLockService } from '../../spaces/index.ts';
 import { TrashController } from './trash-controller.ts';
 import { TrashService } from './trash-service.ts';
 
@@ -30,7 +31,7 @@ describe('trash API', () => {
     spaceId = await insertSpace(db, 'u1');
     const moduleRef = await Test.createTestingModule({
       controllers: [TrashController],
-      providers: [TrashService, AuthGuard, { provide: DB, useValue: db }, { provide: AUTH, useValue: fakeAuth }],
+      providers: [TrashService, SpaceLockService, AuthGuard, { provide: DB, useValue: db }, { provide: AUTH, useValue: fakeAuth }],
     }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');

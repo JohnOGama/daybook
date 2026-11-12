@@ -1,0 +1,1 @@
+ALTER TABLE "spaces" ADD COLUMN "lock_hash" text;

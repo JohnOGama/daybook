@@ -1,8 +1,9 @@
 'use client';
 
-import { BookOpen, Folder, Hash, List, Lock } from 'lucide-react';
+import { BookMarked, List } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
+import { BudgetIcon, FolderIcon, NotebookIcon, SpaceIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -20,8 +21,10 @@ type CreateSpaceFormProps = {
 
 const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   list: <List className="size-[18px]" aria-hidden />,
-  notebook: <BookOpen className="size-[18px]" aria-hidden />,
-  vault: <Lock className="size-[18px]" aria-hidden />,
+  notebook: <NotebookIcon className="size-[18px]" aria-hidden />,
+  book: <BookMarked className="size-[18px]" aria-hidden />,
+  vault: <VaultIcon className="size-[18px]" aria-hidden />,
+  budget: <BudgetIcon className="size-[18px]" aria-hidden />,
 };
 
 export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, onCancel }: CreateSpaceFormProps) {
@@ -50,8 +53,8 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, on
   }
 
   const kindOptions = [
-    { value: 'space' as const, label: 'Space', icon: <Hash aria-hidden /> },
-    { value: 'folder' as const, label: 'Folder', icon: <Folder aria-hidden /> },
+    { value: 'space' as const, label: 'Space', icon: <SpaceIcon aria-hidden /> },
+    { value: 'folder' as const, label: 'Folder', icon: <FolderIcon aria-hidden /> },
   ];
 
   return (

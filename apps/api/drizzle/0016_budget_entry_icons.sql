@@ -1,0 +1,1 @@
+ALTER TABLE "budget_entries" ADD COLUMN "icon" text;

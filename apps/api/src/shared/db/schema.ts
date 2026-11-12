@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  bigint,
   boolean,
   check,
   date,
@@ -11,6 +12,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema.ts';
@@ -21,7 +23,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget']);
 
 export const spaces = pgTable(
   'spaces',
@@ -35,6 +37,7 @@ export const spaces = pgTable(
     title: text('title').notNull(),
     tool: spaceTool('tool'),
     carryOver: boolean('carry_over').notNull().default(true),
+    lockHash: text('lock_hash'),
     position: integer('position'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -58,6 +61,7 @@ export const notebookPages = pgTable(
       .references(() => spaces.id, { onDelete: 'cascade' }),
     title: text('title').notNull().default(''),
     content: jsonb('content').$type<Record<string, unknown>>(),
+    position: integer('position'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -124,3 +128,210 @@ export const tasks = pgTable(
     index('tasks_space_idx').on(t.spaceId),
   ],
 );
+
+export const budgetAccountType = pgEnum('budget_account_type', ['cash', 'bank', 'savings', 'ewallet', 'credit', 'loan']);
+export const budgetCategoryKind = pgEnum('budget_category_kind', ['income', 'expense']);
+export const budgetEntryKind = pgEnum('budget_entry_kind', ['income', 'expense', 'transfer']);
+
+// Amounts are whole cents of the space's currency.
+const cents = (name: string) => bigint(name, { mode: 'number' });
+
+export const budgets = pgTable('budgets', {
+  spaceId: uuid('space_id')
+    .primaryKey()
+    .references(() => spaces.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  currency: text('currency').notNull().default('USD'),
+  // The forecast warns when the projected balance would drop below this.
+  lowBalance: cents('low_balance').notNull().default(0),
+  // How much one unit of each other currency is worth in this budget's currency, set by hand.
+  rates: jsonb('rates').$type<Record<string, number>>().notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const budgetAccounts = pgTable(
+  'budget_accounts',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    type: budgetAccountType('type').notNull(),
+    openingBalance: cents('opening_balance').notNull().default(0),
+    // Debt details for credit cards and loans: yearly interest in basis points, the monthly due day (-1 for the last day) and the minimum payment.
+    aprBps: integer('apr_bps'),
+    dueDay: integer('due_day'),
+    minimumPayment: cents('minimum_payment'),
+    // Null means the budget's own currency.
+    currency: text('currency'),
+    // A preset logo key such as 'gcash'; the web app owns the list.
+    icon: text('icon'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('budget_accounts_space_idx').on(t.spaceId)],
+);
+
+export const budgetCategories = pgTable(
+  'budget_categories',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    kind: budgetCategoryKind('kind').notNull(),
+    monthlyLimit: cents('monthly_limit'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('budget_categories_limit_on_expense', sql`${t.monthlyLimit} IS NULL OR (${t.kind} = 'expense' AND ${t.monthlyLimit} > 0)`),
+    index('budget_categories_space_idx').on(t.spaceId),
+  ],
+);
+
+export const budgetFrequency = pgEnum('budget_frequency', ['daily', 'weekly', 'monthly', 'yearly']);
+
+// A repeating entry. Each occurrence becomes a real entry only once it's recorded, linked back by scheduleId and occurrenceDay.
+export const budgetSchedules = pgTable(
+  'budget_schedules',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    kind: budgetEntryKind('kind').notNull(),
+    amount: cents('amount').notNull(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => budgetAccounts.id, { onDelete: 'cascade' }),
+    toAccountId: uuid('to_account_id').references(() => budgetAccounts.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id').references(() => budgetCategories.id, { onDelete: 'set null' }),
+    frequency: budgetFrequency('frequency').notNull(),
+    interval: integer('interval').notNull().default(1),
+    monthDays: integer('month_days').array().notNull().default(sql`'{}'::integer[]`),
+    startDay: date('start_day', { mode: 'string' }).notNull(),
+    endDay: date('end_day', { mode: 'string' }),
+    activeFrom: date('active_from', { mode: 'string' }).notNull(),
+    pausedFrom: date('paused_from', { mode: 'string' }),
+    skippedDays: date('skipped_days', { mode: 'string' }).array().notNull().default(sql`'{}'::date[]`),
+    autoRecord: boolean('auto_record').notNull().default(false),
+    isSubscription: boolean('is_subscription').notNull().default(false),
+    icon: text('icon'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('budget_schedules_amount_positive', sql`${t.amount} > 0`),
+    check(
+      'budget_schedules_transfer_shape',
+      sql`(${t.kind} = 'transfer') = (${t.toAccountId} IS NOT NULL) AND (${t.kind} <> 'transfer' OR ${t.categoryId} IS NULL)`,
+    ),
+    check('budget_schedules_interval_range', sql`${t.interval} BETWEEN 1 AND 365`),
+    check('budget_schedules_end_after_start', sql`${t.endDay} IS NULL OR ${t.endDay} >= ${t.startDay}`),
+    index('budget_schedules_space_idx').on(t.spaceId),
+  ],
+);
+
+export const budgetEntries = pgTable(
+  'budget_entries',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    kind: budgetEntryKind('kind').notNull(),
+    amount: cents('amount').notNull(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => budgetAccounts.id, { onDelete: 'cascade' }),
+    toAccountId: uuid('to_account_id').references(() => budgetAccounts.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id').references(() => budgetCategories.id, { onDelete: 'set null' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    note: text('note').notNull().default(''),
+    // What arrived when a transfer crosses currencies, in the receiving account's currency.
+    toAmount: cents('to_amount'),
+    // An optional preset logo key, like the ones on accounts and schedules.
+    icon: text('icon'),
+    scheduleId: uuid('schedule_id').references(() => budgetSchedules.id, { onDelete: 'set null' }),
+    occurrenceDay: date('occurrence_day', { mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Recording the same occurrence of a schedule twice is impossible, even from two tabs at once.
+    uniqueIndex('budget_entries_occurrence_idx').on(t.scheduleId, t.occurrenceDay),
+    check('budget_entries_amount_positive', sql`${t.amount} > 0`),
+    check('budget_entries_to_amount_on_transfer', sql`${t.toAmount} IS NULL OR (${t.kind} = 'transfer' AND ${t.toAmount} > 0)`),
+    check(
+      'budget_entries_transfer_shape',
+      sql`(${t.kind} = 'transfer') = (${t.toAccountId} IS NOT NULL) AND (${t.kind} <> 'transfer' OR ${t.categoryId} IS NULL)`,
+    ),
+    check('budget_entries_transfer_accounts_differ', sql`${t.toAccountId} IS NULL OR ${t.toAccountId} <> ${t.accountId}`),
+    index('budget_entries_space_day_idx').on(t.spaceId, t.day),
+  ],
+);
+
+export const budgetGoals = pgTable(
+  'budget_goals',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    target: cents('target').notNull(),
+    targetDay: date('target_day', { mode: 'string' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check('budget_goals_target_positive', sql`${t.target} > 0`), index('budget_goals_space_idx').on(t.spaceId)],
+);
+
+// Money set aside for a goal, or taken back out when negative. It doesn't move money between accounts.
+export const budgetGoalContributions = pgTable(
+  'budget_goal_contributions',
+  {
+    id: uuid('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    goalId: uuid('goal_id')
+      .notNull()
+      .references(() => budgetGoals.id, { onDelete: 'cascade' }),
+    amount: cents('amount').notNull(),
+    day: date('day', { mode: 'string' }).notNull(),
+    note: text('note').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check('budget_goal_contributions_amount_nonzero', sql`${t.amount} <> 0`), index('budget_goal_contributions_goal_idx').on(t.goalId)],
+);
+
+// One photo per entry, kept as base64 so it needs no file storage.
+// ponytail: images live in Postgres; move them to object storage if receipts pile up past a few hundred MB
+export const budgetReceipts = pgTable('budget_receipts', {
+  entryId: uuid('entry_id')
+    .primaryKey()
+    .references(() => budgetEntries.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  mediaType: text('media_type').notNull(),
+  data: text('data').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

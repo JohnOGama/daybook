@@ -11,6 +11,7 @@ export function buildSpace(input: NewSpaceInput): Space {
     title: input.title.trim(),
     tool: input.kind === 'space' ? input.tool : null,
     carryOver: true,
+    locked: false,
     createdAt: new Date().toISOString(),
     openToday: 0,
   };

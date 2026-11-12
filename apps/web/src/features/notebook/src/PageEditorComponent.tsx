@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { SkeletonBox } from 'skullet/react';
 import { Input } from '@/shared/components/ui/input';
 import { cn } from '@/shared/utils/cn';
@@ -12,7 +12,14 @@ import { SelectionToolbarComponent } from './SelectionToolbarComponent';
 
 const STATUS_LABELS: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving', failed: 'Not saved' };
 
-export function PageEditorComponent({ page }: { page: NotebookPage }) {
+type PageEditorProps = {
+  page: NotebookPage;
+  eyebrow?: string;
+  titlePlaceholder?: string;
+  footer?: ReactNode;
+};
+
+export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer }: PageEditorProps) {
   const { schedule, status } = usePageAutosave(page.id);
   const [title, setTitle] = useState(page.title);
   const editor = useEditor({
@@ -25,12 +32,13 @@ export function PageEditorComponent({ page }: { page: NotebookPage }) {
 
   return (
     <article className="mx-auto max-w-2xl px-4 py-6 pb-24 md:px-8 md:py-8">
+      {eyebrow && <p className="mb-1 text-[13px] font-medium text-muted-foreground">{eyebrow}</p>}
       <div className="flex items-baseline justify-between gap-3">
         <Input
           aria-label="Page title"
           autoFocus={!page.title && !page.content}
           maxLength={200}
-          placeholder="Untitled"
+          placeholder={titlePlaceholder}
           value={title}
           onChange={(event) => {
             setTitle(event.target.value);
@@ -49,6 +57,7 @@ export function PageEditorComponent({ page }: { page: NotebookPage }) {
         <>
           <EditorContent editor={editor} className="mt-4" />
           <SelectionToolbarComponent editor={editor} />
+          {footer}
         </>
       ) : (
         <div className="mt-6 flex flex-col gap-3">

@@ -1,8 +1,26 @@
 'use client';
 
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,20 +37,38 @@ import { cn } from '@/shared/utils/cn';
 import { usePageMutations } from '../hooks/usePageMutations';
 import { type NotebookPage, pageSnippet, pageTitle } from './page-types';
 
-type PageRowProps = { page: NotebookPage; href: string; isActive: boolean };
+type PageRowProps = {
+  page: NotebookPage;
+  href: string;
+  isActive: boolean;
+  canReorder: boolean;
+  dragging: RefObject<boolean>;
+};
 
-function PageRow({ page, href, isActive }: PageRowProps) {
+function PageRow({ page, href, isActive, canReorder, dragging }: PageRowProps) {
   const { remove } = usePageMutations();
   const [confirming, setConfirming] = useState(false);
+  const sortable = useSortable({ id: page.id, disabled: !canReorder });
   const snippet = pageSnippet(page.content);
 
   return (
-    <li>
+    <li
+      ref={sortable.setNodeRef}
+      style={{ transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }}
+      className={cn('relative', sortable.isDragging && 'z-20 rounded-lg bg-accent')}
+    >
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <Link
             href={href}
+            draggable={false}
+            onClick={(event) => {
+              if (dragging.current) event.preventDefault();
+            }}
             aria-current={isActive ? 'page' : undefined}
+            aria-roledescription={canReorder ? 'sortable page' : undefined}
+            aria-describedby={canReorder ? sortable.attributes['aria-describedby'] : undefined}
+            {...(canReorder ? sortable.listeners : {})}
             className={cn('block rounded-lg px-2.5 py-2 hover:bg-accent', isActive && 'bg-muted')}
           >
             <span className="block truncate text-sm font-medium">{pageTitle(page)}</span>
@@ -68,11 +104,34 @@ type PageListProps = {
   title?: string;
   pages: NotebookPage[];
   activeId?: string;
+  isPending: boolean;
   hrefOf: (id: string) => string;
   onAddPage: () => void;
 };
 
-export function PageListComponent({ title, pages, activeId, hrefOf, onAddPage }: PageListProps) {
+export function PageListComponent({ title, pages, activeId, isPending, hrefOf, onAddPage }: PageListProps) {
+  const { reorder } = usePageMutations();
+  // The whole row drags: a click still opens the page, Enter still follows the link and Space picks it up.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] },
+    }),
+  );
+  const ids = pages.map(({ id }) => id);
+  const canReorder = !isPending && pages.length > 1;
+  // Letting go of a dragged row also clicks its link; this swallows that click so the page doesn't open.
+  const dragging = useRef(false);
+  const endDrag = () => setTimeout(() => (dragging.current = false));
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    endDrag();
+    if (!over || active.id === over.id) return;
+    reorder.mutate(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
+  }
+
   return (
     <section aria-label="Pages" className="flex flex-col gap-2 p-3">
       <div className="flex items-baseline justify-between gap-2 px-2.5 pt-2">
@@ -85,11 +144,29 @@ export function PageListComponent({ title, pages, activeId, hrefOf, onAddPage }:
         <Plus aria-hidden />
         Add page
       </Button>
-      <ul className="flex flex-col gap-0.5">
-        {pages.map((page) => (
-          <PageRow key={page.id} page={page} href={hrefOf(page.id)} isActive={page.id === activeId} />
-        ))}
-      </ul>
+      <DndContext
+        id="notebook-pages"
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={() => (dragging.current = true)}
+        onDragEnd={handleDragEnd}
+        onDragCancel={endDrag}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <ul className="flex flex-col gap-0.5">
+            {pages.map((page) => (
+              <PageRow
+                key={page.id}
+                page={page}
+                href={hrefOf(page.id)}
+                isActive={page.id === activeId}
+                canReorder={canReorder}
+                dragging={dragging}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
     </section>
   );
 }

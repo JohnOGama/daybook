@@ -28,6 +28,15 @@ export async function updatePage({ id, changes }: { id: string; changes: PageCha
   if (!response.ok) throw new Error('Your latest changes could not be saved.');
 }
 
+export async function reorderPages({ spaceId, ids }: { spaceId: string; ids: string[] }): Promise<void> {
+  const response = await fetch('/api/notebook-pages/order', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spaceId, ids }),
+  });
+  if (!response.ok) throw new Error('That order could not be saved. Please try again.');
+}
+
 export async function deletePage(id: string): Promise<void> {
   const response = await fetch(`/api/notebook-pages/${id}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('That page could not be deleted. Please try again.');

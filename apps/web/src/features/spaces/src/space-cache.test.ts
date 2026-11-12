@@ -3,7 +3,7 @@ import { addSpace, applySpaceOrder, buildSpace, duplicateOf, removeSpace, rename
 import type { Space } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, ...fields };
 }
 
 it('changes carry over on only the matching space', () => {

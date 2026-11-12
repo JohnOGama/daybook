@@ -1,6 +1,11 @@
 import type { Space, SpaceTool } from './space-types';
 
-const TOOL_SCREENS: Partial<Record<SpaceTool, string>> = { notebook: '/notebook', vault: '/vault' };
+const TOOL_SCREENS: Partial<Record<SpaceTool, string>> = {
+  notebook: '/notebook',
+  book: '/book',
+  vault: '/vault',
+  budget: '/budget',
+};
 
 export type SpaceNode = Space & { children: Space[] };
 

@@ -12,11 +12,15 @@ export type TrashItem = {
   payload?: { iv: string; ciphertext: string };
 };
 
+type SpaceRow = typeof spaces.$inferSelect;
+
+const HIDDEN_TITLE = 'Hidden while its space is locked';
+
 @Injectable()
 export class TrashService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
-  async list(userId: string): Promise<TrashItem[]> {
+  async list(userId: string, canRead: (space: SpaceRow) => boolean = () => true): Promise<TrashItem[]> {
     const [allSpaces, deletedTasks, deletedPages, deletedVaultItems] = await Promise.all([
       this.db.select().from(spaces).where(eq(spaces.userId, userId)),
       this.db
@@ -33,6 +37,10 @@ export class TrashService {
         .where(and(eq(vaultItems.userId, userId), isNotNull(vaultItems.deletedAt))),
     ]);
     const spacesById = new Map(allSpaces.map((space) => [space.id, space]));
+    const isHidden = (spaceId: string) => {
+      const space = spacesById.get(spaceId);
+      return space !== undefined && !canRead(space);
+    };
     const parentIds = deletedTasks.flatMap((task) => (task.parentId ? [task.parentId] : []));
     const parentTitles = new Map<string, string>();
     for (const parentId of new Set(parentIds)) {
@@ -47,11 +55,12 @@ export class TrashService {
     };
 
     const taskItems = deletedTasks.map((task): TrashItem => {
-      const parentTitle = task.parentId ? parentTitles.get(task.parentId) : undefined;
+      const hidden = isHidden(task.spaceId);
+      const parentTitle = task.parentId && !hidden ? parentTitles.get(task.parentId) : undefined;
       return {
         id: task.id,
         type: task.parentId ? 'subtask' : 'task',
-        title: task.title,
+        title: hidden ? HIDDEN_TITLE : task.title,
         location: [spacePath(task.spaceId), parentTitle].filter(Boolean).join(' / '),
         deletedAt: (task.deletedAt as Date).toISOString(),
       };
@@ -73,7 +82,7 @@ export class TrashService {
       (page): TrashItem => ({
         id: page.id,
         type: 'page',
-        title: page.title || 'Untitled',
+        title: isHidden(page.spaceId) ? HIDDEN_TITLE : page.title || 'Untitled',
         location: spacePath(page.spaceId),
         deletedAt: (page.deletedAt as Date).toISOString(),
       }),

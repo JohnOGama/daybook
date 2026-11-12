@@ -6,6 +6,8 @@ import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
+import { SpaceLockService } from '../../spaces/index.ts';
+import { unlockCookieName } from '../../spaces/src/space-lock-service.ts';
 import { TasksController } from './tasks-controller.ts';
 import { TasksService } from './tasks-service.ts';
 
@@ -38,6 +40,7 @@ describe('tasks API', () => {
       controllers: [TasksController],
       providers: [
         TasksService,
+        SpaceLockService,
         AuthGuard,
         { provide: DB, useValue: db },
         { provide: AUTH, useValue: fakeAuth },
@@ -95,6 +98,14 @@ describe('tasks API', () => {
       .set('x-test-user', 'u1')
       .send({ finished: true, today })
       .expect(404);
+  });
+
+  it('refuses to list a locked space until it is unlocked', async () => {
+    process.env.BETTER_AUTH_SECRET ??= 'test-secret';
+    const token = await new SpaceLockService(db).setPassword('u1', spaceId, 'secret');
+    expect((await listToday()).status).toBe(403);
+    const unlocked = await listToday().set('Cookie', `${unlockCookieName(spaceId)}=${token}`);
+    expect(unlocked.status).toBe(200);
   });
 
   it('creates a task and lists it', async () => {

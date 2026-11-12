@@ -91,6 +91,19 @@ export function EmptyNotebookIcon() {
   );
 }
 
+export function EmptyBookIcon() {
+  return (
+    <EmptyIcon>
+      <Solid>
+        <path d="M16 12h30a4 4 0 0 1 4 4v36H20a4 4 0 0 1-4-4V12ZM16 48a4 4 0 0 1 4-4h30" />
+      </Solid>
+      <Missing>
+        <path d="M24 22h18M24 30h12" />
+      </Missing>
+    </EmptyIcon>
+  );
+}
+
 export function EmptyVaultIcon() {
   return (
     <EmptyIcon>

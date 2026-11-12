@@ -18,6 +18,7 @@ const { PORT } = readEnv([
 const app = await NestFactory.create(AppModule, { bodyParser: false });
 app.getHttpAdapter().getInstance().all('/api/auth/*splat', toNodeHandler(app.get(AUTH)));
 app.use('/api/vault/items/import', express.json({ limit: '8mb' }));
+app.use(['/api/budget/receipts', '/api/budget/ai/scan-receipt'], express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.setGlobalPrefix('api');
 await app.listen(PORT);

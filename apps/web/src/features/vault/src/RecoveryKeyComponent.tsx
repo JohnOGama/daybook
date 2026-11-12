@@ -6,7 +6,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Label } from '@/shared/components/ui/label';
 import { copyWithToast } from './copy-secret';
-import { downloadFile } from './download-file';
+import { downloadFile } from '@/shared/utils/download-file';
 import { VaultGateComponent } from './VaultGateComponent';
 
 export function RecoveryKeyComponent({ recoveryKey, onDone }: { recoveryKey: string; onDone: () => void }) {

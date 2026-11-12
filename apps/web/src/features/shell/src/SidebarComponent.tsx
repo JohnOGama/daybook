@@ -1,11 +1,12 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, LogOut, Trash2 } from 'lucide-react';
+import { Check, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { SpacesNavComponent } from '@/features/spaces';
 import { SpaceSummaryComponent } from '@/features/tasks';
+import { BinIcon } from '@/shared/components/BrandIconsComponent';
 import { authClient } from '@/shared/services/auth-client';
 import { cn } from '@/shared/utils/cn';
 
@@ -14,6 +15,7 @@ export function SidebarComponent() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const isTrash = pathname === '/trash';
+  const isSettings = pathname === '/preferences';
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -34,6 +36,17 @@ export function SidebarComponent() {
 
       <div className="mt-auto pt-8">
         <Link
+          href="/preferences"
+          aria-current={isSettings ? 'page' : undefined}
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent',
+            isSettings && 'bg-muted font-medium text-foreground',
+          )}
+        >
+          <Settings className="size-[18px]" aria-hidden />
+          Settings
+        </Link>
+        <Link
           href="/trash"
           aria-current={isTrash ? 'page' : undefined}
           className={cn(
@@ -41,7 +54,7 @@ export function SidebarComponent() {
             isTrash && 'bg-muted font-medium text-foreground',
           )}
         >
-          <Trash2 className="size-[18px]" aria-hidden />
+          <BinIcon className="size-[18px]" data-active={isTrash || undefined} aria-hidden />
           Trash
         </Link>
         <button

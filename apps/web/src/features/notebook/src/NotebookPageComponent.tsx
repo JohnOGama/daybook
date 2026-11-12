@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 import { Skeleton, SkeletonBox } from 'skullet/react';
 import { useActiveSpace } from '@/features/spaces';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
@@ -28,6 +29,12 @@ export function NotebookPageComponent() {
   const pages = isPending ? SAMPLE_PAGES : (data ?? []);
   const active = pages.find(({ id }) => id === params.get('page')) ?? pages[0];
   const hrefOf = (pageId: string) => `/notebook?${new URLSearchParams({ space: space?.id ?? '', page: pageId })}`;
+  const shownId = isPending ? undefined : active?.id;
+
+  // Keep the open page in the URL, so reordering the list can't swap it for whichever page is now first.
+  useEffect(() => {
+    if (shownId && params.get('page') !== shownId) router.replace(hrefOf(shownId));
+  });
 
   function addPage() {
     router.replace(hrefOf(create()));
@@ -45,7 +52,7 @@ export function NotebookPageComponent() {
     <div className="flex flex-col md:flex-row">
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-[calc(100dvh-1rem)] md:w-72 md:overflow-y-auto md:border-r md:border-b-0">
         <Skeleton loading={isPending} label="Loading pages">
-          <PageListComponent title={space?.title} pages={pages} activeId={active?.id} hrefOf={hrefOf} onAddPage={addPage} />
+          <PageListComponent title={space?.title} pages={pages} activeId={active?.id} isPending={isPending} hrefOf={hrefOf} onAddPage={addPage} />
         </Skeleton>
       </aside>
       <div className="min-w-0 flex-1">

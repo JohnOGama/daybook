@@ -28,6 +28,7 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [activeSpaceParam, pathname]);
 
   if (!session) return <AppSkeletonComponent />;
+  const outsideSpaces = pathname === '/trash' || pathname === '/preferences';
 
   return (
     <div className="flex h-dvh overflow-hidden bg-sidebar">
@@ -52,7 +53,7 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
         <main className="min-h-0 flex-1 overflow-y-auto bg-background md:rounded-l-2xl md:border-l">
           <TaskMutationsProviderComponent>
             <VaultSessionProviderComponent>
-              {pathname === '/trash' ? children : <SpaceGateComponent>{children}</SpaceGateComponent>}
+              {outsideSpaces ? children : <SpaceGateComponent>{children}</SpaceGateComponent>}
             </VaultSessionProviderComponent>
           </TaskMutationsProviderComponent>
         </main>

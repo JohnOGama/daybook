@@ -1,6 +1,6 @@
 'use client';
 
-import { Lock } from 'lucide-react';
+import { VaultIcon } from '@/shared/components/BrandIconsComponent';
 import { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { useVaultSession } from '../hooks/useVaultSession';
@@ -34,7 +34,7 @@ export function VaultLockedComponent({
   }
 
   return (
-    <VaultGateComponent icon={Lock} title={`${title} is locked`} error={error} onSubmit={open}>
+    <VaultGateComponent icon={VaultIcon} title={`${title} is locked`} error={error} onSubmit={open}>
       <SecretFieldComponent id="vault-unlock" label="Passcode" value={passcode} onChange={setPasscode} />
       <Button type="submit" disabled={busy || passcode === ''}>
         Unlock

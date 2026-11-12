@@ -50,6 +50,16 @@ describe('NotebookService', () => {
     expect((await svc.list('u1', notebook)).map((page) => page.id)).toEqual([newer, older]);
   });
 
+  it('keeps a dragged order and still adds new pages on top', async () => {
+    const older = crypto.randomUUID();
+    await db.insert(notebookPages).values({ id: older, userId: 'u1', spaceId: notebook, title: 'Old' });
+    const one = await addPage();
+    const two = await addPage();
+    await svc.reorder('u1', notebook, [one, older, two]);
+    const three = await addPage();
+    expect((await svc.list('u1', notebook)).map((page) => page.id)).toEqual([three, one, older, two]);
+  });
+
   it('hides a deleted page and refuses to edit it', async () => {
     const id = await addPage();
     await svc.remove('u1', id);
@@ -91,5 +101,47 @@ describe('NotebookService', () => {
     expect(pages).toHaveLength(1);
     expect(pages[0]).toMatchObject({ title: 'Keep', content: doc, userId: 'u1' });
     expect(pages[0].id).not.toBe(kept);
+  });
+
+  describe('book chapters', () => {
+    let book: string;
+    const addChapter = async (title: string) => {
+      const id = crypto.randomUUID();
+      await svc.create('u1', { id, spaceId: book });
+      await svc.update('u1', id, { title });
+      return id;
+    };
+    const titles = async (spaceId = book) => (await svc.list('u1', spaceId)).map((page) => page.title);
+
+    beforeEach(async () => {
+      const [row] = await db.insert(spaces).values({ userId: 'u1', kind: 'space', title: 'Novel', tool: 'book' }).returning();
+      book = row.id;
+    });
+
+    it('lists chapters in the order they were added', async () => {
+      for (const title of ['One', 'Two', 'Three']) await addChapter(title);
+      expect(await titles()).toEqual(['One', 'Two', 'Three']);
+    });
+
+    it('keeps a new order and adds later chapters at the end', async () => {
+      const [one, two, three] = [await addChapter('One'), await addChapter('Two'), await addChapter('Three')];
+      await svc.reorder('u1', book, [three, one, two]);
+      await addChapter('Four');
+      expect(await titles()).toEqual(['Three', 'One', 'Two', 'Four']);
+    });
+
+    it("refuses to reorder another book's or another person's chapters", async () => {
+      const mine = await addChapter('One');
+      const page = await addPage();
+      await expect(svc.reorder('u1', book, [mine, page])).rejects.toThrow(NotFoundException);
+      await expect(svc.reorder('u2', book, [mine])).rejects.toThrow(NotFoundException);
+    });
+
+    it('duplicating a book keeps its chapter order', async () => {
+      const [one, two] = [await addChapter('One'), await addChapter('Two')];
+      await svc.reorder('u1', book, [two, one]);
+      const copy = await new SpacesService(db).duplicate('u1', book);
+      expect(await titles(copy.id)).toEqual(['Two', 'One']);
+    });
   });
 });

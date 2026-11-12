@@ -3,7 +3,7 @@ import { buildSpaceTree, isOnWrongScreen, resolveActiveSpace, spaceHref } from '
 import type { Space, SpaceTool } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, ...fields };
 }
 
 const folder = space('team', { kind: 'folder', tool: null });
@@ -49,6 +49,9 @@ it.each([
   ['list', '/kanban', false],
   ['list', '/settings', false],
   ['notebook', '/notebook', false],
+  ['book', '/book', false],
+  ['book', '/notebook', true],
+  ['list', '/book', true],
 ])('%s on %s: wrong screen %s', (tool, path, wrong) => {
   expect(isOnWrongScreen(tool as SpaceTool, path)).toBe(wrong);
 });

@@ -17,10 +17,19 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BookOpen, Lock, Folder, FolderOpen, GripVertical, Hash, Plus } from 'lucide-react';
+import { BookMarked, GripVertical, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
+import {
+  BudgetIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  type IconComponent,
+  NotebookIcon,
+  SpaceIcon,
+  VaultIcon,
+} from '@/shared/components/BrandIconsComponent';
 import { InlineTitleInputComponent } from '@/shared/components/InlineTitleInputComponent';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -50,6 +59,7 @@ const SAMPLE_SPACES: Space[] = ['My first list', 'Weekly plans', 'Side project']
   title,
   tool: 'list',
   carryOver: true,
+  locked: false,
   createdAt: '',
   openToday: 0,
 }));
@@ -84,7 +94,13 @@ function ReorderHandle({ title, sortable }: { title: string; sortable: Sortable 
   );
 }
 
-const TOOL_ICONS: Record<SpaceTool, typeof Hash> = { list: Hash, notebook: BookOpen, vault: Lock };
+export const TOOL_ICONS: Record<SpaceTool, IconComponent> = {
+  list: SpaceIcon,
+  notebook: NotebookIcon,
+  book: BookMarked,
+  vault: VaultIcon,
+  budget: BudgetIcon,
+};
 
 type SpaceRowProps = {
   space: Space;
@@ -98,7 +114,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({ id: space.id });
   const Icon = TOOL_ICONS[space.tool ?? 'list'];
-  const icon = <Icon className="size-4 shrink-0" aria-hidden />;
+  const icon = <Icon className="size-4 shrink-0" data-active={isActive || undefined} aria-hidden />;
 
   return (
     <div
@@ -157,7 +173,7 @@ type FolderRowProps = {
 function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace, renderSummary }: FolderRowProps) {
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({ id: folder.id });
-  const Icon = isOpen ? FolderOpen : Folder;
+  const Icon = isOpen ? FolderOpenIcon : FolderIcon;
   const icon = <Icon className="size-4 shrink-0" aria-hidden />;
 
   return (

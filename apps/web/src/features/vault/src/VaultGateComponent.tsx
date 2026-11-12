@@ -1,12 +1,12 @@
 'use client';
 
-import type { LucideIcon } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
+import type { IconComponent } from '@/shared/components/BrandIconsComponent';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 
 type VaultGateProps = {
-  icon: LucideIcon;
+  icon: IconComponent;
   title: string;
   description?: string;
   error?: string;
@@ -23,7 +23,7 @@ export function VaultGateComponent({ icon: Icon, title, description, error, onSu
   return (
     <form onSubmit={handleSubmit} className="mx-auto flex min-h-[80dvh] w-full max-w-sm flex-col justify-center gap-4 px-6 py-10">
       <span className="grid size-11 place-items-center rounded-xl border bg-card">
-        <Icon className="size-5" aria-hidden />
+        <Icon className="size-5" data-active aria-hidden />
       </span>
       <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       {description && <p className="text-sm text-muted-foreground">{description}</p>}

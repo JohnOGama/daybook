@@ -31,3 +31,12 @@ export function formatShortDate(iso: string): string {
 export function formatShortDay(day: string): string {
   return shortDate(parseDay(day));
 }
+
+// "Today", "Yesterday" or "Tomorrow" for nearby days, otherwise a short weekday and date like "Tue, 10 Nov".
+export function relativeDayLabel(day: string, today: string): string {
+  if (day === today) return 'Today';
+  if (day === addDays(today, -1)) return 'Yesterday';
+  if (day === addDays(today, 1)) return 'Tomorrow';
+  const date = parseDay(day);
+  return `${date.toLocaleDateString('en-GB', { weekday: 'short' })}, ${shortDate(date)}`;
+}

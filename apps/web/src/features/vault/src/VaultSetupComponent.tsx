@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Lock } from 'lucide-react';
+import { VaultIcon } from '@/shared/components/BrandIconsComponent';
 import { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
@@ -37,7 +37,7 @@ export function VaultSetupComponent({ onCreated }: { onCreated: (recoveryKey: st
 
   return (
     <VaultGateComponent
-      icon={Lock}
+      icon={VaultIcon}
       title="Set a vault passcode"
       description="Everything in this vault is encrypted in your browser with this passcode. It's separate from your Daybook password."
       error={error}

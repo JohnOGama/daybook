@@ -1,10 +1,11 @@
 'use client';
 
 import { Button } from '@/shared/components/ui/button';
-import { CheckSquare, FileText, Folder, Hash, ListTree, Lock } from 'lucide-react';
+import { CheckSquare, FileText, ListTree } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { decryptJson, type ItemContent, useVaultSession } from '@/features/vault';
+import { FolderIcon, type IconComponent, SpaceIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyTrashIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { formatShortDate } from '@/shared/utils/date-formatter';
@@ -12,13 +13,13 @@ import { useRestoreItem } from '../hooks/useRestoreItem';
 import { useTrash } from '../hooks/useTrash';
 import type { TrashItem } from './trash-types';
 
-const ICONS: Record<TrashItem['type'], typeof Hash> = {
+const ICONS: Record<TrashItem['type'], IconComponent> = {
   task: CheckSquare,
   subtask: ListTree,
-  space: Hash,
-  folder: Folder,
+  space: SpaceIcon,
+  folder: FolderIcon,
   page: FileText,
-  'vault-item': Lock,
+  'vault-item': VaultIcon,
 };
 
 function VaultItemTitle({ item }: { item: TrashItem }) {

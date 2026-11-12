@@ -6,7 +6,9 @@ import { FirstSpaceIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { PageSkeletonComponent } from '@/shared/components/PageSkeletonComponent';
 import { useActiveSpace } from '../hooks/useActiveSpace';
 import { useSpaces } from '../hooks/useSpaces';
+import { canLock } from '../hooks/useSpaceLock';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
+import { SpaceLockGateComponent } from './SpaceLockGateComponent';
 import { isOnWrongScreen, spaceHref } from './space-tree';
 
 export function SpaceGateComponent({ children }: { children: ReactNode }) {
@@ -28,6 +30,7 @@ export function SpaceGateComponent({ children }: { children: ReactNode }) {
       </p>
     );
   }
+  if (active?.locked && canLock(active)) return <SpaceLockGateComponent space={active}>{children}</SpaceLockGateComponent>;
   if (spaces.some((space) => space.kind === 'space')) return children;
 
   return (

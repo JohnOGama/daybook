@@ -13,7 +13,7 @@ import {
 import { useToday } from '@/shared/hooks/useToday';
 import { useVault } from '../hooks/useVault';
 import { ChangePasscodeDialogComponent } from './ChangePasscodeDialogComponent';
-import { downloadFile } from './download-file';
+import { downloadFile } from '@/shared/utils/download-file';
 import { NewRecoveryKeyDialogComponent } from './NewRecoveryKeyDialogComponent';
 import { backupFileName, buildBackup } from './vault-backup';
 import type { VaultRecord } from './vault-types';

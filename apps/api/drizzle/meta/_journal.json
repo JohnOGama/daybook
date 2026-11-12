@@ -57,6 +57,69 @@
       "when": 1794266039140,
       "tag": "0007_vault",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794437018834,
+      "tag": "0008_book",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794438732120,
+      "tag": "0009_space_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794442351194,
+      "tag": "0010_budget",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794443766640,
+      "tag": "0011_budget_schedules",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794444862114,
+      "tag": "0012_budget_planning",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794454678520,
+      "tag": "0013_budget_currencies",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794455103025,
+      "tag": "0014_budget_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794456685745,
+      "tag": "0015_budget_icons",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794457557520,
+      "tag": "0016_budget_entry_icons",
+      "breakpoints": true
     }
   ]
 }

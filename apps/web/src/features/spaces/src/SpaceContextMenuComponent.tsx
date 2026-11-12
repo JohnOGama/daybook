@@ -21,7 +21,13 @@ import { useDeleteSpace } from '../hooks/useDeleteSpace';
 import { useDuplicateSpace } from '../hooks/useDuplicateSpace';
 import type { Space, SpaceTool } from './space-types';
 
-const CONTENT_NAMES: Record<SpaceTool, string> = { list: 'tasks', notebook: 'pages', vault: 'items' };
+const CONTENT_NAMES: Record<SpaceTool, string> = {
+  list: 'tasks',
+  notebook: 'pages',
+  book: 'chapters',
+  vault: 'items',
+  budget: 'accounts and entries',
+};
 
 type SpaceContextMenuProps = {
   space: Space;
@@ -48,7 +54,7 @@ export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceCont
           }}
         >
           <ContextMenuItem onSelect={() => (editChosen.current = true)}>Edit</ContextMenuItem>
-          {!isFolder && space.tool !== 'vault' && (
+          {!isFolder && space.tool !== 'vault' && space.tool !== 'budget' && (
             <ContextMenuItem onSelect={() => duplicateSpace.mutate(space)}>Duplicate</ContextMenuItem>
           )}
           <ContextMenuItem onSelect={() => setConfirming(true)}>Delete</ContextMenuItem>
