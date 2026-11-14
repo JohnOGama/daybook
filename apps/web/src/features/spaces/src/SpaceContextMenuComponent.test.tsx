@@ -4,10 +4,12 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
 import type { Space } from './space-types';
 
-const { remove, duplicate } = vi.hoisted(() => ({ remove: vi.fn(), duplicate: vi.fn() }));
+const { remove, duplicate, move, spaces } = vi.hoisted(() => ({ remove: vi.fn(), duplicate: vi.fn(), move: vi.fn(), spaces: { current: [] as unknown[] } }));
 
 vi.mock('../hooks/useDeleteSpace', () => ({ useDeleteSpace: () => ({ mutate: remove }) }));
 vi.mock('../hooks/useDuplicateSpace', () => ({ useDuplicateSpace: () => ({ mutate: duplicate }) }));
+vi.mock('../hooks/useMoveSpace', () => ({ useMoveSpace: () => ({ mutate: move }) }));
+vi.mock('../hooks/useSpaces', () => ({ useSpaces: () => ({ data: spaces.current }) }));
 
 const space: Space = {
   id: 's1',
@@ -40,10 +42,23 @@ async function askToDelete(target: Space) {
   return screen.findByRole('alertdialog');
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  spaces.current = [];
+});
 
 it('a space offers Edit, Duplicate and Delete', async () => {
   expect(await rightClick(space)).toEqual(['Edit', 'Duplicate', 'Delete']);
+});
+
+it('moves a space into another folder, and does not offer the folder it is already in', async () => {
+  const inside = { ...space, parentId: 'f1' };
+  spaces.current = [{ ...folder, id: 'f1', title: 'Team' }, { ...folder, id: 'f2', title: 'Home' }, inside];
+  expect(await rightClick(inside)).toEqual(['Edit', 'Duplicate', 'Move to', 'Delete']);
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Move to' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Home' }));
+  expect(screen.queryByRole('menuitem', { name: 'Team' })).not.toBeInTheDocument();
+  expect(move).toHaveBeenCalledWith({ id: 's1', parentId: 'f2' });
 });
 
 it('a folder offers Edit and Delete', async () => {
@@ -99,6 +114,22 @@ it('says a folder goes to Trash with its spaces', async () => {
 
 it('offers no Duplicate for a vault space', async () => {
   expect(await rightClick({ ...space, tool: 'vault' })).toEqual(['Edit', 'Delete']);
+});
+
+it('offers Duplicate for a database diagram space', async () => {
+  expect(await rightClick({ ...space, tool: 'diagram' })).toEqual(['Edit', 'Duplicate', 'Delete']);
+});
+
+it('says a database diagram goes to Trash with its diagram', async () => {
+  expect(await askToDelete({ ...space, tool: 'diagram' })).toHaveTextContent('its diagram');
+});
+
+it('offers no Duplicate for a job hunt space', async () => {
+  expect(await rightClick({ ...space, tool: 'jobs' })).toEqual(['Edit', 'Delete']);
+});
+
+it('says a job hunt goes to Trash with its jobs and CV', async () => {
+  expect(await askToDelete({ ...space, tool: 'jobs' })).toHaveTextContent('jobs and your CV');
 });
 
 it('says a vault goes to Trash with its items', async () => {

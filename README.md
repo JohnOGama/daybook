@@ -32,6 +32,22 @@ Create the tables:
 pnpm run db:migrate
 ```
 
+### Fitness data (optional)
+
+A Fitness space works without these, but its food search and exercise list start empty until they are loaded. Each command is safe to run again.
+
+Exercises come with the repository (876 of them, from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db)):
+
+```bash
+pnpm --filter api fitness:import-exercises
+```
+
+Foods come from USDA FoodData Central, which is public domain. Download "SR Legacy" in JSON from https://fdc.nal.usda.gov/download-datasets, unzip it, and pass the path of the `.json` file:
+
+```bash
+pnpm --filter api fitness:import-foods /path/to/FoodData_Central_sr_legacy_food_json_2018-04.json
+```
+
 ## Run
 
 This starts the API and web app together:

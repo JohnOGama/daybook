@@ -43,6 +43,30 @@ describe('NotebookService', () => {
     expect((await svc.list('u1', notebook))[0]).toMatchObject({ title: 'Plan', content: doc });
   });
 
+  it('keeps a copy of a page before it is edited, at most one per ten minutes, and one more on request', async () => {
+    const para = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
+    const id = await addPage();
+    await svc.update('u1', id, { content: para('one') });
+    expect(await svc.listVersions('u1', id)).toEqual([]);
+    await svc.update('u1', id, { content: para('two') });
+    await svc.update('u1', id, { content: para('three') });
+    await svc.update('u1', id, { title: 'Plan' });
+    const [first] = await svc.listVersions('u1', id);
+    expect((await svc.getVersion('u1', id, first.id)).content).toEqual(para('one'));
+
+    await svc.checkpoint('u1', id);
+    await svc.checkpoint('u1', id);
+    const versions = await svc.listVersions('u1', id);
+    expect(versions).toHaveLength(2);
+    expect((await svc.getVersion('u1', id, versions[0].id)).content).toEqual(para('three'));
+
+    expect(await svc.listVersions('u2', id)).toEqual([]);
+    await expect(svc.getVersion('u2', id, first.id)).rejects.toThrow(NotFoundException);
+    await expect(svc.checkpoint('u2', id)).rejects.toThrow(NotFoundException);
+    await expect(svc.spaceOf('u2', id)).rejects.toThrow(NotFoundException);
+    expect(await svc.spaceOf('u1', id)).toBe(notebook);
+  });
+
   it('lists the newest page first', async () => {
     const older = crypto.randomUUID();
     await db.insert(notebookPages).values({ id: older, userId: 'u1', spaceId: notebook, createdAt: new Date(0) });

@@ -4,5 +4,5 @@ import { BudgetAiService } from './budget-ai-service.ts';
 import { BudgetController } from './budget-controller.ts';
 import { BudgetService } from './budget-service.ts';
 
-@Module({ imports: [SpacesModule], controllers: [BudgetController], providers: [BudgetService, BudgetAiService] })
+@Module({ imports: [SpacesModule], controllers: [BudgetController], providers: [BudgetService, BudgetAiService], exports: [BudgetAiService] })
 export class BudgetModule {}

@@ -5,7 +5,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/shared/components/ui/sheet';
+import { DrawerCloseButtonComponent } from '@/shared/components/DrawerCloseButtonComponent';
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/shared/components/ui/drawer';
 import { Switch } from '@/shared/components/ui/switch';
 import { cn } from '@/shared/utils/cn';
 import { formatShortDay } from '@/shared/utils/date-formatter';
@@ -36,12 +37,13 @@ type ScheduleSheetProps = { budget: Budget; today: string; state: ScheduleSheetS
 export function ScheduleSheetComponent({ budget, today, state, onClose }: ScheduleSheetProps) {
   const editing = state?.mode === 'edit' ? state.schedule : undefined;
   return (
-    <Sheet open={state !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full gap-0 sm:max-w-md">
-        <SheetHeader className="border-b">
-          <SheetTitle>{editing ? 'Edit recurring' : 'New recurring'}</SheetTitle>
-          <SheetDescription>Salary, rent, bills, subscriptions: anything that comes round again.</SheetDescription>
-        </SheetHeader>
+    <Drawer direction="right" open={state !== null} onOpenChange={(open) => !open && onClose()}>
+      <DrawerContent className="gap-0 data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md">
+        <DrawerCloseButtonComponent />
+        <DrawerHeader className="border-b pr-12">
+          <DrawerTitle>{editing ? 'Edit recurring' : 'New recurring'}</DrawerTitle>
+          <DrawerDescription>Salary, rent, bills, subscriptions: anything that comes round again.</DrawerDescription>
+        </DrawerHeader>
         {state && (
           <ScheduleForm
             key={editing?.id ?? 'new'}
@@ -52,8 +54,8 @@ export function ScheduleSheetComponent({ budget, today, state, onClose }: Schedu
             onDone={onClose}
           />
         )}
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -285,12 +287,12 @@ function ScheduleForm({ budget, today, schedule, draft, onDone }: ScheduleFormPr
         )}
       </div>
 
-      <SheetFooter className="flex-row items-center justify-end border-t">
+      <DrawerFooter className="flex-row items-center justify-end border-t">
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>
         <Button type="submit">{schedule ? 'Save' : 'Add recurring'}</Button>
-      </SheetFooter>
+      </DrawerFooter>
     </form>
   );
 }

@@ -15,10 +15,15 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/shared/components/ui/context-menu';
 import { useDeleteSpace } from '../hooks/useDeleteSpace';
 import { useDuplicateSpace } from '../hooks/useDuplicateSpace';
+import { useMoveSpace } from '../hooks/useMoveSpace';
+import { useSpaces } from '../hooks/useSpaces';
 import type { Space, SpaceTool } from './space-types';
 
 const CONTENT_NAMES: Record<SpaceTool, string> = {
@@ -27,6 +32,9 @@ const CONTENT_NAMES: Record<SpaceTool, string> = {
   book: 'chapters',
   vault: 'items',
   budget: 'accounts and entries',
+  fitness: 'logs, plans and templates',
+  jobs: 'jobs and your CV',
+  diagram: 'its diagram',
 };
 
 type SpaceContextMenuProps = {
@@ -38,9 +46,13 @@ type SpaceContextMenuProps = {
 export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceContextMenuProps) {
   const deleteSpace = useDeleteSpace();
   const duplicateSpace = useDuplicateSpace();
+  const moveSpace = useMoveSpace();
+  const { data: spaces = [] } = useSpaces();
   const [confirming, setConfirming] = useState(false);
   const editChosen = useRef(false);
   const isFolder = space.kind === 'folder';
+  const otherFolders = isFolder ? [] : spaces.filter(({ kind, id }) => kind === 'folder' && id !== space.parentId);
+  const canMove = otherFolders.length > 0 || (!isFolder && space.parentId !== null);
 
   return (
     <>
@@ -54,8 +66,23 @@ export function SpaceContextMenuComponent({ space, onEdit, children }: SpaceCont
           }}
         >
           <ContextMenuItem onSelect={() => (editChosen.current = true)}>Edit</ContextMenuItem>
-          {!isFolder && space.tool !== 'vault' && space.tool !== 'budget' && (
+          {!isFolder && space.tool !== 'vault' && space.tool !== 'budget' && space.tool !== 'fitness' && space.tool !== 'jobs' && (
             <ContextMenuItem onSelect={() => duplicateSpace.mutate(space)}>Duplicate</ContextMenuItem>
+          )}
+          {canMove && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>Move to</ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                {space.parentId !== null && (
+                  <ContextMenuItem onSelect={() => moveSpace.mutate({ id: space.id, parentId: null })}>No folder</ContextMenuItem>
+                )}
+                {otherFolders.map((folder) => (
+                  <ContextMenuItem key={folder.id} onSelect={() => moveSpace.mutate({ id: space.id, parentId: folder.id })}>
+                    {folder.title}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
           )}
           <ContextMenuItem onSelect={() => setConfirming(true)}>Delete</ContextMenuItem>
         </ContextMenuContent>

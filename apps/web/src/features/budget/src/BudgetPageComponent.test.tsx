@@ -171,7 +171,7 @@ it('lists every month newest first without a month switcher, and filters by sear
   expect(screen.getByText('Nothing matches')).toBeInTheDocument();
 });
 
-it('shows money in, money out and recurring items on the calendar, and the chosen day below', async () => {
+it('shows money in, money out and recurring items on the calendar, and opens the chosen day', async () => {
   showWithSchedules([schedule({ name: 'Netflix', icon: 'netflix', monthDays: [20], startDay: '2026-11-20', activeFrom: '2026-11-20' })], 'space=s1&view=calendar');
   expect(screen.getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page');
   expect(screen.getByRole('heading', { name: 'November 2026' })).toBeInTheDocument();
@@ -180,7 +180,7 @@ it('shows money in, money out and recurring items on the calendar, and the chose
   const netflixDay = screen.getByRole('button', { name: 'Fri, 20 Nov, out $900.00, 1 recurring' });
   expect(netflixDay.querySelector('[data-brand="netflix"]')).not.toBeNull();
   await userEvent.click(netflixDay);
-  const day = screen.getByRole('region', { name: 'Entries on Fri, 20 Nov' });
+  const day = screen.getByRole('dialog', { name: 'Fri, 20 Nov' });
   expect(within(day).getByRole('button', { name: 'Mark paid: Netflix, 20 Nov' })).toBeInTheDocument();
   await userEvent.click(within(day).getByRole('button', { name: 'Add entry on this day' }));
   expect(within(screen.getByRole('dialog')).getByLabelText('Date')).toHaveValue('2026-11-20');
@@ -446,9 +446,9 @@ it('picks an icon for a new entry from its note and saves it with the entry', as
   expect(mutations.addEntry.mutate).toHaveBeenCalledWith(expect.objectContaining({ entry: expect.objectContaining({ note: 'Netflix', icon: 'netflix' }) }));
 });
 
-it('opens another month of the calendar on its 1st', () => {
+it('opens another month of the calendar with no day opened', () => {
   show('space=s1&view=calendar&month=2026-12');
   expect(screen.getByRole('heading', { name: 'December 2026' })).toBeInTheDocument();
-  expect(screen.getByRole('region', { name: 'Entries on Tue, 1 Dec' })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'This month' })).not.toBeInTheDocument();
 });

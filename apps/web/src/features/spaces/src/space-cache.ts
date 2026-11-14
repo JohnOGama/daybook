@@ -23,6 +23,12 @@ export const renameSpace = (spaces: Space[], id: string, title: string): Space[]
 export const withCarryOver = (spaces: Space[], id: string, carryOver: boolean): Space[] =>
   spaces.map((space) => (space.id === id ? { ...space, carryOver } : space));
 
+// Mirrors the server: the moved space becomes the last one in its new group.
+export function moveSpace(spaces: Space[], id: string, parentId: string | null): Space[] {
+  const moved = spaces.find((space) => space.id === id);
+  return moved ? [...spaces.filter((space) => space.id !== id), { ...moved, parentId }] : spaces;
+}
+
 export function applySpaceOrder(spaces: Space[], ids: string[]): Space[] {
   const rank = (space: Space) => {
     const index = ids.indexOf(space.id);

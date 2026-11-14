@@ -2,7 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
-import { tasks } from '../../../shared/db/schema.ts';
+import { diagrams, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { SpacesService } from './spaces-service.ts';
 
@@ -116,6 +116,33 @@ describe('SpacesService', () => {
     const folder = await svc.create('u1', { kind: 'folder', title: 'Team' });
     const inside = await svc.create('u1', { kind: 'space', title: 'Requests', tool: 'list', parentId: folder.id });
     expect(inside.parentId).toBe(folder.id);
+  });
+
+  it('moves a space into a folder, on to another, and back out, always last in its new group', async () => {
+    const team = await svc.create('u1', { kind: 'folder', title: 'Team' });
+    const home = await svc.create('u1', { kind: 'folder', title: 'Home' });
+    await svc.create('u1', { kind: 'space', title: 'First', tool: 'list', parentId: home.id });
+    const moving = await svc.create('u1', { kind: 'space', title: 'Moving', tool: 'list', parentId: team.id });
+    const inGroup = async (parentId: string | null) =>
+      (await svc.list('u1', today)).filter((space) => space.parentId === parentId).map((space) => space.title);
+
+    await svc.move('u1', moving.id, home.id);
+    expect(await inGroup(home.id)).toEqual(['First', 'Moving']);
+    expect(await inGroup(team.id)).toEqual([]);
+    await svc.move('u1', moving.id, null);
+    expect(await inGroup(null)).toEqual(['Team', 'Home', 'Moving']);
+  });
+
+  it("refuses to move a folder, or to move a space into a space or another user's folder", async () => {
+    const folder = await svc.create('u1', { kind: 'folder', title: 'Team' });
+    const other = await svc.create('u1', { kind: 'folder', title: 'Other' });
+    const space = await svc.create('u1', { kind: 'space', title: 'Home', tool: 'list' });
+    const target = await svc.create('u1', { kind: 'space', title: 'Target', tool: 'list' });
+    const theirs = await svc.create('u2', { kind: 'folder', title: 'Theirs' });
+    await expect(svc.move('u1', folder.id, other.id)).rejects.toThrow(NotFoundException);
+    await expect(svc.move('u1', space.id, target.id)).rejects.toThrow(BadRequestException);
+    await expect(svc.move('u1', space.id, theirs.id)).rejects.toThrow(NotFoundException);
+    await expect(svc.move('u2', space.id, null)).rejects.toThrow(NotFoundException);
   });
 
   it('refuses a space inside a space', async () => {
@@ -253,6 +280,19 @@ describe('SpacesService', () => {
     await db.insert(tasks).values({ ...base, plannedDay: '2026-11-20' });
     const [listed] = await svc.list('u1', today);
     expect(listed.openToday).toBe(1);
+  });
+
+  it('copies the diagram when a diagram space is duplicated', async () => {
+    const source = await svc.create('u1', { kind: 'space', title: 'Shop', tool: 'diagram' });
+    await db.insert(diagrams).values({ spaceId: source.id, userId: 'u1', dbml: 'Table users { id int }', positions: { users: { x: 1, y: 2 } } });
+    const copy = await svc.duplicate('u1', source.id);
+    const [copied] = await db.select().from(diagrams).where(eq(diagrams.spaceId, copy.id));
+    expect(copied).toMatchObject({ dbml: 'Table users { id int }', positions: { users: { x: 1, y: 2 } } });
+  });
+
+  it('refuses to duplicate a jobs space', async () => {
+    const jobsSpace = await svc.create('u1', { kind: 'space', title: 'J', tool: 'jobs' });
+    await expect(svc.duplicate('u1', jobsSpace.id)).rejects.toThrow('A jobs space cannot be duplicated');
   });
 
   it('refuses to duplicate a vault space', async () => {

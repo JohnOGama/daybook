@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
+import { diagrams, notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
 import type { CreateSpaceInput } from './space-schemas.ts';
 
@@ -115,6 +115,28 @@ export class SpacesService {
     });
   }
 
+  // Puts a space into a folder, or back at the top level, as the last one there.
+  async move(userId: string, id: string, parentId: string | null): Promise<void> {
+    if (parentId) await this.assertOwnedFolder(userId, parentId);
+    await this.db.transaction(async (tx) => {
+      const siblings = await tx
+        .select({ id: spaces.id })
+        .from(spaces)
+        .where(and(eq(spaces.userId, userId), isNull(spaces.deletedAt), parentId ? eq(spaces.parentId, parentId) : isNull(spaces.parentId)))
+        .orderBy(asc(spaces.position), asc(spaces.createdAt), asc(spaces.id));
+      const others = siblings.filter((sibling) => sibling.id !== id);
+      for (const [position, sibling] of others.entries()) {
+        await tx.update(spaces).set({ position }).where(eq(spaces.id, sibling.id));
+      }
+      const moved = await tx
+        .update(spaces)
+        .set({ parentId, position: others.length })
+        .where(and(eq(spaces.id, id), eq(spaces.userId, userId), eq(spaces.kind, 'space'), isNull(spaces.deletedAt)))
+        .returning({ id: spaces.id });
+      if (moved.length === 0) throw new NotFoundException('Space not found');
+    });
+  }
+
   async setCarryOver(userId: string, id: string, carryOver: boolean): Promise<void> {
     const updated = await this.db
       .update(spaces)
@@ -132,7 +154,7 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
-      if (source.tool === 'vault' || source.tool === 'budget') {
+      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs') {
         throw new BadRequestException(`A ${source.tool} space cannot be duplicated`);
       }
 
@@ -159,6 +181,9 @@ export class SpacesService {
           pages.map(({ title, content, position, createdAt }) => ({ userId, spaceId: copy.id, title, content, position, createdAt })),
         );
       }
+
+      const [diagram] = await tx.select().from(diagrams).where(eq(diagrams.spaceId, id));
+      if (diagram) await tx.insert(diagrams).values({ spaceId: copy.id, userId, dbml: diagram.dbml, positions: diagram.positions });
 
       const inOrder = [asc(tasks.position), asc(tasks.createdAt), asc(tasks.id)];
       const parents = await tx

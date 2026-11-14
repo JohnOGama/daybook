@@ -1,5 +1,5 @@
 import { Editor } from '@tiptap/react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { EDITOR_EXTENSIONS } from './editor-extensions';
@@ -70,4 +70,17 @@ it('goes back to the buttons when the selection moves', async () => {
     editor.commands.setTextSelection({ from: 2, to: 4 });
   });
   expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument();
+});
+
+it('offers AI on the highlighted text only where it is turned on, and puts the reply in its place', async () => {
+  expect(screen.queryByRole('button', { name: 'Improve with AI' })).not.toBeInTheDocument();
+  const send = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ text: 'Hi there' })));
+  vi.stubGlobal('fetch', send);
+  const panel = within(render(<SelectionPanel editor={editor} improveWithAi />).container);
+  await userEvent.click(panel.getByRole('button', { name: 'Improve with AI' }));
+  await userEvent.click(panel.getByRole('button', { name: 'Improve writing' }));
+  await waitFor(() => expect(editor.getHTML()).toBe('<p>Hi there</p>'));
+  expect(send.mock.calls[0][0]).toBe('/api/notebook-pages/ai/improve');
+  expect(String(send.mock.calls[0][1].body)).toContain('Hello world');
+  vi.unstubAllGlobals();
 });

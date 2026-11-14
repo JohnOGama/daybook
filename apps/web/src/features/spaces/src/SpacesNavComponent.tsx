@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BookMarked, GripVertical, Plus } from 'lucide-react';
+import { BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -100,6 +100,9 @@ export const TOOL_ICONS: Record<SpaceTool, IconComponent> = {
   book: BookMarked,
   vault: VaultIcon,
   budget: BudgetIcon,
+  fitness: Dumbbell,
+  jobs: BriefcaseBusiness,
+  diagram: Network,
 };
 
 type SpaceRowProps = {

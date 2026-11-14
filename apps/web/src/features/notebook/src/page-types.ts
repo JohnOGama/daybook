@@ -7,6 +7,8 @@ export type NotebookPage = {
   createdAt: string;
 };
 
+export type PageVersion = { id: string; createdAt: string };
+
 export type PageChanges = Partial<Pick<NotebookPage, 'title'>> & { content?: JSONContent };
 
 export const pageTitle = ({ title }: Pick<NotebookPage, 'title'>) => title.trim() || 'Untitled';

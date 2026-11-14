@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/shared/components/ui/sheet';
+import { DrawerCloseButtonComponent } from '@/shared/components/DrawerCloseButtonComponent';
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/shared/components/ui/drawer';
 import { useActiveSpace } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { useBudgetMutations } from '../hooks/useBudgetMutations';
@@ -39,14 +40,15 @@ type EntrySheetProps = {
 export function EntrySheetComponent({ budget, today, state, onClose, onRepeat }: EntrySheetProps) {
   const editing = state?.mode === 'edit' ? state.entry : undefined;
   return (
-    <Sheet open={state !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full gap-0 sm:max-w-md">
-        <SheetHeader className="border-b">
-          <SheetTitle>{editing ? 'Edit entry' : 'New entry'}</SheetTitle>
-          <SheetDescription>
+    <Drawer direction="right" open={state !== null} onOpenChange={(open) => !open && onClose()}>
+      <DrawerContent className="gap-0 data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md">
+        <DrawerCloseButtonComponent />
+        <DrawerHeader className="border-b pr-12">
+          <DrawerTitle>{editing ? 'Edit entry' : 'New entry'}</DrawerTitle>
+          <DrawerDescription>
             {editing ? 'Change any detail, or delete the entry.' : 'Record money in, money out, or a move between accounts.'}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
         {state && (
           <EntryForm
             key={editing?.id ?? 'new'}
@@ -58,8 +60,8 @@ export function EntrySheetComponent({ budget, today, state, onClose, onRepeat }:
             onRepeat={onRepeat}
           />
         )}
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -328,7 +330,7 @@ function EntryForm({ budget, today, entry, draft, onDone, onRepeat }: EntryFormP
         )}
       </div>
 
-      <SheetFooter className="flex-row items-center border-t">
+      <DrawerFooter className="flex-row items-center border-t">
         {entry ? (
           <Button
             type="button"
@@ -351,7 +353,7 @@ function EntryForm({ budget, today, entry, draft, onDone, onRepeat }: EntryFormP
           Cancel
         </Button>
         <Button type="submit">{entry ? 'Save' : 'Add entry'}</Button>
-      </SheetFooter>
+      </DrawerFooter>
     </form>
   );
 }

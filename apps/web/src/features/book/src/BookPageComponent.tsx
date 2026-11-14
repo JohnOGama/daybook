@@ -87,6 +87,7 @@ export function BookPageComponent() {
             page={active}
             eyebrow={`Chapter ${activeIndex + 1}`}
             titlePlaceholder="Untitled chapter"
+            improveWithAi
             footer={
               <div className="mt-16 flex justify-end border-t pt-4">
                 {next ? (

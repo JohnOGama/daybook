@@ -19,6 +19,7 @@ import {
   type LucideIcon,
   Pilcrow,
   RemoveFormatting,
+  Sparkles,
   SquareCode,
   Strikethrough,
   TextQuote,
@@ -28,6 +29,8 @@ import { type FormEvent, type MouseEvent, useEffect, useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { cn } from '@/shared/utils/cn';
+import { useAiRewrite } from '../hooks/useAiRewrite';
+import { AiRewriteMenuComponent } from './AiRewriteMenuComponent';
 
 type BlockType = { id: string; label: string; Icon: LucideIcon; isActive: (editor: Editor) => boolean; apply: (editor: Editor) => void };
 
@@ -173,8 +176,11 @@ function BlockTypeList({ editor, onDone }: { editor: Editor; onDone: () => void 
   );
 }
 
-export function SelectionPanel({ editor }: { editor: Editor }) {
-  const [view, setView] = useState<'marks' | 'blocks' | 'link'>('marks');
+type SelectionPanelProps = { editor: Editor; improveWithAi?: boolean };
+
+export function SelectionPanel({ editor, improveWithAi }: SelectionPanelProps) {
+  const [view, setView] = useState<'marks' | 'blocks' | 'link' | 'ai'>('marks');
+  const ai = useAiRewrite(editor);
   const showMarks = () => setView('marks');
 
   useEffect(() => {
@@ -195,6 +201,8 @@ export function SelectionPanel({ editor }: { editor: Editor }) {
       strike: current.isActive('strike'),
       code: current.isActive('code'),
       link: current.isActive('link'),
+      // The AI rewrites prose inside one block, so a reply can't flatten several blocks into one.
+      oneBlock: current.state.selection.$from.sameParent(current.state.selection.$to) && !current.state.selection.$from.parent.type.spec.code,
     }),
   });
 
@@ -209,12 +217,32 @@ export function SelectionPanel({ editor }: { editor: Editor }) {
       aria-label="Format selection"
       data-slot="popover-content"
       onMouseDown={keepSelection}
-      className="w-48 rounded-xl border bg-popover p-1 text-popover-foreground"
+      className={cn('rounded-xl border bg-popover p-1 text-popover-foreground', view === 'ai' ? 'w-60' : 'w-48')}
     >
       {view === 'link' && <LinkForm editor={editor} onDone={showMarks} />}
       {view === 'blocks' && <BlockTypeList editor={editor} onDone={showMarks} />}
+      {view === 'ai' && (
+        <AiRewriteMenuComponent
+          isPending={ai.isPending}
+          onRewrite={async (instruction) => {
+            const { from, to } = editor.state.selection;
+            await ai.rewrite({ from, to }, instruction);
+            setView('marks');
+          }}
+        />
+      )}
       {view === 'marks' && (
         <>
+          {improveWithAi && active.oneBlock && (
+            <>
+              <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => setView('ai')}>
+                <Sparkles className="text-signal" aria-hidden />
+                Improve with AI
+                <ChevronRight className="ml-auto" aria-hidden />
+              </Button>
+              <div className="my-1 border-t" />
+            </>
+          )}
           <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => setView('blocks')}>
             <active.block.Icon aria-hidden />
             {active.block.label}
@@ -236,7 +264,7 @@ export function SelectionPanel({ editor }: { editor: Editor }) {
   );
 }
 
-export function SelectionToolbarComponent({ editor }: { editor: Editor }) {
+export function SelectionToolbarComponent({ editor, improveWithAi }: SelectionPanelProps) {
   return (
     <BubbleMenu
       editor={editor}
@@ -250,7 +278,7 @@ export function SelectionToolbarComponent({ editor }: { editor: Editor }) {
         scrollTarget: document.querySelector('main') ?? window,
       }}
     >
-      <SelectionPanel editor={editor} />
+      <SelectionPanel editor={editor} improveWithAi={improveWithAi} />
     </BubbleMenu>
   );
 }

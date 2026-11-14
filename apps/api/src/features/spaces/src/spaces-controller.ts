@@ -19,6 +19,7 @@ import {
   createSpaceSchema,
   duplicateSpaceSchema,
   listSpacesSchema,
+  moveSpaceSchema,
   renameSpaceSchema,
   reorderSpacesSchema,
 } from './space-schemas.ts';
@@ -47,6 +48,11 @@ export class SpacesController {
   @Put(':id/carry-over')
   setCarryOver(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.spaces.setCarryOver(userId, id, parseOrThrow(carryOverSchema, body).carryOver);
+  }
+
+  @Put(':id/parent')
+  move(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.spaces.move(userId, id, parseOrThrow(moveSpaceSchema, body).parentId);
   }
 
   @Patch(':id')

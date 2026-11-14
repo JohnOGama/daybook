@@ -1,13 +1,19 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNull, max, min } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, max, min, notInArray } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { notebookPages, spaces } from '../../../shared/db/schema.ts';
+import { notebookPages, notebookPageVersions, spaces } from '../../../shared/db/schema.ts';
 
 type PageRow = typeof notebookPages.$inferSelect;
 
 export type PageDto = Pick<PageRow, 'id' | 'title' | 'content'> & { createdAt: string };
 
+export type VersionDto = { id: string; createdAt: string };
+
 const PAGE_TOOLS = ['notebook', 'book'] as const;
+const VERSION_GAP_MS = 10 * 60 * 1000;
+const VERSIONS_KEPT = 50;
+
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 const toDto = ({ id, title, content, createdAt }: PageRow): PageDto => ({
   id,
@@ -60,12 +66,68 @@ export class NotebookService {
     id: string,
     changes: { title?: string; content?: Record<string, unknown> },
   ): Promise<void> {
-    const updated = await this.db
-      .update(notebookPages)
-      .set({ ...changes, updatedAt: new Date() })
-      .where(this.ownedPage(userId, id))
-      .returning({ id: notebookPages.id });
-    if (updated.length === 0) throw new NotFoundException('Page not found');
+    await this.db.transaction(async (tx) => {
+      const [page] = await tx.select().from(notebookPages).where(this.ownedPage(userId, id));
+      if (!page) throw new NotFoundException('Page not found');
+      if (changes.content) await this.keepVersion(tx, page, VERSION_GAP_MS);
+      await tx.update(notebookPages).set({ ...changes, updatedAt: new Date() }).where(eq(notebookPages.id, id));
+    });
+  }
+
+  // Keeps a copy of the page as it is saved right now, for a restore or any other sweeping change.
+  async checkpoint(userId: string, id: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [page] = await tx.select().from(notebookPages).where(this.ownedPage(userId, id));
+      if (!page) throw new NotFoundException('Page not found');
+      await this.keepVersion(tx, page, 0);
+    });
+  }
+
+  async spaceOf(userId: string, id: string): Promise<string> {
+    const [page] = await this.db.select({ spaceId: notebookPages.spaceId }).from(notebookPages).where(this.ownedPage(userId, id));
+    if (!page) throw new NotFoundException('Page not found');
+    return page.spaceId;
+  }
+
+  async listVersions(userId: string, pageId: string): Promise<VersionDto[]> {
+    const rows = await this.db
+      .select({ id: notebookPageVersions.id, createdAt: notebookPageVersions.createdAt })
+      .from(notebookPageVersions)
+      .where(and(eq(notebookPageVersions.pageId, pageId), eq(notebookPageVersions.userId, userId)))
+      .orderBy(desc(notebookPageVersions.createdAt), desc(notebookPageVersions.id));
+    return rows.map(({ id, createdAt }) => ({ id, createdAt: createdAt.toISOString() }));
+  }
+
+  async getVersion(userId: string, pageId: string, versionId: string): Promise<VersionDto & { content: Record<string, unknown> }> {
+    const [row] = await this.db
+      .select()
+      .from(notebookPageVersions)
+      .where(and(eq(notebookPageVersions.id, versionId), eq(notebookPageVersions.pageId, pageId), eq(notebookPageVersions.userId, userId)));
+    if (!row) throw new NotFoundException('Version not found');
+    return { id: row.id, createdAt: row.createdAt.toISOString(), content: row.content };
+  }
+
+  // Copies the page's saved content into its history, unless the newest copy is younger than `gapMs` or identical.
+  private async keepVersion(tx: Tx, page: PageRow, gapMs: number): Promise<void> {
+    if (!page.content) return;
+    const [newest] = await tx
+      .select()
+      .from(notebookPageVersions)
+      .where(eq(notebookPageVersions.pageId, page.id))
+      .orderBy(desc(notebookPageVersions.createdAt), desc(notebookPageVersions.id))
+      .limit(1);
+    if (newest && Date.now() - newest.createdAt.getTime() < gapMs) return;
+    if (newest && JSON.stringify(newest.content) === JSON.stringify(page.content)) return;
+    await tx.insert(notebookPageVersions).values({ pageId: page.id, userId: page.userId, content: page.content });
+    const kept = await tx
+      .select({ id: notebookPageVersions.id })
+      .from(notebookPageVersions)
+      .where(eq(notebookPageVersions.pageId, page.id))
+      .orderBy(desc(notebookPageVersions.createdAt), desc(notebookPageVersions.id))
+      .limit(VERSIONS_KEPT);
+    await tx.delete(notebookPageVersions).where(
+      and(eq(notebookPageVersions.pageId, page.id), notInArray(notebookPageVersions.id, kept.map((version) => version.id))),
+    );
   }
 
   async remove(userId: string, id: string): Promise<void> {

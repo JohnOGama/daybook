@@ -1,0 +1,41 @@
+export const MUSCLES = [
+  'neck',
+  'traps',
+  'shoulders',
+  'chest',
+  'biceps',
+  'triceps',
+  'forearms',
+  'abs',
+  'lats',
+  'middleBack',
+  'lowerBack',
+  'glutes',
+  'abductors',
+  'adductors',
+  'quads',
+  'hamstrings',
+  'calves',
+] as const;
+
+export type Muscle = (typeof MUSCLES)[number];
+
+export const MUSCLE_LABELS: Record<Muscle, string> = {
+  neck: 'Neck',
+  traps: 'Traps',
+  shoulders: 'Shoulders',
+  chest: 'Chest',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  forearms: 'Forearms',
+  abs: 'Abs',
+  lats: 'Lats',
+  middleBack: 'Middle back',
+  lowerBack: 'Lower back',
+  glutes: 'Glutes',
+  abductors: 'Abductors',
+  adductors: 'Adductors',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  calves: 'Calves',
+};

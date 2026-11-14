@@ -30,6 +30,7 @@ const { rename } = vi.hoisted(() => ({ rename: vi.fn() }));
 
 vi.mock('../hooks/useDeleteSpace', () => ({ useDeleteSpace: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useDuplicateSpace', () => ({ useDuplicateSpace: () => ({ mutate: vi.fn() }) }));
+vi.mock('../hooks/useMoveSpace', () => ({ useMoveSpace: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useRenameSpace', () => ({ useRenameSpace: () => ({ mutate: rename }) }));
 vi.mock('../hooks/useReorderSpaces', () => ({ useReorderSpaces: () => ({ mutate: vi.fn() }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));

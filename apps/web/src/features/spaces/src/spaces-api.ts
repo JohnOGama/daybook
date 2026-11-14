@@ -31,6 +31,9 @@ export const updateSpaceTitle = ({ id, title }: { id: string; title: string }) =
 export const setSpaceCarryOver = ({ id, carryOver }: { id: string; carryOver: boolean }) =>
   send(`/api/spaces/${id}/carry-over`, 'PUT', 'That setting could not be saved. Please try again.', { carryOver });
 
+export const setSpaceParent = ({ id, parentId }: { id: string; parentId: string | null }) =>
+  send(`/api/spaces/${id}/parent`, 'PUT', 'That space could not be moved. Please try again.', { parentId });
+
 export const reorderSpaces =(ids: string[]) =>
   send('/api/spaces/order', 'PUT', 'That order could not be saved. Please try again.', { ids });
 

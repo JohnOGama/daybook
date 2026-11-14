@@ -1,6 +1,6 @@
 'use client';
 
-import { BookMarked, List } from 'lucide-react';
+import { BookMarked, BriefcaseBusiness, Dumbbell, List, Network } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { BudgetIcon, FolderIcon, NotebookIcon, SpaceIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
@@ -25,6 +25,9 @@ const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   book: <BookMarked className="size-[18px]" aria-hidden />,
   vault: <VaultIcon className="size-[18px]" aria-hidden />,
   budget: <BudgetIcon className="size-[18px]" aria-hidden />,
+  fitness: <Dumbbell className="size-[18px]" aria-hidden />,
+  jobs: <BriefcaseBusiness className="size-[18px]" aria-hidden />,
+  diagram: <Network className="size-[18px]" aria-hidden />,
 };
 
 export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, onCancel }: CreateSpaceFormProps) {

@@ -9,7 +9,7 @@ export const createSpaceSchema = z.discriminatedUnion('kind', [
     id,
     kind: z.literal('space'),
     title,
-    tool: z.enum(['list', 'notebook', 'vault', 'book', 'budget']),
+    tool: z.enum(['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram']),
     parentId: z.uuid().optional(),
   }),
 ]);
@@ -17,6 +17,7 @@ export const createSpaceSchema = z.discriminatedUnion('kind', [
 export const listSpacesSchema = z.object({ today: z.iso.date() });
 export const renameSpaceSchema = z.object({ title });
 export const duplicateSpaceSchema = z.object({ id });
+export const moveSpaceSchema = z.object({ parentId: z.uuid().nullable() });
 export const carryOverSchema = z.object({ carryOver: z.boolean() });
 export const reorderSpacesSchema =z.object({ ids: z.array(z.uuid()).min(1).max(1000) });
 

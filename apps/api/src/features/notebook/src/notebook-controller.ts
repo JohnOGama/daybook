@@ -2,8 +2,9 @@ import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Pos
 import type { Request } from 'express';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
+import { BudgetAiService } from '../../budget/index.ts';
 import { SpaceLockService } from '../../spaces/index.ts';
-import { createPageSchema, listPagesSchema, reorderPagesSchema, updatePageSchema } from './notebook-schemas.ts';
+import { createPageSchema, improveTextSchema, listPagesSchema, reorderPagesSchema, updatePageSchema } from './notebook-schemas.ts';
 import { NotebookService } from './notebook-service.ts';
 
 @UseGuards(AuthGuard)
@@ -12,6 +13,7 @@ export class NotebookController {
   constructor(
     @Inject(NotebookService) private readonly notebook: NotebookService,
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
+    @Inject(BudgetAiService) private readonly ai: BudgetAiService,
   ) {}
 
   @Get()
@@ -26,10 +28,39 @@ export class NotebookController {
     return this.notebook.create(userId, parseOrThrow(createPageSchema, body));
   }
 
+  // Works on the text sent with the request, so it reads nothing from a space.
+  @Post('ai/improve')
+  async improve(@Body() body: unknown) {
+    const { text, instruction } = parseOrThrow(improveTextSchema, body);
+    return { text: await this.ai.rewrite(text, instruction) };
+  }
+
   @Put('order')
   reorder(@UserId() userId: string, @Body() body: unknown) {
     const { spaceId, ids } = parseOrThrow(reorderPagesSchema, body);
     return this.notebook.reorder(userId, spaceId, ids);
+  }
+
+  @Get(':id/versions')
+  async versions(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Req() request: Request) {
+    await this.lock.assertUnlocked(userId, await this.notebook.spaceOf(userId, id), request.headers.cookie);
+    return this.notebook.listVersions(userId, id);
+  }
+
+  @Get(':id/versions/:versionId')
+  async version(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Req() request: Request,
+  ) {
+    await this.lock.assertUnlocked(userId, await this.notebook.spaceOf(userId, id), request.headers.cookie);
+    return this.notebook.getVersion(userId, id, versionId);
+  }
+
+  @Post(':id/versions')
+  checkpoint(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notebook.checkpoint(userId, id);
   }
 
   @Patch(':id')

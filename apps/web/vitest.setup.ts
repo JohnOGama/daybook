@@ -6,6 +6,9 @@ afterEach(cleanup);
 
 Element.prototype.hasPointerCapture = () => false;
 Element.prototype.releasePointerCapture = () => {};
+Element.prototype.setPointerCapture = () => {};
+// The shadcn Drawer (vaul) reads the computed transform while dragging; jsdom computes none.
+Object.defineProperty(CSSStyleDeclaration.prototype, 'webkitTransform', { configurable: true, get: () => 'none' });
 Element.prototype.scrollIntoView = () => {};
 globalThis.ResizeObserver = class {
   observe() {}

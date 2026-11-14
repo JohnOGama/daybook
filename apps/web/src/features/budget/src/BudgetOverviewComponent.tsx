@@ -24,10 +24,12 @@ import { BudgetMeterComponent, SectionCardComponent, StatTileComponent } from '.
 import { CategoryBarsComponent } from './CategoryBarsComponent';
 import { EntryRowComponent } from './EntryRowComponent';
 import { OccurrenceRowComponent } from './OccurrenceRowComponent';
-import { dueOccurrences, upcomingOccurrences } from './schedule-math';
+import { dueOccurrences, type Occurrence, upcomingOccurrences } from './schedule-math';
 
 const ATTENTION_SHOWN = 3;
 const COMING_UP_DAYS = 14;
+const COMING_UP_SHOWN = 5;
+const CATEGORIES_SHOWN = 5;
 
 export type BudgetViewProps = {
   budget: Budget;
@@ -53,10 +55,15 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
   const isCurrentMonth = monthOf(today) === month;
   const inMonth = budget.entries.filter((entry) => monthOf(entry.day) === month);
   const recent = sortNewestFirst(inMonth.filter((entry) => isActual(entry, today))).slice(0, 6);
-  const upcoming = upcomingEntries(budget.entries, today).slice(0, 5);
-  const upcomingScheduled = upcomingOccurrences(budget, today, COMING_UP_DAYS)
-    .filter((occurrence) => !occurrence.entry)
-    .slice(0, 5);
+  const totalBalance = totalInBase(budget, balances);
+  const comingUp: { day: string; occurrence?: Occurrence; entry?: BudgetEntry }[] = [
+    ...upcomingOccurrences(budget, today, COMING_UP_DAYS)
+      .filter((occurrence) => !occurrence.entry)
+      .map((occurrence) => ({ day: occurrence.day, occurrence })),
+    ...upcomingEntries(budget.entries, today).map((entry) => ({ day: entry.day, entry })),
+  ]
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .slice(0, COMING_UP_SHOWN);
   const due = dueOccurrences(budget, today).filter((occurrence) => !occurrence.schedule.autoRecord);
   const alerts = isCurrentMonth
     ? limited
@@ -96,7 +103,7 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
             </ul>
           )}
           {alerts.length > 0 && (
-            <ul className="flex flex-col gap-2 px-4 pt-1 pb-4">
+            <ul className={cn('flex flex-col gap-3 px-4 pt-1 pb-4', due.length > 0 && 'mt-1 border-t pt-3')}>
               {alerts.map(({ category, spent: used, limit }) => (
                 <li key={category.id} className="flex flex-col gap-1.5">
                   <Link href={hrefFor({ view: 'budgets' })} className="flex items-baseline justify-between gap-3 text-sm hover:underline">
@@ -116,7 +123,8 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTileComponent
           label="Total balance"
-          value={money(totalInBase(budget, balances))}
+          value={money(totalBalance)}
+          valueClassName={totalBalance < 0 ? 'text-destructive' : undefined}
           detail={`Across ${budget.accounts.length} ${budget.accounts.length === 1 ? 'account' : 'accounts'}, as of today`}
         />
         <StatTileComponent
@@ -135,6 +143,7 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
           <StatTileComponent
             label="Budget left"
             value={money(limitTotal - limitSpent)}
+            valueClassName={limitSpent > limitTotal ? 'text-destructive' : undefined}
             detail={`${money(limitSpent)} of ${money(limitTotal)} used`}
           >
             <div className="mt-1.5">
@@ -146,11 +155,11 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
         )}
       </div>
 
-      <ul aria-label="Accounts" className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
+      <ul aria-label="Accounts" className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {budget.accounts.map((account) => {
           const balance = balances.get(account.id) ?? 0;
           return (
-            <li key={account.id} className="flex min-w-44 flex-1 items-center gap-3 rounded-xl border bg-card px-3.5 py-3">
+            <li key={account.id} className="flex min-w-44 flex-1 snap-start items-center gap-3 rounded-xl border bg-card px-3.5 py-3">
               <AccountIconComponent account={account} className="size-9" />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-xs text-muted-foreground">{account.name}</span>
@@ -192,31 +201,50 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
         </SectionCardComponent>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <SectionCardComponent title="Where it went">
+          <SectionCardComponent
+            title="Where it went"
+            action={
+              categoryRows.length > 0 && (
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                  <Link href={hrefFor({ view: 'reports' })}>
+                    {categoryRows.length > CATEGORIES_SHOWN ? `See all ${categoryRows.length}` : 'Reports'}
+                  </Link>
+                </Button>
+              )
+            }
+          >
             {categoryRows.length > 0 ? (
               <div className="px-4 pb-4">
-                <CategoryBarsComponent rows={categoryRows.slice(0, 5)} total={totals.expense} currency={currency} />
+                <CategoryBarsComponent rows={categoryRows.slice(0, CATEGORIES_SHOWN)} total={totals.expense} currency={currency} />
               </div>
             ) : (
               <p className="px-4 pb-4 text-sm text-muted-foreground">No spending in {formatMonth(month)}.</p>
             )}
           </SectionCardComponent>
 
-          <SectionCardComponent title="Coming up">
-            {upcoming.length + upcomingScheduled.length > 0 ? (
+          <SectionCardComponent
+            title="Coming up"
+            action={
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                <Link href={hrefFor({ view: 'calendar' })}>Calendar</Link>
+              </Button>
+            }
+          >
+            {comingUp.length > 0 ? (
               <ul className="px-2 pb-2">
-                {upcomingScheduled.map((occurrence) => (
-                  <OccurrenceRowComponent
-                    key={`${occurrence.schedule.id}-${occurrence.day}`}
-                    budget={budget}
-                    occurrence={occurrence}
-                    today={today}
-                    onOpenSchedule={onOpenSchedule}
-                  />
-                ))}
-                {upcoming.map((entry) => (
-                  <EntryRowComponent key={entry.id} budget={budget} entry={entry} planned showDate onOpen={onOpenEntry} />
-                ))}
+                {comingUp.map(({ occurrence, entry }) =>
+                  occurrence ? (
+                    <OccurrenceRowComponent
+                      key={`${occurrence.schedule.id}-${occurrence.day}`}
+                      budget={budget}
+                      occurrence={occurrence}
+                      today={today}
+                      onOpenSchedule={onOpenSchedule}
+                    />
+                  ) : (
+                    entry && <EntryRowComponent key={entry.id} budget={budget} entry={entry} planned showDate onOpen={onOpenEntry} />
+                  ),
+                )}
               </ul>
             ) : (
               <p className="px-4 pb-4 text-sm text-muted-foreground">

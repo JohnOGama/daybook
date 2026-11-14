@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { cn } from '@/shared/utils/cn';
 import { relativeDayLabel } from '@/shared/utils/date-formatter';
 import { BrandOrIconComponent } from './BrandIconComponent';
@@ -20,7 +21,6 @@ import { type Occurrence, occurrencesOf } from './schedule-math';
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ICONS_SHOWN = 3;
 
-
 const dayKey = (month: string, date: number) => `${month}-${String(date).padStart(2, '0')}`;
 
 // A month at a glance: each day's money in and out, and the recurring items that fall on it.
@@ -28,9 +28,14 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
   const entries = budget.entries;
   // Recurring items not yet recorded; recorded ones are already entries.
   const occurrences = occurrencesOf(budget, `${month}-01`, `${shiftMonth(month, 1)}-01`).filter(({ entry, day }) => !entry && monthOf(day) === month);
-  const [picked, setSelected] = useState<string>();
-  // A day picked in another month doesn't carry over: the shown month opens on today, or on its 1st.
-  const selected = picked && monthOf(picked) === month ? picked : monthOf(today) === month ? today : `${month}-01`;
+  const [picked, setOpened] = useState<string>();
+  // A day opened in another month doesn't carry over.
+  const opened = picked && monthOf(picked) === month ? picked : undefined;
+  // The entry and schedule sheets open in place of the day's pop-up, not on top of it.
+  const closeThen = (action: () => void) => {
+    setOpened(undefined);
+    action();
+  };
   const [year, monthNumber] = month.split('-').map(Number);
   const daysInMonth = new Date(year, monthNumber, 0).getDate();
   const leadingBlanks = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
@@ -51,9 +56,9 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
 
   const monthEntries = entries.filter((entry) => monthOf(entry.day) === month);
   const monthTotal = totals(monthEntries, occurrences.filter(({ day }) => monthOf(day) === month));
-  const selectedEntries = entriesOn(selected);
-  const selectedScheduled = scheduledOn(selected);
-  const selectedTotal = totals(selectedEntries, selectedScheduled);
+  const openedEntries = opened ? entriesOn(opened) : [];
+  const openedScheduled = opened ? scheduledOn(opened) : [];
+  const openedTotal = totals(openedEntries, openedScheduled);
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,12 +135,9 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
                 key={day}
                 type="button"
                 aria-label={label}
-                aria-pressed={selected === day}
-                onClick={() => setSelected(day)}
-                className={cn(
-                  'flex min-h-16 flex-col items-stretch gap-0.5 border-r border-b p-1.5 text-left outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:min-h-24 sm:p-2',
-                  selected === day && 'bg-accent/70 hover:bg-accent/70',
-                )}
+                aria-haspopup="dialog"
+                onClick={() => setOpened(day)}
+                className="flex min-h-16 flex-col items-stretch gap-0.5 border-r border-b p-1.5 text-left outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:min-h-24 sm:p-2"
               >
                 <span
                   className={cn(
@@ -173,42 +175,49 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
         </div>
       </section>
 
-      <section aria-label={`Entries on ${relativeDayLabel(selected, today)}`} className="rounded-xl border bg-card">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
-          <h3 className="text-sm font-semibold">
-            {relativeDayLabel(selected, today)}
-            {selected > today && <span className="ml-2 text-xs font-normal text-muted-foreground">Planned</span>}
-          </h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs tabular-nums">
-              {selectedTotal.income > 0 && <span className="text-money-in">+{money(selectedTotal.income)} </span>}
-              {selectedTotal.expense > 0 && <span className="text-money-out">−{money(selectedTotal.expense)}</span>}
-            </span>
-            <Button size="sm" variant="outline" onClick={() => onRecordEntry({ day: selected })}>
-              <Plus aria-hidden />
-              Add entry on this day
-            </Button>
-          </div>
-        </header>
-        {selectedEntries.length + selectedScheduled.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border/60 px-1.5 py-1">
-            {selectedScheduled.map((occurrence) => (
-              <OccurrenceRowComponent
-                key={`${occurrence.schedule.id}-${occurrence.day}`}
-                budget={budget}
-                occurrence={occurrence}
-                today={today}
-                onOpenSchedule={onOpenSchedule}
-              />
-            ))}
-            {selectedEntries.map((entry) => (
-              <EntryRowComponent key={entry.id} budget={budget} entry={entry} planned={entry.day > today} onOpen={onOpenEntry} />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">Nothing on this day.</p>
+      <Dialog open={Boolean(opened)} onOpenChange={(open) => !open && setOpened(undefined)}>
+        {opened && (
+          <DialogContent className="gap-0 p-0">
+            <DialogHeader className="border-b px-4 py-3 text-left">
+              <DialogTitle className="text-sm">{relativeDayLabel(opened, today)}</DialogTitle>
+              <DialogDescription className="text-xs tabular-nums">
+                {opened > today && 'Planned · '}
+                {openedTotal.income + openedTotal.expense === 0 && 'Nothing on this day.'}
+                {openedTotal.income > 0 && <span className="text-money-in">+{money(openedTotal.income)} </span>}
+                {openedTotal.expense > 0 && <span className="text-money-out">−{money(openedTotal.expense)}</span>}
+              </DialogDescription>
+            </DialogHeader>
+            {openedEntries.length + openedScheduled.length > 0 && (
+              <ul className="flex max-h-[60vh] flex-col divide-y divide-border/60 overflow-y-auto px-1.5 py-1">
+                {openedScheduled.map((occurrence) => (
+                  <OccurrenceRowComponent
+                    key={`${occurrence.schedule.id}-${occurrence.day}`}
+                    budget={budget}
+                    occurrence={occurrence}
+                    today={today}
+                    onOpenSchedule={(scheduleId) => closeThen(() => onOpenSchedule(scheduleId))}
+                  />
+                ))}
+                {openedEntries.map((entry) => (
+                  <EntryRowComponent
+                    key={entry.id}
+                    budget={budget}
+                    entry={entry}
+                    planned={entry.day > today}
+                    onOpen={(chosen) => closeThen(() => onOpenEntry(chosen))}
+                  />
+                ))}
+              </ul>
+            )}
+            <div className="border-t p-3">
+              <Button size="sm" variant="outline" className="w-full" onClick={() => closeThen(() => onRecordEntry({ day: opened }))}>
+                <Plus aria-hidden />
+                Add entry on this day
+              </Button>
+            </div>
+          </DialogContent>
         )}
-      </section>
+      </Dialog>
     </div>
   );
 }

@@ -354,4 +354,25 @@
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+
+  /* Drawers (vaul) fade instead of sliding, so opening one is still noticeable without motion. */
+  [data-vaul-drawer][data-state="open"] {
+    animation: drawer-fade-in 160ms var(--ease-out) !important;
+  }
+
+  [data-vaul-drawer][data-state="closed"] {
+    animation: drawer-fade-out 120ms var(--ease-out) !important;
+  }
+}
+
+@keyframes drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-fade-out {
+  to {
+    opacity: 0;
+  }
 }
