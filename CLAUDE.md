@@ -107,6 +107,7 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 - Positions are kept by table name. `placeTables` keeps where the owner put each table, forgets tables that are gone (so a rename is placed afresh) and lays out new ones with dagre to the right of the rest; "Tidy layout" (`tidyLayout`) lays out everything again.
 - The AI edit (`POST /diagrams/ai/edit`, `BudgetAiService.editDiagram`) is sent only the current DBML and the prompt and returns the whole new text plus one sentence. Gemini answers with the DBML as a list of lines (joined on the server), because asked for one string it runs the DBML onto a single line, which DBML rejects. The server parses the reply (`dbmlProblem`), retries once with the problem, then refuses; nothing is saved by that route, so AI changes, imports and tidies are undone in the browser from their toast.
 - Import (DBML, PostgreSQL, MySQL, SQL Server) and export (DBML, SQL, Mermaid, PNG, SVG) happen in the browser: SQL through `@dbml/core`, Mermaid through `mermaid-export.ts`, images through `html-to-image` from the React Flow viewport (the whole diagram, not just the visible part).
+- Typing is parsed in a Web Worker (`dbml-worker.ts` through `dbml-parse-client.ts`, falling back to the page when workers are unavailable), and an unchanged model (`sameModel`) is kept so the canvas does not redraw. The canvas is memoised and reuses each card's node object until that card changes. After loading, the workspace is rendered outside Skullet's `<Skeleton>`, because Skullet re-measures everything inside it after each DOM change.
 - React Flow, CodeMirror and html-to-image load only on this page, through `diagram-parts.tsx` (`next/dynamic`, no SSR); tests mock that file. The DBML editor's syntax colours come from the approved mockup and are the one place code colours appear.
 - A Database diagram space can be duplicated (its row is copied) and autosaves through `useDiagramAutosave` 800 ms after the last change; there is no version history or offline queue.
 
@@ -131,6 +132,7 @@ Use Skullet (`skullet/react`) for every loading state, with no spinners, "Loadin
 - **Data views:** render the real component from sample data inside `<Skeleton loading={isPending} label="…">`, so the skeleton matches the final layout. See `ListPageComponent` and `sample-tasks.ts`.
 - **Before any content exists** (session checks, Suspense fallbacks): use the `SkeletonBox` layouts `AppSkeletonComponent`, `PageSkeletonComponent` or `AuthCardSkeletonComponent`.
 - **Tests:** sample text stays in the DOM but hidden, so query by role rather than text.
+- **Large live views:** Skullet keeps measuring the content inside `<Skeleton>` after loading; for big, constantly changing views (the database diagram) render the loaded content outside it.
 - **Debugging:** add `?skullet-debug` to a URL to outline each skeleton and show layout shifts.
 - **The `id` prop:** it remembers shapes across visits. If you start using it, call `forgetShapes()` on sign-out.
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowUp, FileUp, PanelLeftClose, Sparkles } from 'lucide-react';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { toast } from 'sonner';
 import { useActiveSpace } from '@/features/spaces';
@@ -12,7 +12,8 @@ import { useDiagram, useDiagramSpaceId } from '../hooks/useDiagram';
 import { type SaveStatus, useDiagramAutosave } from '../hooks/useDiagramAutosave';
 import type { LineRange } from './DbmlEditorComponent';
 import type { CanvasHandle } from './DiagramCanvasComponent';
-import { exportSql, parseDiagram } from './dbml-model';
+import { exportSql, parseDiagram, sameModel } from './dbml-model';
+import { parseInBackground } from './dbml-parse-client';
 import { type Diagram, editWithAi } from './diagram-api';
 import { placeTables, tidyLayout } from './diagram-layout';
 import { DbmlEditor, DiagramCanvas } from './diagram-parts';
@@ -35,6 +36,7 @@ const STATUS_LABEL: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Savi
 type Snapshot = { dbml: string; positions: Positions };
 type Fresh = { tables: Set<string>; lines: LineRange[] };
 const NO_FRESH: Fresh = { tables: new Set(), lines: [] };
+const NO_PROBLEMS: Problem[] = [];
 
 const wideScreen = () => (typeof window === 'undefined' || !window.matchMedia ? true : window.matchMedia('(min-width: 768px)').matches);
 
@@ -77,24 +79,33 @@ function Workspace({ diagram, title }: { diagram: Diagram; title: string }) {
   const typed = useRef(false);
   const latest = useRef<Snapshot>({ dbml: text, positions });
   latest.current = { dbml: text, positions };
+  const modelNow = useRef(model);
+  modelNow.current = model;
 
   // Reads the text as the owner types; a broken text keeps the last diagram that worked on screen.
   useEffect(() => {
     if (!typed.current) return;
-    const timer = setTimeout(() => {
-      const parsed = parseDiagram(text);
+    let current = true;
+    const timer = setTimeout(async () => {
+      const parsed = await parseInBackground(text);
+      // A newer edit started its own parse; this answer is out of date.
+      if (!current) return;
       if (!parsed.ok) {
         setProblems(parsed.problems);
         queue({ dbml: text, positions: latest.current.positions });
         return;
       }
       const placed = placeTables(parsed.model, latest.current.positions);
-      setModel(parsed.model);
-      setProblems([]);
+      // Same tables as before (a comment, a blank line): keep the old model so the canvas has nothing to redraw.
+      setModel((current) => (sameModel(current, parsed.model) ? current : parsed.model));
+      setProblems(NO_PROBLEMS);
       setPositions(placed);
       queue({ dbml: text, positions: placed });
     }, PARSE_PAUSE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   }, [text, queue]);
 
   // Puts in a whole new text at once (AI, import, undo), placing new tables around the ones already arranged.
@@ -144,20 +155,34 @@ function Workspace({ diagram, title }: { diagram: Diagram; title: string }) {
     withUndo(`Imported ${count} ${count === 1 ? 'table' : 'tables'}`, before);
   }
 
-  function handleTidy() {
+  // Stable callbacks (reading the latest state through refs), so typing doesn't re-render the memoised canvas.
+  const handleTidy = useCallback(() => {
     const before = latest.current;
-    const tidy = tidyLayout(model);
+    const tidy = tidyLayout(modelNow.current);
     setPositions(tidy);
-    queue({ dbml: text, positions: tidy });
+    queue({ dbml: before.dbml, positions: tidy });
     requestAnimationFrame(() => canvas.current?.fitView());
-    toast('Tidied the layout', { action: { label: 'Undo', onClick: () => { setPositions(before.positions); queue(before); } } });
-  }
+    toast('Tidied the layout', {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setPositions(before.positions);
+          queue(before);
+        },
+      },
+    });
+  }, [queue]);
 
-  function handleMove(table: string, point: Point) {
-    const next = { ...latest.current.positions, [table]: point };
-    setPositions(next);
-    queue({ dbml: latest.current.dbml, positions: next });
-  }
+  const handleMove = useCallback(
+    (table: string, point: Point) => {
+      const next = { ...latest.current.positions, [table]: point };
+      setPositions(next);
+      queue({ dbml: latest.current.dbml, positions: next });
+    },
+    [queue],
+  );
+
+  const showCode = useCallback(() => setCodeOpen(true), []);
 
   async function handleExport(kind: ExportKind) {
     const name = (extension: string) => fileName(title, extension);
@@ -227,7 +252,7 @@ function Workspace({ diagram, title }: { diagram: Diagram; title: string }) {
         )}
 
         <section aria-label="Diagram" className={cn('relative min-w-0 flex-1', codeOpen && 'hidden md:block')}>
-          <DiagramCanvas ref={canvas} model={model} positions={positions} fresh={fresh.tables} selected={selected} onSelect={setSelected} onMove={handleMove} onTidy={handleTidy} onShowCode={codeOpen ? undefined : () => setCodeOpen(true)} />
+          <DiagramCanvas ref={canvas} model={model} positions={positions} fresh={fresh.tables} selected={selected} onSelect={setSelected} onMove={handleMove} onTidy={handleTidy} onShowCode={codeOpen ? undefined : showCode} />
           {empty && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
               <div className="pointer-events-auto flex max-w-md flex-col items-center gap-3 text-center">
@@ -288,12 +313,21 @@ export function DiagramPageComponent() {
     );
   }
 
-  // Skullet wraps its content in two divs of its own; stretch them so the workspace can fill the page.
+  // The skeleton is only used while loading. Skullet keeps re-measuring everything inside it after every DOM change,
+  // which costs ~80 ms per keystroke on a large diagram, so the loaded workspace lives outside it.
+  if (data && !isPending) {
+    return (
+      <div className="h-full min-h-[480px]">
+        <Workspace key={spaceId} diagram={data} title={title} />
+      </div>
+    );
+  }
+
+  // Skullet wraps its content in two divs of its own; stretch them so the sample workspace fills the page.
   return (
     <div className="h-full min-h-[480px] [&>div]:h-full [&>div>div]:h-full">
-      <Skeleton loading={isPending} label="Loading the diagram">
-        {/* A different key for the sample, so the real diagram starts fresh when it arrives. */}
-        <Workspace key={data ? spaceId : 'sample'} diagram={data ?? { dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true }} title={title} />
+      <Skeleton loading label="Loading the diagram">
+        <Workspace key="sample" diagram={{ dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true }} title={title} />
       </Skeleton>
     </div>
   );

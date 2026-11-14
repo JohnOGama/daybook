@@ -43,6 +43,8 @@ type DiagramCanvasProps = {
 const nodeTypes = { table: TableNodeComponent };
 const edgeTypes = { relation: RelationEdgeComponent };
 const IMAGE_PADDING = 40;
+const ORIGIN: Point = { x: 0, y: 0 };
+const NO_LINKS: Record<string, ColumnRef> = {};
 
 function Control({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
   return (
@@ -91,18 +93,29 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
   const flow = useReactFlow<TableNode, RelationEdge>();
   const wrapper = useRef<HTMLDivElement>(null);
 
+  // Each card keeps the same node object until its own table, links, position or selection changes,
+  // so React Flow only redraws the cards that changed (a click redraws two cards, not all of them).
+  const nodeCache = useRef(new Map<string, { key: string; node: TableNode }>());
   const derived = useMemo<TableNode[]>(() => {
     const pointsTo: Record<string, Record<string, ColumnRef>> = {};
     for (const { from, to } of model.refs) (pointsTo[from.table] ??= {})[from.column] = to;
-    return model.tables.map((table) => ({
-      id: table.name,
-      type: 'table',
-      position: positions[table.name] ?? { x: 0, y: 0 },
-      width: TABLE_WIDTH,
-      height: tableHeight(table),
-      data: { table, fresh: fresh.has(table.name), pointsTo: pointsTo[table.name] ?? {} },
-      selected: selected === table.name,
-    }));
+    const cache = new Map<string, { key: string; node: TableNode }>();
+    const nodes = model.tables.map((table) => {
+      const position = positions[table.name] ?? ORIGIN;
+      const links = pointsTo[table.name] ?? NO_LINKS;
+      const isFresh = fresh.has(table.name);
+      const isSelected = selected === table.name;
+      const key = JSON.stringify([table, links, isFresh, isSelected, position.x, position.y]);
+      const cached = nodeCache.current.get(table.name);
+      const node: TableNode =
+        cached?.key === key
+          ? cached.node
+          : { id: table.name, type: 'table', position, width: TABLE_WIDTH, height: tableHeight(table), data: { table, fresh: isFresh, pointsTo: links }, selected: isSelected };
+      cache.set(table.name, { key, node });
+      return node;
+    });
+    nodeCache.current = cache;
+    return nodes;
   }, [model, positions, fresh, selected]);
 
   // Local copy so a table follows the pointer while dragged; the parent hears about it when the drag ends.

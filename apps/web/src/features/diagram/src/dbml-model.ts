@@ -63,3 +63,6 @@ export function importSchema(text: string, format: 'dbml' | Dialect): ImportResu
 }
 
 export const exportSql = (dbml: string, dialect: Dialect): string => exporter.export(dbml, dialect);
+
+// Equal tables and refs mean the canvas has nothing to redraw (a comment or blank line was typed, say).
+export const sameModel = (a: DiagramModel, b: DiagramModel): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);

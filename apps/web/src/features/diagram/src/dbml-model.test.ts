@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportSql, importSchema, parseDiagram } from './dbml-model';
+import { exportSql, importSchema, parseDiagram, sameModel } from './dbml-model';
 import type { DiagramModel } from './diagram-types';
 import { SHOP } from './test-fixtures';
 
@@ -68,5 +68,12 @@ describe('exportSql', () => {
     expect(postgres).toContain('FOREIGN KEY');
     expect(exportSql(SHOP, 'mysql')).toContain('CREATE TABLE `users`');
     expect(exportSql(SHOP, 'mssql')).toContain('CREATE TABLE [users]');
+  });
+});
+
+describe('sameModel', () => {
+  it('treats models with the same tables and refs as equal, whatever the comments or spacing', () => {
+    expect(sameModel(model(SHOP), model(`// a note\n${SHOP}\n\n`))).toBe(true);
+    expect(sameModel(model(SHOP), model(SHOP.replace('email varchar', 'email text')))).toBe(false);
   });
 });
