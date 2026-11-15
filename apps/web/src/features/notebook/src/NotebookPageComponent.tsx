@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton, SkeletonBox } from 'skullet/react';
-import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess } from '@/features/spaces';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyNotebookIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { Button } from '@/shared/components/ui/button';
