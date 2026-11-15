@@ -22,6 +22,8 @@ import {
   moveSpaceSchema,
   renameSpaceSchema,
   reorderSpacesSchema,
+  shareRoleSchema,
+  shareSchema,
 } from './space-schemas.ts';
 import { SpacesService } from './spaces-service.ts';
 
@@ -63,6 +65,40 @@ export class SpacesController {
   @Post(':id/duplicate')
   duplicate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.spaces.duplicate(userId, id, parseOrThrow(duplicateSpaceSchema, body).id);
+  }
+
+  @Get(':id/shares')
+  shares(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.spaces.shares(userId, id);
+  }
+
+  @Post(':id/shares')
+  share(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.spaces.share(userId, id, parseOrThrow(shareSchema, body));
+  }
+
+  @Delete(':id/shares/me')
+  leave(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.spaces.leave(userId, id);
+  }
+
+  @Patch(':id/shares/:shareId')
+  changeShare(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('shareId', ParseUUIDPipe) shareId: string,
+    @Body() body: unknown,
+  ) {
+    return this.spaces.changeShare(userId, id, shareId, parseOrThrow(shareRoleSchema, body).role);
+  }
+
+  @Delete(':id/shares/:shareId')
+  removeShare(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('shareId', ParseUUIDPipe) shareId: string,
+  ) {
+    return this.spaces.removeShare(userId, id, shareId);
   }
 
   @Delete(':id')

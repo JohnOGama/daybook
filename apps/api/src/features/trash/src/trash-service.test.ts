@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { tasks, vaultItems } from '../../../shared/db/schema.ts';
 import { createTestDb, insertUser } from '../../../shared/db/test-db.ts';
+import { SpaceAccessService } from '../../spaces/src/space-access-service.ts';
 import { SpacesService } from '../../spaces/src/spaces-service.ts';
 import { TasksService } from '../../tasks/src/tasks-service.ts';
 import { TrashService } from './trash-service.ts';
@@ -36,7 +37,7 @@ describe('TrashService', () => {
     await insertUser(db, 'u1');
     await insertUser(db, 'u2');
     trash = new TrashService(db);
-    spaces = new SpacesService(db);
+    spaces = new SpacesService(db, new SpaceAccessService(db));
     taskService = new TasksService(db);
     spaceId = (await spaces.create('u1', { kind: 'space', title: 'Home', tool: 'list' })).id;
   });

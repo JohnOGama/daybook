@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { notebookPages, spaces } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { SpaceAccessService } from '../../spaces/src/space-access-service.ts';
 import { SpacesService } from '../../spaces/src/spaces-service.ts';
 import { TrashService } from '../../trash/src/trash-service.ts';
 import { NotebookService } from './notebook-service.ts';
@@ -120,7 +121,7 @@ describe('NotebookService', () => {
     const kept = await addPage();
     await svc.update('u1', kept, { title: 'Keep', content: doc });
     await svc.remove('u1', await addPage());
-    const copy = await new SpacesService(db).duplicate('u1', notebook);
+    const copy = await new SpacesService(db, new SpaceAccessService(db)).duplicate('u1', notebook);
     const pages = await db.select().from(notebookPages).where(eq(notebookPages.spaceId, copy.id));
     expect(pages).toHaveLength(1);
     expect(pages[0]).toMatchObject({ title: 'Keep', content: doc, userId: 'u1' });
@@ -164,7 +165,7 @@ describe('NotebookService', () => {
     it('duplicating a book keeps its chapter order', async () => {
       const [one, two] = [await addChapter('One'), await addChapter('Two')];
       await svc.reorder('u1', book, [two, one]);
-      const copy = await new SpacesService(db).duplicate('u1', book);
+      const copy = await new SpacesService(db, new SpaceAccessService(db)).duplicate('u1', book);
       expect(await titles(copy.id)).toEqual(['Two', 'One']);
     });
   });

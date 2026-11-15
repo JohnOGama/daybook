@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces as dbSpaces, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { SpaceAccessService } from '../../spaces/src/space-access-service.ts';
 import { SpacesService } from '../../spaces/src/spaces-service.ts';
 import { TrashService } from '../../trash/src/trash-service.ts';
 import { TasksService } from './tasks-service.ts';
@@ -336,7 +337,7 @@ describe('finishing, subtasks and deletion', () => {
 
     it('counts a nested family once in its space today', async () => {
       await chain();
-      const [space] = (await new SpacesService(db).list('u1', today)).filter((row) => row.id === spaces.u1);
+      const [space] = (await new SpacesService(db, new SpaceAccessService(db)).list('u1', today)).filter((row) => row.id === spaces.u1);
       expect(space.openToday).toBe(1);
     });
   });

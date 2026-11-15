@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { diagrams, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { SpaceAccessService } from './space-access-service.ts';
 import { SpacesService } from './spaces-service.ts';
 
 const today = '2026-11-09';
@@ -16,7 +17,7 @@ describe('SpacesService', () => {
     db = await createTestDb();
     await insertUser(db, 'u1');
     await insertUser(db, 'u2');
-    svc = new SpacesService(db);
+    svc = new SpacesService(db, new SpaceAccessService(db));
   });
 
   it('starts with no spaces', async () => {

@@ -1,12 +1,13 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { diagrams, notebookPages, spaces, tasks } from '../../../shared/db/schema.ts';
+import { diagrams, notebookPages, type ShareRole, spaceShares, spaces, tasks, user } from '../../../shared/db/schema.ts';
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
-import type { CreateSpaceInput } from './space-schemas.ts';
+import { type Access, SpaceAccessService, type SpaceRow } from './space-access-service.ts';
+import type { CreateSpaceInput, ShareInput } from './space-schemas.ts';
 
-type SpaceRow = typeof spaces.$inferSelect;
+export type ShareDto = { id: string; email: string; role: ShareRole };
 
 export type SpaceDto = {
   id: string;
@@ -18,9 +19,17 @@ export type SpaceDto = {
   locked: boolean;
   createdAt: string;
   openToday: number;
+  access: Access;
+  shared: boolean;
+  ownerId: string;
+  ownerName: string | null;
 };
 
-function toDto(row: SpaceRow, openToday: number): SpaceDto {
+type Sharing = Pick<SpaceDto, 'access' | 'shared' | 'ownerName'>;
+const ownSpace: Sharing = { access: 'owner', shared: false, ownerName: null };
+const shareColumns = { id: spaceShares.id, email: spaceShares.email, role: spaceShares.role };
+
+function toDto(row: SpaceRow, openToday: number, sharing: Sharing = ownSpace): SpaceDto {
   return {
     id: row.id,
     parentId: row.parentId,
@@ -31,45 +40,109 @@ function toDto(row: SpaceRow, openToday: number): SpaceDto {
     locked: row.lockHash !== null,
     createdAt: row.createdAt.toISOString(),
     openToday,
+    ...sharing,
+    ownerId: row.userId,
   };
 }
 
+const lastWhenNull = (position: number | null) => position ?? Number.MAX_SAFE_INTEGER;
+const inSpaceOrder = (a: SpaceRow, b: SpaceRow) =>
+  lastWhenNull(a.position) - lastWhenNull(b.position) || a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id);
+
 @Injectable()
 export class SpacesService {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
+  ) {}
 
   async list(userId: string, today: string): Promise<SpaceDto[]> {
-    const [rows, openTasks] = await Promise.all([
+    const [rows, ownOpenTasks, sharedWithMe, myShares] = await Promise.all([
       this.db
         .select()
         .from(spaces)
         .where(and(eq(spaces.userId, userId), isNull(spaces.deletedAt)))
         .orderBy(asc(spaces.position), asc(spaces.createdAt), asc(spaces.id)),
-      this.db
-        .select({ spaceId: tasks.spaceId, plannedDay: tasks.plannedDay })
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.userId, userId),
-            isNull(tasks.parentId),
-            isNull(tasks.completedOn),
-            isNull(tasks.deletedAt),
-          ),
-        ),
+      this.openTasks(eq(tasks.userId, userId)),
+      this.access.sharedWith(userId),
+      this.db.selectDistinct({ spaceId: spaceShares.spaceId }).from(spaceShares).where(eq(spaceShares.ownerId, userId)),
     ]);
+    const sharedIds = sharedWithMe.map((shared) => shared.row.id);
+    const sharedOpenTasks = sharedIds.length > 0 ? await this.openTasks(inArray(tasks.spaceId, sharedIds)) : [];
 
-    const carriesOver = new Map(rows.map((row) => [row.id, row.carryOver]));
+    const carriesOver = new Map([...rows, ...sharedWithMe.map((shared) => shared.row)].map((row) => [row.id, row.carryOver]));
     const counts = new Map<string, number>();
-    for (const { spaceId, plannedDay } of openTasks) {
+    for (const { spaceId, plannedDay } of [...ownOpenTasks, ...sharedOpenTasks]) {
       if (plannedDay && (plannedDay === today || (plannedDay < today && carriesOver.get(spaceId)))) {
         counts.set(spaceId, (counts.get(spaceId) ?? 0) + 1);
       }
     }
 
     const visibleIds = new Set(rows.map((row) => row.id));
-    return rows
+    const shared = new Set(myShares.map((share) => share.spaceId));
+    const own = rows
       .filter((row) => row.parentId === null || visibleIds.has(row.parentId))
-      .map((row) => toDto(row, counts.get(row.id) ?? 0));
+      .map((row) => toDto(row, counts.get(row.id) ?? 0, { ...ownSpace, shared: shared.has(row.id) }));
+    const theirs = sharedWithMe
+      .sort((a, b) => inSpaceOrder(a.row, b.row))
+      .map(({ row, access, ownerName }) => toDto(row, counts.get(row.id) ?? 0, { access, shared: false, ownerName }));
+    return [...own, ...theirs];
+  }
+
+  private openTasks(scope: SQL) {
+    return this.db
+      .select({ spaceId: tasks.spaceId, plannedDay: tasks.plannedDay })
+      .from(tasks)
+      .where(and(scope, isNull(tasks.parentId), isNull(tasks.completedOn), isNull(tasks.deletedAt)));
+  }
+
+  async shares(userId: string, spaceId: string): Promise<ShareDto[]> {
+    await this.ownedSpace(userId, spaceId);
+    return this.db
+      .select(shareColumns)
+      .from(spaceShares)
+      .where(eq(spaceShares.spaceId, spaceId))
+      .orderBy(asc(spaceShares.createdAt), asc(spaceShares.id));
+  }
+
+  async share(userId: string, spaceId: string, input: ShareInput): Promise<ShareDto> {
+    const space = await this.ownedSpace(userId, spaceId);
+    if (space.tool === 'vault') throw new BadRequestException("A vault can't be shared");
+    if ((await this.emailOf(userId)) === input.email) throw new BadRequestException("That's your own email");
+    const [saved] = await this.db
+      .insert(spaceShares)
+      .values({ id: input.id, spaceId, ownerId: userId, email: input.email, role: input.role })
+      .onConflictDoUpdate({ target: [spaceShares.spaceId, spaceShares.email], set: { role: input.role } })
+      .returning(shareColumns);
+    return saved;
+  }
+
+  async changeShare(userId: string, spaceId: string, shareId: string, role: ShareRole): Promise<void> {
+    await this.ownedSpace(userId, spaceId);
+    const changed = await this.db
+      .update(spaceShares)
+      .set({ role })
+      .where(and(eq(spaceShares.id, shareId), eq(spaceShares.spaceId, spaceId)))
+      .returning({ id: spaceShares.id });
+    if (changed.length === 0) throw new NotFoundException('Share not found');
+  }
+
+  async removeShare(userId: string, spaceId: string, shareId: string): Promise<void> {
+    await this.ownedSpace(userId, spaceId);
+    const removed = await this.db
+      .delete(spaceShares)
+      .where(and(eq(spaceShares.id, shareId), eq(spaceShares.spaceId, spaceId)))
+      .returning({ id: spaceShares.id });
+    if (removed.length === 0) throw new NotFoundException('Share not found');
+  }
+
+  // A recipient leaves a share made to them on this exact space; a folder share is left from the folder.
+  async leave(userId: string, spaceId: string): Promise<void> {
+    const left = await this.db
+      .delete(spaceShares)
+      .where(and(eq(spaceShares.spaceId, spaceId), eq(spaceShares.email, await this.emailOf(userId))))
+      .returning({ id: spaceShares.id });
+    if (left.length === 0) throw new NotFoundException('Share not found');
   }
 
   async create(userId: string, input: CreateSpaceInput): Promise<SpaceDto> {
@@ -240,6 +313,20 @@ export class SpacesService {
       .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)))
       .returning({ id: spaces.id });
     if (deleted.length === 0) throw new NotFoundException('Space not found');
+  }
+
+  private async ownedSpace(userId: string, id: string): Promise<Pick<SpaceRow, 'tool'>> {
+    const [space] = await this.db
+      .select({ tool: spaces.tool })
+      .from(spaces)
+      .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
+    if (!space) throw new NotFoundException('Space not found');
+    return space;
+  }
+
+  private async emailOf(userId: string): Promise<string> {
+    const [row] = await this.db.select({ email: user.email }).from(user).where(eq(user.id, userId));
+    return row?.email.trim().toLowerCase() ?? '';
   }
 
   private async assertOwnedFolder(userId: string, id: string): Promise<void> {

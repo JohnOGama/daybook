@@ -29,4 +29,9 @@ export const removeLockSchema = z.union([
   z.object({ accountPassword: z.string().max(200) }),
 ]);
 
+const shareRole = z.enum(['edit', 'view']);
+export const shareSchema = z.object({ id: z.uuid(), email: z.string().trim().toLowerCase().pipe(z.email()), role: shareRole });
+export const shareRoleSchema = z.object({ role: shareRole });
+
 export type CreateSpaceInput = z.infer<typeof createSpaceSchema>;
+export type ShareInput = z.infer<typeof shareSchema>;

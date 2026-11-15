@@ -5,6 +5,7 @@ import { spaces } from '../../../shared/db/schema.ts';
 import { createTestDb, insertUser } from '../../../shared/db/test-db.ts';
 import { TrashService } from '../../trash/src/trash-service.ts';
 import { readCookies, SpaceLockService, unlockCookieName } from './space-lock-service.ts';
+import { SpaceAccessService } from './space-access-service.ts';
 import { SpacesService } from './spaces-service.ts';
 
 describe('SpaceLockService', () => {
@@ -81,7 +82,7 @@ describe('SpaceLockService', () => {
 
   it('shows whether a space is locked and keeps the lock on a copy', async () => {
     await lock.setPassword('u1', notebook, 'secret');
-    const service = new SpacesService(db);
+    const service = new SpacesService(db, new SpaceAccessService(db));
     const copy = await service.duplicate('u1', notebook);
     expect(copy.locked).toBe(true);
     expect((await service.list('u1', '2026-11-12')).every((space) => space.locked)).toBe(true);
