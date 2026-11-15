@@ -11,6 +11,7 @@ import { AppSkeletonComponent } from '@/shared/components/AppSkeletonComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/components/ui/sheet';
 import { authClient } from '@/shared/services/auth-client';
+import { LiveUpdatesProviderComponent } from './LiveUpdatesProviderComponent';
 import { ResizableSidebarComponent } from './ResizableSidebarComponent';
 import { SidebarComponent } from './SidebarComponent';
 
@@ -31,6 +32,7 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
   const outsideSpaces = pathname === '/trash' || pathname === '/preferences';
 
   return (
+    <LiveUpdatesProviderComponent>
     <div className="flex h-dvh overflow-hidden bg-sidebar">
       <ResizableSidebarComponent>
         <SidebarComponent />
@@ -60,5 +62,6 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
       </div>
       <AssistantPanelComponent />
     </div>
+    </LiveUpdatesProviderComponent>
   );
 }

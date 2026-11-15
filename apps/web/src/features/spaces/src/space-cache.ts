@@ -18,6 +18,7 @@ export function buildSpace(input: NewSpaceInput): Space {
     shared: false,
     ownerId: '',
     ownerName: null,
+    pipelines: null,
   };
 }
 

@@ -1,4 +1,7 @@
-export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram';
+export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram' | 'pipelines';
+
+// A Pipelines space's sidebar dot: from each job's newest run, failed beats running beats passed; null with no runs.
+export type PipelineStatus = 'passed' | 'running' | 'failed';
 
 export type SpaceAccess = 'owner' | 'edit' | 'view';
 export type ShareRole = Exclude<SpaceAccess, 'owner'>;
@@ -18,6 +21,8 @@ export type Space = {
   shared: boolean;
   ownerId: string;
   ownerName: string | null;
+  // Only on Pipelines spaces (null with no runs); optional so other spaces need not carry it.
+  pipelines?: PipelineStatus | null;
 };
 
 export type CreateSpaceInput =
@@ -35,4 +40,5 @@ export const TOOLS: { id: SpaceTool; label: string; description: string }[] = [
   { id: 'fitness', label: 'Fitness', description: 'Track food, training and weight' },
   { id: 'jobs', label: 'Job hunt', description: 'Track the jobs you apply for' },
   { id: 'diagram', label: 'Database diagram', description: 'Design database tables with AI' },
+  { id: 'pipelines', label: 'Pipelines', description: 'Track CI/CD runs from Jenkins' },
 ];

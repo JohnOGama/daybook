@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, Users } from 'lucide-react';
+import { BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, Users, Workflow } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -40,6 +40,7 @@ import { useRenameSpace } from '../hooks/useRenameSpace';
 import { useReorderSpaces } from '../hooks/useReorderSpaces';
 import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
+import { PipelineDotComponent } from './PipelineDotComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
 import { buildOwnTree, buildSharedTree, isOwn, type SpaceNode, spaceHref } from './space-tree';
 import type { Space, SpaceTool } from './space-types';
@@ -112,6 +113,7 @@ export const TOOL_ICONS: Record<SpaceTool, IconComponent> = {
   fitness: Dumbbell,
   jobs: BriefcaseBusiness,
   diagram: Network,
+  pipelines: Workflow,
 };
 
 type SpaceRowProps = {
@@ -158,6 +160,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
                 <span className="truncate">{space.title}</span>
                 {space.shared && <Users className="size-3.5 shrink-0 text-muted-foreground" aria-label="Shared" />}
                 <OwnerName space={space} />
+                <PipelineDotComponent space={space} />
                 {space.openToday > 0 && (
                   <span className={cn('ml-auto text-xs text-muted-foreground', isActive && 'text-foreground')}>
                     {space.openToday}

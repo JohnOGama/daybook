@@ -8,4 +8,4 @@ export { SpacePasswordsComponent } from './src/SpacePasswordsComponent';
 export { SpaceSettingsComponent } from './src/SpaceSettingsComponent';
 export { SpacesNavComponent } from './src/SpacesNavComponent';
 export { ViewOnlyBadgeComponent } from './src/ViewOnlyBadgeComponent';
-export type { Share, Space, SpaceAccess } from './src/space-types';
+export type { PipelineStatus, Share, Space, SpaceAccess } from './src/space-types';

@@ -38,6 +38,7 @@ const CONTENT_NAMES: Record<SpaceTool, string> = {
   fitness: 'logs, plans and templates',
   jobs: 'jobs and your CV',
   diagram: 'its diagram',
+  pipelines: 'its runs and its Jenkins key',
 };
 
 type SpaceContextMenuProps = {
@@ -111,7 +112,7 @@ function OwnerMenu({ space, onEdit, children }: SpaceContextMenuProps) {
           }}
         >
           <ContextMenuItem onSelect={() => (editChosen.current = true)}>Edit</ContextMenuItem>
-          {!isFolder && space.tool !== 'vault' && space.tool !== 'budget' && space.tool !== 'fitness' && space.tool !== 'jobs' && (
+          {!isFolder && space.tool !== 'vault' && space.tool !== 'budget' && space.tool !== 'fitness' && space.tool !== 'jobs' && space.tool !== 'pipelines' && (
             <ContextMenuItem onSelect={() => duplicateSpace.mutate(space)}>Duplicate</ContextMenuItem>
           )}
           {canMove && (
