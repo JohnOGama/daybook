@@ -187,8 +187,10 @@ export class BudgetController {
   }
 
   @Get('receipts/:entryId')
-  async receipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Res() response: Response) {
-    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, entryId, 'view');
+  async receipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Req() request: Request, @Res() response: Response) {
+    const { ownerId, spaceId } = await this.access.resolveRow(userId, budgetEntries, entryId, 'view');
+    // A receipt is the space's content, so it sits behind the space password like the budget itself.
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
     const { mediaType, data } = await this.budget.receipt(ownerId, entryId);
     response.set({ 'Content-Type': mediaType, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' }).send(data);
   }

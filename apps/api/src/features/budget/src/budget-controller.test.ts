@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
@@ -12,6 +13,7 @@ import {
   budgetReceipts,
   budgets,
   budgetSchedules,
+  spaces,
 } from '../../../shared/db/schema.ts';
 import { createTestDb, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
@@ -192,6 +194,17 @@ describe('budget API sharing', () => {
       await as('u2', 'get', `?spaceId=${otherSpace}`).expect(404);
       await as('u2', 'post', '/goals', { id: id(), spaceId: otherSpace, name: 'G', target: 5, targetDay: null }).expect(404);
     });
+  });
+
+  it('keeps receipt photos behind the space password, for the owner and a viewer alike', async () => {
+    process.env.BETTER_AUTH_SECRET ??= 'test-secret';
+    await insertShare(db, { spaceId: space, ownerId: 'u1', email: 'u2@example.com', role: 'view' });
+    await db.update(spaces).set({ lockHash: 'scrypt$c2FsdA$aGFzaA' }).where(eq(spaces.id, space));
+    for (const user of ['u1', 'u2']) {
+      const res = await as(user, 'get', `/receipts/${entry}`);
+      expect(res.status, user).toBe(403);
+      expect(res.body.message, user).toBe('This space is locked');
+    }
   });
 
   describe('with a view share', () => {
