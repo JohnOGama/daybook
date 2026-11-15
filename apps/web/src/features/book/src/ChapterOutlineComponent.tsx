@@ -26,12 +26,13 @@ import {
 import { ReorderHandleComponent } from '@/shared/components/ReorderHandleComponent';
 import { Button } from '@/shared/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/shared/components/ui/context-menu';
+import { ViewOnlyBadgeComponent } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { chapterTitle, formatWords, readingTime, wordCount } from './book-stats';
 
-type ChapterRowProps = { chapter: NotebookPage; number: number; href: string; isActive: boolean; canReorder: boolean };
+type ChapterRowProps = { chapter: NotebookPage; number: number; href: string; isActive: boolean; canReorder: boolean; canEdit: boolean };
 
-function ChapterRow({ chapter, number, href, isActive, canReorder }: ChapterRowProps) {
+function ChapterRow({ chapter, number, href, isActive, canReorder, canEdit }: ChapterRowProps) {
   const { remove } = usePageMutations();
   const [confirming, setConfirming] = useState(false);
   const sortable = useSortable({ id: chapter.id, disabled: !canReorder });
@@ -45,7 +46,7 @@ function ChapterRow({ chapter, number, href, isActive, canReorder }: ChapterRowP
     >
       {canReorder && <ReorderHandleComponent title={title} sortable={sortable} className="top-2 left-1.5" />}
       <ContextMenu>
-        <ContextMenuTrigger asChild>
+        <ContextMenuTrigger asChild disabled={!canEdit}>
           <Link
             href={href}
             aria-current={isActive ? 'page' : undefined}
@@ -65,7 +66,7 @@ function ChapterRow({ chapter, number, href, isActive, canReorder }: ChapterRowP
         </ContextMenuContent>
       </ContextMenu>
 
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+      {canEdit && <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chapter?</AlertDialogTitle>
@@ -80,7 +81,7 @@ function ChapterRow({ chapter, number, href, isActive, canReorder }: ChapterRowP
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </li>
   );
 }
@@ -93,6 +94,7 @@ type ChapterOutlineProps = {
   chapterHref: (id: string) => string;
   readHref: string;
   onAddChapter: () => void;
+  canEdit?: boolean;
 };
 
 export function ChapterOutlineComponent({
@@ -103,6 +105,7 @@ export function ChapterOutlineComponent({
   chapterHref,
   readHref,
   onAddChapter,
+  canEdit = true,
 }: ChapterOutlineProps) {
   const { reorder } = usePageMutations();
   const sensors = useSensors(
@@ -111,7 +114,7 @@ export function ChapterOutlineComponent({
   );
   const words = chapters.reduce((total, chapter) => total + wordCount(chapter.content), 0);
   const ids = chapters.map(({ id }) => id);
-  const canReorder = !isPending && chapters.length > 1;
+  const canReorder = canEdit && !isPending && chapters.length > 1;
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
@@ -122,16 +125,19 @@ export function ChapterOutlineComponent({
     <section aria-label="Chapters" className="flex flex-col gap-2 p-3">
       <div className="px-2.5 pt-2">
         <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
+        <ViewOnlyBadgeComponent />
         <p className="text-[13px] text-muted-foreground">
           {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'} · {formatWords(words)}
           {words > 0 && ` · ${readingTime(words)}`}
         </p>
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onAddChapter}>
-          <Plus aria-hidden />
-          Add chapter
-        </Button>
+        {canEdit && (
+          <Button variant="outline" size="sm" className="flex-1" onClick={onAddChapter}>
+            <Plus aria-hidden />
+            Add chapter
+          </Button>
+        )}
         {chapters.length > 0 && (
           <Button asChild variant="outline" size="sm">
             <Link href={readHref}>
@@ -152,6 +158,7 @@ export function ChapterOutlineComponent({
                 href={chapterHref(chapter.id)}
                 isActive={chapter.id === activeId}
                 canReorder={canReorder}
+                canEdit={canEdit}
               />
             ))}
           </ol>

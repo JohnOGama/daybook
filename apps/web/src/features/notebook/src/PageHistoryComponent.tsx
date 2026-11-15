@@ -19,9 +19,9 @@ const LABELS = { same: 'Unchanged', added: 'Added since', removed: 'Removed sinc
 
 const formatMoment = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 
-type PageHistoryProps = { pageId: string; editor: Editor; open: boolean; onOpenChange: (open: boolean) => void };
+type PageHistoryProps = { pageId: string; editor: Editor; open: boolean; onOpenChange: (open: boolean) => void; canEdit?: boolean };
 
-export function PageHistoryComponent({ pageId, editor, open, onOpenChange }: PageHistoryProps) {
+export function PageHistoryComponent({ pageId, editor, open, onOpenChange, canEdit = true }: PageHistoryProps) {
   const versions = usePageVersions(pageId, open);
   const [picked, setPicked] = useState<string>();
   const [restoring, setRestoring] = useState(false);
@@ -124,11 +124,13 @@ export function PageHistoryComponent({ pageId, editor, open, onOpenChange }: Pag
               )}
             </div>
 
-            <DrawerFooter>
-              <Button onClick={restore} disabled={!version.data || !changed || restoring}>
-                Restore this version
-              </Button>
-            </DrawerFooter>
+            {canEdit && (
+              <DrawerFooter>
+                <Button onClick={restore} disabled={!version.data || !changed || restoring}>
+                  Restore this version
+                </Button>
+              </DrawerFooter>
+            )}
           </>
         )}
       </DrawerContent>

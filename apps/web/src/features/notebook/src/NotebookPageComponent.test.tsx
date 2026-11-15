@@ -13,7 +13,11 @@ const { usePages, create, replace, query } = vi.hoisted(() => ({
 
 vi.mock('../hooks/usePages', () => ({ usePages }));
 vi.mock('../hooks/usePageMutations', () => ({ usePageMutations: () => ({ create, remove: { mutate: vi.fn() } }) }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Work notes' }) }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => ({ id: 's1', title: 'Work notes' }),
+  useSpaceAccess: () => ({ canEdit: true }),
+  ViewOnlyBadgeComponent: () => null,
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
   useSearchParams: () => new URLSearchParams(query.current),

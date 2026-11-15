@@ -35,9 +35,9 @@ function proseAt(editor: Editor, pos: number) {
   return prose && !prose.node.type.spec.code && prose.node.textContent.trim() ? prose : null;
 }
 
-type BlockDragHandleProps = { editor: Editor; improveWithAi?: boolean; children: ReactNode };
+type BlockDragHandleProps = { editor: Editor; improveWithAi?: boolean; canEdit?: boolean; children: ReactNode };
 
-export function BlockDragHandleComponent({ editor, improveWithAi, children }: BlockDragHandleProps) {
+export function BlockDragHandleComponent({ editor, improveWithAi, canEdit = true, children }: BlockDragHandleProps) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,7 +57,7 @@ export function BlockDragHandleComponent({ editor, improveWithAi, children }: Bl
   }, [editor]);
 
   const follow = (clientX: number, clientY: number) => {
-    if (menuOpen) return;
+    if (menuOpen || !canEdit) return;
     const pos = blockAt(editor, clientX, clientY);
     const block = pos === null ? null : editor.view.nodeDOM(pos);
     if (pos === null || !(block instanceof HTMLElement) || !wrapper.current) return setTarget(null);

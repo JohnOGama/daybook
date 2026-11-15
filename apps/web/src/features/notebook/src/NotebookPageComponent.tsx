@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton, SkeletonBox } from 'skullet/react';
-import { useActiveSpace } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyNotebookIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { Button } from '@/shared/components/ui/button';
@@ -25,6 +25,7 @@ export function NotebookPageComponent() {
   const router = useRouter();
   const params = useSearchParams();
   const space = useActiveSpace();
+  const { canEdit } = useSpaceAccess();
   const { data, isPending, isError } = usePages();
   const { create } = usePageMutations();
   const pages = isPending ? SAMPLE_PAGES : (data ?? []);
@@ -53,7 +54,7 @@ export function NotebookPageComponent() {
     <div className="flex flex-col md:flex-row">
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-[calc(100dvh-1rem)] md:w-72 md:overflow-y-auto md:border-r md:border-b-0">
         <Skeleton loading={isPending} label="Loading pages">
-          <PageListComponent title={space?.title} pages={pages} activeId={active?.id} isPending={isPending} hrefOf={hrefOf} onAddPage={addPage} />
+          <PageListComponent title={space?.title} pages={pages} activeId={active?.id} isPending={isPending} hrefOf={hrefOf} onAddPage={addPage} canEdit={canEdit} />
         </Skeleton>
       </aside>
       <div className="min-w-0 flex-1">
@@ -64,13 +65,13 @@ export function NotebookPageComponent() {
             <SkeletonBox width="70%" height={16} />
           </div>
         )}
-        {!isPending && active && <PageEditorComponent key={active.id} page={active} />}
+        {!isPending && active && <PageEditorComponent key={active.id} page={active} canEdit={canEdit} />}
         {!isPending && !active && (
           <EmptyStateComponent
             icon={<EmptyNotebookIcon />}
             title="This notebook has no pages"
-            description="Add a page and start writing. It saves as you type."
-            action={<Button onClick={addPage}>Add page</Button>}
+            description={canEdit ? 'Add a page and start writing. It saves as you type.' : 'Nothing has been written here yet.'}
+            action={canEdit ? <Button onClick={addPage}>Add page</Button> : undefined}
           />
         )}
       </div>

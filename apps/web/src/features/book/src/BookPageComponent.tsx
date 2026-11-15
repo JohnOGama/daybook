@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton, SkeletonBox } from 'skullet/react';
 import { type NotebookPage, PageEditorComponent, usePageMutations, usePages } from '@/features/notebook';
-import { useActiveSpace } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess } from '@/features/spaces';
 import { EmptyStateComponent } from '@/shared/components/EmptyStateComponent';
 import { EmptyBookIcon } from '@/shared/components/EmptyStateIconsComponent';
 import { Button } from '@/shared/components/ui/button';
@@ -26,6 +26,7 @@ export function BookPageComponent() {
   const router = useRouter();
   const params = useSearchParams();
   const space = useActiveSpace();
+  const { canEdit } = useSpaceAccess();
   const { data, isPending, isError } = usePages();
   const { create } = usePageMutations();
   const chapters = isPending ? SAMPLE_CHAPTERS : (data ?? []);
@@ -70,6 +71,7 @@ export function BookPageComponent() {
             chapterHref={chapterHref}
             readHref={hrefOf({ view: 'read', ...(active ? { page: active.id } : {}) })}
             onAddChapter={addChapter}
+            canEdit={canEdit}
           />
         </Skeleton>
       </aside>
@@ -88,7 +90,8 @@ export function BookPageComponent() {
             page={active}
             eyebrow={`Chapter ${activeIndex + 1}`}
             titlePlaceholder="Untitled chapter"
-            improveWithAi
+            improveWithAi={canEdit}
+            canEdit={canEdit}
             footer={
               <div className="mt-16 flex justify-end border-t pt-4">
                 {next ? (
@@ -98,12 +101,12 @@ export function BookPageComponent() {
                       <ArrowRight aria-hidden />
                     </Link>
                   </Button>
-                ) : (
+                ) : canEdit ? (
                   <Button variant="outline" onClick={addChapter}>
                     <Plus aria-hidden />
                     Add chapter {chapters.length + 1}
                   </Button>
-                )}
+                ) : null}
               </div>
             }
           />
@@ -113,7 +116,7 @@ export function BookPageComponent() {
             icon={<EmptyBookIcon />}
             title="Start your book"
             description="Write it one chapter at a time. Everything saves as you type, and you can reorder chapters whenever you like."
-            action={<Button onClick={addChapter}>Write chapter 1</Button>}
+            action={canEdit ? <Button onClick={addChapter}>Write chapter 1</Button> : undefined}
           />
         )}
       </div>

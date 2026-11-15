@@ -2,7 +2,7 @@
 
 import { EditorContent, useEditor } from '@tiptap/react';
 import { History } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { SkeletonBox } from 'skullet/react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -22,9 +22,10 @@ type PageEditorProps = {
   titlePlaceholder?: string;
   footer?: ReactNode;
   improveWithAi?: boolean;
+  canEdit?: boolean;
 };
 
-export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer, improveWithAi }: PageEditorProps) {
+export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer, improveWithAi, canEdit = true }: PageEditorProps) {
   const { schedule, status, reload } = usePageAutosave(page.id, page.version);
   const [title, setTitle] = useState(page.title);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -32,9 +33,14 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
     extensions: EDITOR_EXTENSIONS,
     content: page.content ?? '',
     immediatelyRender: false,
+    editable: canEdit,
     editorProps: { attributes: { class: 'page-content', 'aria-label': 'Page content' } },
-    onUpdate: ({ editor: current }) => schedule({ content: current.getJSON() }),
+    onUpdate: ({ editor: current }) => canEdit && schedule({ content: current.getJSON() }),
   });
+
+  useEffect(() => {
+    editor?.setEditable(canEdit);
+  }, [editor, canEdit]);
 
   async function handleReload() {
     const fresh = await reload();
@@ -47,6 +53,7 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
     <article className={cn('mx-auto max-w-2xl px-4 py-6 pb-24 md:px-8 md:py-8', improveWithAi && 'md:pl-16')}>
       {eyebrow && <p className="mb-1 text-[13px] font-medium text-muted-foreground">{eyebrow}</p>}
       <div className="flex items-baseline justify-between gap-3">
+        {canEdit ? (
         <Input
           aria-label="Page title"
           autoFocus={!page.title && !page.content}
@@ -62,10 +69,15 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
           }}
           className="h-auto min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0 md:text-[28px] dark:bg-transparent"
         />
-        <span role="status" className={cn('shrink-0 text-[13px] text-muted-foreground', (status === 'failed' || status === 'conflict') && 'text-destructive')}>
-          {STATUS_LABELS[status]}
-        </span>
-        {status === 'conflict' && (
+        ) : (
+          <h2 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight md:text-[28px]">{title || titlePlaceholder}</h2>
+        )}
+        {canEdit && (
+          <span role="status" className={cn('shrink-0 text-[13px] text-muted-foreground', (status === 'failed' || status === 'conflict') && 'text-destructive')}>
+            {STATUS_LABELS[status]}
+          </span>
+        )}
+        {canEdit && status === 'conflict' && (
           <Button type="button" variant="outline" size="sm" className="shrink-0 self-center" onClick={handleReload}>
             Reload
           </Button>
@@ -85,12 +97,12 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
       </div>
       {editor ? (
         <>
-          <BlockDragHandleComponent editor={editor} improveWithAi={improveWithAi}>
+          <BlockDragHandleComponent editor={editor} improveWithAi={improveWithAi} canEdit={canEdit}>
             <EditorContent editor={editor} className="mt-4" />
           </BlockDragHandleComponent>
-          <SelectionToolbarComponent editor={editor} improveWithAi={improveWithAi} />
+          {canEdit && <SelectionToolbarComponent editor={editor} improveWithAi={improveWithAi} />}
           {footer}
-          <PageHistoryComponent pageId={page.id} editor={editor} open={historyOpen} onOpenChange={setHistoryOpen} />
+          <PageHistoryComponent pageId={page.id} editor={editor} open={historyOpen} onOpenChange={setHistoryOpen} canEdit={canEdit} />
         </>
       ) : (
         <div className="mt-6 flex flex-col gap-3">
