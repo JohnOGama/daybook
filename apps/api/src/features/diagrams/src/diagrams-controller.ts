@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Inject, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, Query, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
 import { BudgetAiService } from '../../budget/index.ts';
 import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import { dbmlProblem } from './dbml-check.ts';
-import { aiEditSchema, saveDiagramSchema, spaceQuerySchema } from './diagrams-schemas.ts';
+import { aiEditSchema, spaceQuerySchema } from './diagrams-schemas.ts';
 import { DiagramsService } from './diagrams-service.ts';
 
 @UseGuards(AuthGuard)
@@ -26,14 +26,8 @@ export class DiagramsController {
     return { ...(await this.diagrams.load(ownerId, spaceId)), aiEnabled: this.ai.enabled };
   }
 
-  @Put()
-  async save(@UserId() userId: string, @Body() body: unknown) {
-    const { spaceId, ...diagram } = parseOrThrow(saveDiagramSchema, body);
-    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
-    return this.diagrams.save(ownerId, spaceId, diagram);
-  }
-
-  // Returns the new DBML without saving it; the browser applies it and autosaves, so Undo stays local.
+  // Returns the new DBML without saving it; the browser puts it into the live document, so Undo stays local.
+  // There is no save route: diagrams change only through the live connection (features/realtime).
   @Post('ai/edit')
   async edit(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
     const { spaceId, dbml, prompt } = parseOrThrow(aiEditSchema, body);

@@ -2,20 +2,23 @@
 
 import { syntaxHighlighting } from '@codemirror/language';
 import { type Diagnostic, setDiagnostics } from '@codemirror/lint';
-import { Annotation, EditorState, type Range, StateEffect, StateField } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
+import { Compartment, EditorState, Prec, type Range, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view';
 import { classHighlighter } from '@lezer/highlight';
 import { basicSetup } from 'codemirror';
 import { useEffect, useRef } from 'react';
+import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next';
+import type { Awareness } from 'y-protocols/awareness';
+import * as Y from 'yjs';
 import { dbmlLanguage } from './dbml-language';
 import type { Problem } from './diagram-types';
 
 export type LineRange = { from: number; to: number };
 
-type DbmlEditorProps = { value: string; problems: Problem[]; fresh: LineRange[]; onChange(text: string): void; scrollTo: string | null; readOnly?: boolean };
+type DbmlEditorProps = { ytext: Y.Text; awareness: Awareness; problems: Problem[]; fresh: LineRange[]; scrollTo: string | null; readOnly?: boolean };
 
-// Marks text put in from outside (AI, import, undo) so it isn't reported back as typing.
-const fromOutside = Annotation.define<boolean>();
+const editable = new Compartment();
+const editability = (readOnly: boolean) => [EditorView.editable.of(!readOnly), EditorState.readOnly.of(readOnly)];
 
 const setFresh = StateEffect.define<LineRange[]>();
 const freshLines = StateField.define<DecorationSet>({
@@ -62,45 +65,39 @@ const theme = EditorView.theme(
 
 const tableLine = (name: string) => new RegExp(`^\\s*Table\\s+"?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"?(\\s|\\{|$)`);
 
-// CodeMirror holding the DBML; the page owns the text and hears about every edit the owner types.
-export function DbmlEditorComponent({ value, problems, fresh, onChange, scrollTo, readOnly = false }: DbmlEditorProps) {
+// CodeMirror bound to the shared DBML text: typing goes into the Yjs document, other people's edits and cursors come out of it.
+export function DbmlEditorComponent({ ytext, awareness, problems, fresh, scrollTo, readOnly = false }: DbmlEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const changed = useRef(onChange);
-  changed.current = onChange;
+  const startsReadOnly = useRef(readOnly);
 
   useEffect(() => {
     const editor = new EditorView({
       parent: host.current as HTMLDivElement,
       state: EditorState.create({
-        doc: value,
+        doc: ytext.toString(),
         extensions: [
           basicSetup,
+          // Ctrl+Z undoes only your own typing, not other people's.
+          Prec.high(keymap.of(yUndoManagerKeymap)),
           dbmlLanguage,
           syntaxHighlighting(classHighlighter),
           freshLines,
           theme,
           EditorView.contentAttributes.of({ 'aria-label': 'DBML' }),
-          EditorView.editable.of(!readOnly),
-          EditorState.readOnly.of(readOnly),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged && !update.transactions.some((transaction) => transaction.annotation(fromOutside))) {
-              changed.current(update.state.doc.toString());
-            }
-          }),
+          editable.of(editability(startsReadOnly.current)),
+          yCollab(ytext, awareness, { undoManager: new Y.UndoManager(ytext) }),
         ],
       }),
     });
     view.current = editor;
     return () => editor.destroy();
-    // Created once; later values arrive through the effect below.
-  }, []);
+  }, [ytext, awareness]);
 
+  // A role change while open (made view-only, or given edit) applies without rebuilding the editor.
   useEffect(() => {
-    const editor = view.current;
-    if (!editor || editor.state.doc.toString() === value) return;
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value }, annotations: fromOutside.of(true) });
-  }, [value]);
+    view.current?.dispatch({ effects: editable.reconfigure(editability(readOnly)) });
+  }, [readOnly]);
 
   useEffect(() => {
     const editor = view.current;
@@ -111,7 +108,7 @@ export function DbmlEditorComponent({ value, problems, fresh, onChange, scrollTo
       return { from: at.from, to: Math.max(at.to, at.from), severity: 'error', message };
     });
     editor.dispatch(setDiagnostics(editor.state, diagnostics));
-  }, [problems, value]);
+  }, [problems]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: setFresh.of(fresh) });

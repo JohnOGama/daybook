@@ -1,15 +1,17 @@
 'use client';
 
 import { ArrowUp, FileUp, PanelLeftClose, Sparkles } from 'lucide-react';
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { toast } from 'sonner';
-import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
+import { Awareness } from 'y-protocols/awareness';
+import * as Y from 'yjs';
+import { PresenceAvatarsComponent, type SpacePresence, useActiveSpace, useSpaceAccess, useSpacePresence, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { cn } from '@/shared/utils/cn';
 import { useDiagram, useDiagramSpaceId } from '../hooks/useDiagram';
-import { type SaveStatus, useDiagramAutosave } from '../hooks/useDiagramAutosave';
+import { type LiveChange, useLiveDiagram, writePositions } from '../hooks/useLiveDiagram';
 import type { LineRange } from './DbmlEditorComponent';
 import type { CanvasHandle } from './DiagramCanvasComponent';
 import { exportSql, parseDiagram, sameModel } from './dbml-model';
@@ -31,10 +33,10 @@ const EXAMPLES = [
   'A blog with authors, posts, comments and tags',
   'A school with students, teachers, classes and grades',
 ];
-const STATUS_LABEL: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving…', error: 'Not saved', conflict: 'Changed by someone else' };
 
 type Snapshot = { dbml: string; positions: Positions };
 type Fresh = { tables: Set<string>; lines: LineRange[] };
+type Parsed = ReturnType<typeof parseDiagram>;
 const NO_FRESH: Fresh = { tables: new Set(), lines: [] };
 const NO_PROBLEMS: Problem[] = [];
 
@@ -59,73 +61,100 @@ function tableLines(text: string, names: Set<string>): LineRange[] {
   return ranges;
 }
 
-function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: string; onReloaded?: () => void }) {
+// A local document for the sample drawn behind the loading skeleton; nothing is sent anywhere.
+function samplePresence(): SpacePresence {
+  const doc = new Y.Doc();
+  doc.getText('dbml').insert(0, SAMPLE_DBML);
+  return { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true };
+}
+
+function Workspace({ diagram, presence, title }: { diagram: Diagram; presence: SpacePresence; title: string }) {
   const spaceId = useDiagramSpaceId() as string;
   const { canEdit } = useSpaceAccess();
-  const { status, queue: queueSave, reload } = useDiagramAutosave(spaceId, diagram.version);
-  // A viewer never saves: the server would refuse it, so nothing is queued.
-  const queue = useCallback((next: Snapshot) => (canEdit ? queueSave(next) : undefined), [canEdit, queueSave]);
+  const { text, positions: stored, ytext, ymap, setPositions, move, change } = useLiveDiagram(presence);
   const canvas = useRef<CanvasHandle>(null);
 
-  // Read once; afterwards the text lives here and the cache only follows it.
-  const [first] = useState(() => parseDiagram(diagram.dbml));
-  const [text, setText] = useState(diagram.dbml);
+  // Read once; afterwards the model follows the shared text as it changes, from anyone.
+  const [first] = useState(() => parseDiagram(text));
   const [model, setModel] = useState<DiagramModel>(first.ok ? first.model : EMPTY_MODEL);
   const [problems, setProblems] = useState<Problem[]>(first.ok ? [] : first.problems);
-  const [positions, setPositions] = useState<Positions>(() => (first.ok ? placeTables(first.model, diagram.positions) : diagram.positions));
+  const parsedText = useRef(text);
+  // Tables nobody has placed yet are laid out here, so everyone sees them somewhere straight away.
+  const positions = useMemo(() => placeTables(model, stored), [model, stored]);
   const [fresh, setFresh] = useState<Fresh>(NO_FRESH);
   const [selected, setSelected] = useState<string | null>(null);
   const [codeOpen, setCodeOpen] = useState(wideScreen);
   const [prompt, setPrompt] = useState('');
   const [thinking, setThinking] = useState(false);
   const [importing, setImporting] = useState(false);
-  const typed = useRef(false);
   const latest = useRef<Snapshot>({ dbml: text, positions });
   latest.current = { dbml: text, positions };
   const modelNow = useRef(model);
   modelNow.current = model;
 
-  // Reads the text as the owner types; a broken text keeps the last diagram that worked on screen.
+  // An editor stores where new tables were placed; a viewer only ever reads.
   useEffect(() => {
-    if (!typed.current) return;
+    if (canEdit && first.ok) setPositions(placeTables(first.model, ymap.toJSON() as Positions));
+  }, [canEdit, first, setPositions, ymap]);
+
+  // Reads the text after any change (typing here or someone else's edit); a broken text keeps the last diagram that worked.
+  useEffect(() => {
+    if (text === parsedText.current) return;
     let current = true;
     const timer = setTimeout(async () => {
       const parsed = await parseInBackground(text);
       // A newer edit started its own parse; this answer is out of date.
       if (!current) return;
+      parsedText.current = text;
+      setFresh(NO_FRESH);
       if (!parsed.ok) {
         setProblems(parsed.problems);
-        queue({ dbml: text, positions: latest.current.positions });
         return;
       }
-      const placed = placeTables(parsed.model, latest.current.positions);
       // Same tables as before (a comment, a blank line): keep the old model so the canvas has nothing to redraw.
       setModel((current) => (sameModel(current, parsed.model) ? current : parsed.model));
       setProblems(NO_PROBLEMS);
-      setPositions(placed);
-      queue({ dbml: text, positions: placed });
+      if (canEdit) setPositions(placeTables(parsed.model, ymap.toJSON() as Positions));
     }, PARSE_PAUSE_MS);
     return () => {
       current = false;
       clearTimeout(timer);
     };
-  }, [text, queue]);
+  }, [text, canEdit, setPositions, ymap]);
 
-  // Puts in a whole new text at once (AI, import, undo), placing new tables around the ones already arranged.
-  function replace(next: Snapshot, newFresh: Fresh = NO_FRESH) {
-    typed.current = false;
-    const parsed = parseDiagram(next.dbml);
-    const placed = parsed.ok ? placeTables(parsed.model, next.positions) : next.positions;
-    setText(next.dbml);
+  // Shows a text straight away instead of waiting for the background parse.
+  function adopt(dbml: string, parsed: Parsed = parseDiagram(dbml)) {
+    parsedText.current = dbml;
     setModel(parsed.ok ? parsed.model : EMPTY_MODEL);
     setProblems(parsed.ok ? [] : parsed.problems);
-    setPositions(placed);
-    setFresh(newFresh);
-    queue({ dbml: next.dbml, positions: placed });
   }
 
-  function withUndo(message: string, before: Snapshot) {
-    toast(message, { action: { label: 'Undo', onClick: () => replace(before) } });
+  // Puts in a whole new text at once (AI, import), placing new tables around the ones already arranged.
+  function replace(next: Snapshot, newFresh: Fresh = NO_FRESH): LiveChange {
+    const parsed = parseDiagram(next.dbml);
+    const placed = parsed.ok ? placeTables(parsed.model, next.positions) : next.positions;
+    adopt(next.dbml, parsed);
+    setFresh(newFresh);
+    return change(() => {
+      ytext.delete(0, ytext.length);
+      ytext.insert(0, next.dbml);
+      writePositions(ymap, placed);
+    });
+  }
+
+  function withUndo(message: string, edit: LiveChange) {
+    toast(message, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          edit.undo();
+          adopt(ytext.toString());
+          setFresh(NO_FRESH);
+        },
+      },
+      onDismiss: edit.release,
+      onAutoClose: edit.release,
+    });
   }
 
   async function handleAsk(event: FormEvent) {
@@ -139,9 +168,9 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
       const parsed = parseDiagram(result.dbml);
       const known = new Set(model.tables.map(({ name }) => name));
       const added = new Set(parsed.ok ? parsed.model.tables.map(({ name }) => name).filter((name) => !known.has(name)) : []);
-      replace({ dbml: result.dbml, positions: before.positions }, { tables: added, lines: tableLines(result.dbml, added) });
+      const edit = replace({ dbml: result.dbml, positions: before.positions }, { tables: added, lines: tableLines(result.dbml, added) });
       setPrompt('');
-      withUndo(result.summary, before);
+      withUndo(result.summary, edit);
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -150,39 +179,26 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
   }
 
   function handleImport(dbml: string) {
-    const before = latest.current;
     setImporting(false);
     const parsed = parseDiagram(dbml);
-    replace({ dbml, positions: parsed.ok ? tidyLayout(parsed.model) : {} });
+    const edit = replace({ dbml, positions: parsed.ok ? tidyLayout(parsed.model) : {} });
     const count = parsed.ok ? parsed.model.tables.length : 0;
-    withUndo(`Imported ${count} ${count === 1 ? 'table' : 'tables'}`, before);
+    withUndo(`Imported ${count} ${count === 1 ? 'table' : 'tables'}`, edit);
   }
 
   // Stable callbacks (reading the latest state through refs), so typing doesn't re-render the memoised canvas.
   const handleTidy = useCallback(() => {
-    const before = latest.current;
     const tidy = tidyLayout(modelNow.current);
-    setPositions(tidy);
-    queue({ dbml: before.dbml, positions: tidy });
+    const edit = change(() => writePositions(ymap, tidy));
     requestAnimationFrame(() => canvas.current?.fitView());
-    toast('Tidied the layout', {
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          setPositions(before.positions);
-          queue(before);
-        },
-      },
-    });
-  }, [queue]);
+    toast('Tidied the layout', { action: { label: 'Undo', onClick: edit.undo }, onDismiss: edit.release, onAutoClose: edit.release });
+  }, [change, ymap]);
 
   const handleMove = useCallback(
     (table: string, point: Point) => {
-      const next = { ...latest.current.positions, [table]: point };
-      setPositions(next);
-      queue({ dbml: latest.current.dbml, positions: next });
+      if (canEdit) move(table, point);
     },
-    [queue],
+    [canEdit, move],
   );
 
   const showCode = useCallback(() => setCodeOpen(true), []);
@@ -209,11 +225,10 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3 md:px-5">
         <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
         <ViewOnlyBadgeComponent />
-        {canEdit && <span className={cn('text-xs', status === 'error' || status === 'conflict' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_LABEL[status]}</span>}
-        {canEdit && status === 'conflict' && (
-          <Button variant="outline" size="sm" onClick={() => void reload().then(onReloaded)}>
-            Reload
-          </Button>
+        {canEdit && (
+          <span className={cn('text-xs', presence.connected ? 'text-muted-foreground' : 'text-destructive')}>
+            {presence.connected ? 'Saved' : 'Offline, changes will sync'}
+          </span>
         )}
         <div className="ml-auto flex items-center gap-2">
           <PresenceAvatarsComponent />
@@ -238,18 +253,7 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
               </Button>
             </div>
             <div className="min-h-0 flex-1">
-              <DbmlEditor
-                value={text}
-                problems={problems}
-                fresh={fresh.lines}
-                readOnly={!canEdit}
-                scrollTo={selected}
-                onChange={(next: string) => {
-                  typed.current = true;
-                  setFresh(NO_FRESH);
-                  setText(next);
-                }}
-              />
+              <DbmlEditor ytext={ytext} awareness={presence.awareness} problems={problems} fresh={fresh.lines} readOnly={!canEdit} scrollTo={selected} />
             </div>
             {problems.length > 0 && (
               <ul aria-label="Problems" className="max-h-28 overflow-y-auto border-t px-3 py-2 text-xs">
@@ -315,10 +319,10 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
 export function DiagramPageComponent() {
   const space = useActiveSpace();
   const spaceId = useDiagramSpaceId();
+  const presence = useSpacePresence();
   const { data, isPending, isError } = useDiagram();
   const title = space?.title ?? 'Database diagram';
-  // The workspace reads the diagram once, so a reload opens a fresh one on the saved text.
-  const [reloads, setReloads] = useState(0);
+  const [sample] = useState(samplePresence);
 
   if (isError) {
     return (
@@ -330,10 +334,11 @@ export function DiagramPageComponent() {
 
   // The skeleton is only used while loading. Skullet keeps re-measuring everything inside it after every DOM change,
   // which costs ~80 ms per keystroke on a large diagram, so the loaded workspace lives outside it.
-  if (data && !isPending) {
+  // The text comes from the shared document, so wait until it has synced with the server.
+  if (data && !isPending && presence?.synced) {
     return (
       <div className="h-full min-h-[480px]">
-        <Workspace key={`${spaceId}-${reloads}`} diagram={data} title={title} onReloaded={() => setReloads((count) => count + 1)} />
+        <Workspace key={spaceId} diagram={data} presence={presence} title={title} />
       </div>
     );
   }
@@ -342,7 +347,7 @@ export function DiagramPageComponent() {
   return (
     <div className="h-full min-h-[480px] [&>div]:h-full [&>div>div]:h-full">
       <Skeleton loading label="Loading the diagram">
-        <Workspace key="sample" diagram={{ dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true, version: 0 }} title={title} />
+        <Workspace key="sample" diagram={{ dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true, version: 0 }} presence={sample} title={title} />
       </Skeleton>
     </div>
   );

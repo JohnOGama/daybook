@@ -121,9 +121,16 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
     return nodes;
   }, [model, positions, fresh, selected]);
 
-  // Local copy so a table follows the pointer while dragged; the parent hears about it when the drag ends.
+  // Local copy so a table follows the pointer while dragged. The parent hears about the drag every 50 ms (so others
+  // watch it move) and when it ends; the dragged card keeps its local position so those updates can't pull it back.
   const [nodes, setNodes] = useState(derived);
-  useEffect(() => setNodes(derived), [derived]);
+  const dragging = useRef<string | null>(null);
+  const lastSent = useRef(0);
+  useEffect(
+    () => setNodes((current) => (dragging.current ? derived.map((node) => (node.id === dragging.current ? (current.find(({ id }) => id === node.id) ?? node) : node)) : derived)),
+    [derived],
+  );
+  const report = (id: string, position: Point) => onMove(id, { x: Math.round(position.x), y: Math.round(position.y) });
 
   // The view is fitted on mount, when the diagram may still be empty; fit again once the first tables appear.
   const hadTables = useRef(derived.length > 0);
@@ -190,7 +197,18 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
         onNodesChange={(changes: NodeChange<TableNode>[]) => setNodes((current) => applyNodeChanges(changes, current))}
-        onNodeDragStop={(_, node) => onMove(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) })}
+        onNodeDragStart={(_, node) => {
+          dragging.current = node.id;
+        }}
+        onNodeDrag={(_, node) => {
+          if (Date.now() - lastSent.current < 50) return;
+          lastSent.current = Date.now();
+          report(node.id, node.position);
+        }}
+        onNodeDragStop={(_, node) => {
+          dragging.current = null;
+          report(node.id, node.position);
+        }}
         onNodeClick={(_, node) => onSelect(node.id)}
         onPaneClick={() => onSelect(null)}
         className="!bg-background"

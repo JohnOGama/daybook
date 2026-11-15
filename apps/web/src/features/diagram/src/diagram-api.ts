@@ -21,10 +21,6 @@ export async function fetchDiagram(spaceId: string): Promise<Diagram> {
   return (await request('GET', `?${new URLSearchParams({ spaceId })}`, undefined, 'Could not load this diagram')).json();
 }
 
-export async function saveDiagram(input: { spaceId: string; dbml: string; positions: Positions; version: number }): Promise<{ version: number }> {
-  return (await request('PUT', '', input, 'The diagram could not be saved. Please try again.')).json();
-}
-
 export async function editWithAi(input: { spaceId: string; dbml: string; prompt: string }): Promise<{ dbml: string; summary: string }> {
   return (await request('POST', '/ai/edit', input, 'The AI could not change the diagram. Please try again.')).json();
 }

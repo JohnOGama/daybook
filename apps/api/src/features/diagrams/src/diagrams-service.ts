@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { diagrams, spaces } from '../../../shared/db/schema.ts';
@@ -14,27 +14,6 @@ export class DiagramsService {
     return row
       ? { dbml: row.dbml, positions: row.positions, updatedAt: new Date(row.updatedAt).toISOString(), version: row.version }
       : { dbml: '', positions: {}, updatedAt: null, version: 0 };
-  }
-
-  // Saves only over the version the diagram was edited from. Version 0 is the first save, which creates the row.
-  async save(userId: string, spaceId: string, { dbml, positions, version }: { dbml: string; positions: Positions; version: number }): Promise<{ version: number }> {
-    await this.assertSpace(userId, spaceId);
-    const changes = { dbml, positions, updatedAt: new Date().toISOString(), version: sql`${diagrams.version} + 1` };
-    const [saved] =
-      version === 0
-        ? await this.db
-            .insert(diagrams)
-            .values({ spaceId, userId, dbml, positions, updatedAt: changes.updatedAt, version: 1 })
-            .onConflictDoUpdate({ target: diagrams.spaceId, set: changes, setWhere: eq(diagrams.version, 0) })
-            .returning({ version: diagrams.version })
-        : await this.db
-            .update(diagrams)
-            .set(changes)
-            .where(and(eq(diagrams.spaceId, spaceId), eq(diagrams.version, version)))
-            .returning({ version: diagrams.version });
-    // The space was checked above, so a refused save is always a stale one.
-    if (!saved) throw new ConflictException('Changed by someone else');
-    return saved;
   }
 
   // For the live room: no owner check here, the realtime connection has already resolved access.
