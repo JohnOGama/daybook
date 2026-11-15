@@ -10,6 +10,6 @@ export const positionsSchema = z
   .refine((positions) => Object.keys(positions).length <= 500, 'Too many tables');
 export type Positions = z.infer<typeof positionsSchema>;
 
-export const saveDiagramSchema = z.object({ spaceId, dbml: z.string().max(MAX_DBML), positions: positionsSchema });
+export const saveDiagramSchema = z.object({ spaceId, dbml: z.string().max(MAX_DBML), positions: positionsSchema, version: z.number().int().min(0) });
 
 export const aiEditSchema = z.object({ spaceId, dbml: z.string().max(MAX_DBML), prompt: z.string().trim().min(1).max(1_000) });

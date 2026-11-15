@@ -12,21 +12,21 @@ import {
   exerciseSchema,
   fitnessReadSchema,
   foodSchema,
-  mealPlanSchema,
   newExerciseSchema,
   newFoodSchema,
   newMealPlanSchema,
   newServingSchema,
   newTemplateSchema,
   newWorkoutSchema,
+  saveMealPlanSchema,
   saveProfileSchema,
+  saveTemplateSchema,
+  saveWorkoutSchema,
   searchFoodsSchema,
   spaceQuerySchema,
-  templateSchema,
   updateLogSchema,
   weightQuerySchema,
   weightSchema,
-  workoutSchema,
 } from './fitness-schemas.ts';
 import { FitnessService } from './fitness-service.ts';
 import { FitnessWorkoutService } from './fitness-workout-service.ts';
@@ -167,7 +167,7 @@ export class FitnessController {
 
   @Put('meal-plans/:id')
   async saveMealPlan(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    const input = parseOrThrow(mealPlanSchema, body);
+    const input = parseOrThrow(saveMealPlanSchema, body);
     const { ownerId } = await this.access.resolveRow(userId, fitnessMealPlans, id, 'edit');
     return this.fitness.saveMealPlan(ownerId, id, input);
   }
@@ -215,7 +215,7 @@ export class FitnessController {
 
   @Put('templates/:id')
   async saveTemplate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    const input = parseOrThrow(templateSchema, body);
+    const input = parseOrThrow(saveTemplateSchema, body);
     const { ownerId } = await this.access.resolveRow(userId, fitnessWorkoutTemplates, id, 'edit');
     return this.training.saveTemplate(ownerId, id, input);
   }
@@ -235,7 +235,7 @@ export class FitnessController {
 
   @Put('workouts/:id')
   async saveWorkout(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    const input = parseOrThrow(workoutSchema, body);
+    const input = parseOrThrow(saveWorkoutSchema, body);
     const { ownerId } = await this.access.resolveRow(userId, fitnessWorkouts, id, 'edit');
     return this.training.saveWorkout(ownerId, id, input);
   }

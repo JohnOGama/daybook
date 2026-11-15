@@ -1,11 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNull, max, min, notInArray } from 'drizzle-orm';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, desc, eq, inArray, isNull, max, min, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { notebookPages, notebookPageVersions, spaces } from '../../../shared/db/schema.ts';
 
 type PageRow = typeof notebookPages.$inferSelect;
 
-export type PageDto = Pick<PageRow, 'id' | 'title' | 'content'> & { createdAt: string };
+export type PageDto = Pick<PageRow, 'id' | 'title' | 'content' | 'version'> & { createdAt: string };
 
 export type VersionDto = { id: string; createdAt: string };
 
@@ -15,10 +15,11 @@ const VERSIONS_KEPT = 50;
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
-const toDto = ({ id, title, content, createdAt }: PageRow): PageDto => ({
+const toDto = ({ id, title, content, version, createdAt }: PageRow): PageDto => ({
   id,
   title,
   content,
+  version,
   createdAt: createdAt.toISOString(),
 });
 
@@ -61,16 +62,28 @@ export class NotebookService {
     });
   }
 
+  // Content is saved only over the version it was edited from; a refused save rolls back its history copy too.
   async update(
     userId: string,
     id: string,
-    changes: { title?: string; content?: Record<string, unknown> },
-  ): Promise<void> {
-    await this.db.transaction(async (tx) => {
+    { version, ...changes }: { title?: string; content?: Record<string, unknown>; version?: number },
+  ): Promise<{ version: number }> {
+    return this.db.transaction(async (tx) => {
       const [page] = await tx.select().from(notebookPages).where(this.ownedPage(userId, id));
       if (!page) throw new NotFoundException('Page not found');
-      if (changes.content) await this.keepVersion(tx, page, VERSION_GAP_MS);
-      await tx.update(notebookPages).set({ ...changes, updatedAt: new Date() }).where(eq(notebookPages.id, id));
+      if (changes.content === undefined) {
+        await tx.update(notebookPages).set({ ...changes, updatedAt: new Date() }).where(eq(notebookPages.id, id));
+        return { version: page.version };
+      }
+      if (version === undefined) throw new BadRequestException('Send the version you edited');
+      await this.keepVersion(tx, page, VERSION_GAP_MS);
+      const [saved] = await tx
+        .update(notebookPages)
+        .set({ ...changes, version: sql`${notebookPages.version} + 1`, updatedAt: new Date() })
+        .where(and(this.ownedPage(userId, id), eq(notebookPages.version, version)))
+        .returning({ version: notebookPages.version });
+      if (!saved) throw new ConflictException('Changed by someone else');
+      return saved;
     });
   }
 

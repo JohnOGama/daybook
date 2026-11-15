@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { fitnessExercises, spaces } from '../../../shared/db/schema.ts';
@@ -75,22 +75,26 @@ describe('FitnessWorkoutService', () => {
   it('keeps a workout made from a template unchanged when the template is edited or deleted', async () => {
     const template = { id: crypto.randomUUID(), spaceId: space, name: 'Push day', items: [bench()] };
     await svc.createTemplate('u1', template);
-    expect((await fitness.load('u1', space)).templates).toEqual([{ id: template.id, name: 'Push day', items: [bench()] }]);
+    expect((await fitness.load('u1', space)).templates).toEqual([{ id: template.id, name: 'Push day', items: [bench()], version: 0 }]);
     const workout = { id: crypto.randomUUID(), spaceId: space, day: '2026-11-13', name: 'Push day', items: [bench([set(true), set()])] };
     await svc.createWorkout('u1', workout);
-    await svc.saveTemplate('u1', template.id, { name: 'Push', items: [bench([set()])] });
+    expect(await svc.saveTemplate('u1', template.id, { name: 'Push', items: [bench([set()])], version: 0 })).toEqual({ version: 1 });
+    await expect(svc.saveTemplate('u1', template.id, { name: 'Stale', items: [bench()], version: 0 })).rejects.toThrow(ConflictException);
+    expect((await fitness.load('u1', space)).templates).toMatchObject([{ name: 'Push', version: 1 }]);
+    await expect(svc.saveTemplate('u2', template.id, { name: 'x', items: [bench()], version: 1 })).rejects.toThrow(NotFoundException);
     await svc.removeTemplate('u1', template.id);
     expect((await fitness.load('u1', space)).templates).toEqual([]);
-    expect(await svc.workouts('u1', space, '2026-11-13', '2026-11-13')).toEqual([{ id: workout.id, day: '2026-11-13', name: 'Push day', items: workout.items }]);
+    expect(await svc.workouts('u1', space, '2026-11-13', '2026-11-13')).toEqual([{ id: workout.id, day: '2026-11-13', name: 'Push day', items: workout.items, version: 0 }]);
   });
 
   it('saves a whole workout, lists workouts by day range, and deletes for the owner only', async () => {
     const workout = { id: crypto.randomUUID(), spaceId: space, day: '2026-11-13', name: 'Push day', items: [bench()] };
     await svc.createWorkout('u1', workout);
-    await svc.saveWorkout('u1', workout.id, { day: '2026-11-13', name: 'Push', items: [bench([set(true)])] });
-    expect(await svc.workouts('u1', space, '2026-11-01', '2026-11-30')).toMatchObject([{ name: 'Push', items: [{ sets: [{ done: true }] }] }]);
+    expect(await svc.saveWorkout('u1', workout.id, { day: '2026-11-13', name: 'Push', items: [bench([set(true)])], version: 0 })).toEqual({ version: 1 });
+    await expect(svc.saveWorkout('u1', workout.id, { day: '2026-11-13', name: 'Stale', items: [], version: 0 })).rejects.toThrow(ConflictException);
+    expect(await svc.workouts('u1', space, '2026-11-01', '2026-11-30')).toMatchObject([{ name: 'Push', items: [{ sets: [{ done: true }] }], version: 1 }]);
     expect(await svc.workouts('u1', space, '2026-11-14', '2026-11-30')).toEqual([]);
-    await expect(svc.saveWorkout('u2', workout.id, { day: '2026-11-13', name: 'x', items: [] })).rejects.toThrow(NotFoundException);
+    await expect(svc.saveWorkout('u2', workout.id, { day: '2026-11-13', name: 'x', items: [], version: 1 })).rejects.toThrow(NotFoundException);
     await expect(svc.removeWorkout('u2', workout.id)).rejects.toThrow(NotFoundException);
     await expect(svc.createWorkout('u1', { ...workout, id: crypto.randomUUID(), spaceId: theirs })).rejects.toThrow(NotFoundException);
     await expect(svc.createTemplate('u1', { id: crypto.randomUUID(), spaceId: theirs, name: 'x', items: [bench()] })).rejects.toThrow(NotFoundException);

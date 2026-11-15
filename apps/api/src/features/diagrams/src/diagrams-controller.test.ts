@@ -36,7 +36,7 @@ describe('diagrams API sharing', () => {
   // Every route, with a minimal valid request. It must match the controller's decorators.
   const routes = (): [string, Method, string, object?][] => [
     ['GET /', 'get', `?spaceId=${space}`],
-    ['PUT /', 'put', '', { spaceId: space, dbml: 'Table b {\n  id int\n}', positions: {} }],
+    ['PUT /', 'put', '', { spaceId: space, dbml: 'Table b {\n  id int\n}', positions: {}, version: 1 }],
     ['POST ai/edit', 'post', '/ai/edit', { spaceId: space, dbml: '', prompt: 'add a table' }],
   ];
   const labelled = (label: string) => routes().find(([name]) => name === label) as [string, Method, string, object?];
@@ -63,7 +63,7 @@ describe('diagrams API sharing', () => {
     await app.init();
 
     space = await insertSpace(db, 'u1', { tool: 'diagram' });
-    await as('u1', 'put', '', { spaceId: space, dbml: 'Table a {\n  id int\n}', positions: {} }).expect(200);
+    await as('u1', 'put', '', { spaceId: space, dbml: 'Table a {\n  id int\n}', positions: {}, version: 0 }).expect(200);
   });
 
   afterEach(() => app.close());
@@ -76,7 +76,7 @@ describe('diagrams API sharing', () => {
 
   it('stores an editor\'s save on the owner\'s row', async () => {
     await insertShare(db, { spaceId: space, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
-    await as('u2', 'put', '', { spaceId: space, dbml: 'Table c {\n  id int\n}', positions: {} }).expect(200);
+    await as('u2', 'put', '', { spaceId: space, dbml: 'Table c {\n  id int\n}', positions: {}, version: 1 }).expect(200);
     const rows = await db.select().from(diagrams);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ userId: 'u1', spaceId: space });

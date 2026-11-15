@@ -67,12 +67,24 @@ describe('notebook API sharing', () => {
 
   it('lets an editor save content, keeping the version under the owner', async () => {
     await insertShare(db, { spaceId, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
-    await as('u2', 'patch', `/${pageId}`).send({ content: doc('new') }).expect(200);
+    const { body } = await as('u2', 'patch', `/${pageId}`).send({ content: doc('new'), version: 0 }).expect(200);
+    expect(body).toEqual({ version: 1 });
     const [page] = await db.select().from(notebookPages);
     expect(page).toMatchObject({ userId: 'u1', content: doc('new') });
     const versions = await db.select().from(notebookPageVersions);
     expect(versions).toHaveLength(2);
     expect(versions.every((v) => v.userId === 'u1')).toBe(true);
+  });
+
+  it('answers 409 to a content save from an old version and 400 to one with no version, changing nothing', async () => {
+    await insertShare(db, { spaceId, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
+    await as('u1', 'patch', `/${pageId}`).send({ content: doc('owner'), version: 0 }).expect(200);
+    const before = await snapshot(db);
+    const { body } = await as('u2', 'patch', `/${pageId}`).send({ content: doc('stale'), version: 0 }).expect(409);
+    expect(body.message).toBe('Changed by someone else');
+    await as('u2', 'patch', `/${pageId}`).send({ content: doc('unversioned') }).expect(400);
+    expect(await snapshot(db)).toEqual(before);
+    await as('u2', 'patch', `/${pageId}`).send({ title: 'Renamed' }).expect(200);
   });
 
   it('lets a viewer read the versions but not checkpoint them', async () => {

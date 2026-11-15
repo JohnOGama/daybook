@@ -101,9 +101,13 @@ export type LogInput = z.infer<typeof logSchema>;
 export type LogChanges = z.infer<typeof updateLogSchema>;
 
 const title = z.string().trim().min(1).max(80);
+// A whole-document save names the version it was edited from, so a stale one can be refused.
+const editedVersion = { version: z.number().int().min(0) };
+export type Versioned = { version: number };
 
 export const mealPlanSchema = z.object({ name: title, items: z.array(z.object({ meal, ...foodItemFields })).min(1).max(100) });
 export const newMealPlanSchema = mealPlanSchema.extend({ id, spaceId });
+export const saveMealPlanSchema = mealPlanSchema.extend(editedVersion);
 export type MealPlanInput = z.infer<typeof mealPlanSchema>;
 
 export const weightSchema = z.object({ spaceId, day, weightG: z.number().int().min(20_000).max(400_000) });
@@ -148,8 +152,10 @@ const workoutItem = z.object({ exerciseId: id.nullable(), name: title, kind: exe
 
 export const templateSchema = z.object({ name: title, items: z.array(workoutItem).min(1).max(60) });
 export const newTemplateSchema = templateSchema.extend({ id, spaceId });
+export const saveTemplateSchema = templateSchema.extend(editedVersion);
 export const workoutSchema = z.object({ day, name: title, items: z.array(workoutItem).max(60) });
 export const newWorkoutSchema = workoutSchema.extend({ id, spaceId });
+export const saveWorkoutSchema = workoutSchema.extend(editedVersion);
 export type TemplateInput = z.infer<typeof templateSchema>;
 export type WorkoutInput = z.infer<typeof workoutSchema>;
 

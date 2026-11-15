@@ -1,8 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { fitnessMealPlans, fitnessProfiles, fitnessWeights, fitnessWorkoutTemplates, spaces } from '../../../shared/db/schema.ts';
-import { DEFAULT_PROFILE, type MealPlanInput, type Profile, profileSchema } from './fitness-schemas.ts';
+import { DEFAULT_PROFILE, type MealPlanInput, type Profile, profileSchema, type Versioned } from './fitness-schemas.ts';
 
 @Injectable()
 export class FitnessService {
@@ -19,12 +19,17 @@ export class FitnessService {
         .where(eq(fitnessWeights.spaceId, spaceId))
         .orderBy(asc(fitnessWeights.day)),
       this.db
-        .select({ id: fitnessMealPlans.id, name: fitnessMealPlans.name, items: fitnessMealPlans.items })
+        .select({ id: fitnessMealPlans.id, name: fitnessMealPlans.name, items: fitnessMealPlans.items, version: fitnessMealPlans.version })
         .from(fitnessMealPlans)
         .where(eq(fitnessMealPlans.spaceId, spaceId))
         .orderBy(asc(fitnessMealPlans.createdAt), asc(fitnessMealPlans.id)),
       this.db
-        .select({ id: fitnessWorkoutTemplates.id, name: fitnessWorkoutTemplates.name, items: fitnessWorkoutTemplates.items })
+        .select({
+          id: fitnessWorkoutTemplates.id,
+          name: fitnessWorkoutTemplates.name,
+          items: fitnessWorkoutTemplates.items,
+          version: fitnessWorkoutTemplates.version,
+        })
         .from(fitnessWorkoutTemplates)
         .where(eq(fitnessWorkoutTemplates.spaceId, spaceId))
         .orderBy(asc(fitnessWorkoutTemplates.createdAt), asc(fitnessWorkoutTemplates.id)),
@@ -63,13 +68,16 @@ export class FitnessService {
     await this.db.insert(fitnessMealPlans).values({ ...plan, userId });
   }
 
-  async saveMealPlan(userId: string, id: string, plan: MealPlanInput): Promise<void> {
-    const saved = await this.db
+  async saveMealPlan(userId: string, id: string, { version, ...plan }: MealPlanInput & Versioned): Promise<Versioned> {
+    const owned = and(eq(fitnessMealPlans.id, id), eq(fitnessMealPlans.userId, userId));
+    const [saved] = await this.db
       .update(fitnessMealPlans)
-      .set(plan)
-      .where(and(eq(fitnessMealPlans.id, id), eq(fitnessMealPlans.userId, userId)))
-      .returning({ id: fitnessMealPlans.id });
-    if (saved.length === 0) throw new NotFoundException('Meal plan not found');
+      .set({ ...plan, version: sql`${fitnessMealPlans.version} + 1` })
+      .where(and(owned, eq(fitnessMealPlans.version, version)))
+      .returning({ version: fitnessMealPlans.version });
+    if (saved) return saved;
+    const [exists] = await this.db.select({ id: fitnessMealPlans.id }).from(fitnessMealPlans).where(owned);
+    throw exists ? new ConflictException('Changed by someone else') : new NotFoundException('Meal plan not found');
   }
 
   async removeMealPlan(userId: string, id: string): Promise<void> {

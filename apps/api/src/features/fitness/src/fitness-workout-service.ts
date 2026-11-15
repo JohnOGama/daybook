@@ -1,12 +1,12 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, between, eq, isNotNull, isNull, or } from 'drizzle-orm';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, between, eq, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { fitnessExercises, fitnessWorkoutTemplates, fitnessWorkouts } from '../../../shared/db/schema.ts';
-import type { ExerciseInput, TemplateInput, WorkoutInput } from './fitness-schemas.ts';
+import type { ExerciseInput, TemplateInput, Versioned, WorkoutInput } from './fitness-schemas.ts';
 import { FitnessService } from './fitness-service.ts';
 
 export type ExerciseDto = ExerciseInput & { id: string; custom: boolean };
-export type WorkoutDto = WorkoutInput & { id: string };
+export type WorkoutDto = WorkoutInput & Versioned & { id: string };
 
 type Owned = { id: string; spaceId: string };
 
@@ -64,13 +64,16 @@ export class FitnessWorkoutService {
     await this.db.insert(fitnessWorkoutTemplates).values({ ...template, userId });
   }
 
-  async saveTemplate(userId: string, id: string, template: TemplateInput): Promise<void> {
-    const saved = await this.db
+  async saveTemplate(userId: string, id: string, { version, ...template }: TemplateInput & Versioned): Promise<Versioned> {
+    const owned = and(eq(fitnessWorkoutTemplates.id, id), eq(fitnessWorkoutTemplates.userId, userId));
+    const [saved] = await this.db
       .update(fitnessWorkoutTemplates)
-      .set(template)
-      .where(and(eq(fitnessWorkoutTemplates.id, id), eq(fitnessWorkoutTemplates.userId, userId)))
-      .returning({ id: fitnessWorkoutTemplates.id });
-    if (saved.length === 0) throw new NotFoundException('Template not found');
+      .set({ ...template, version: sql`${fitnessWorkoutTemplates.version} + 1` })
+      .where(and(owned, eq(fitnessWorkoutTemplates.version, version)))
+      .returning({ version: fitnessWorkoutTemplates.version });
+    if (saved) return saved;
+    const [exists] = await this.db.select({ id: fitnessWorkoutTemplates.id }).from(fitnessWorkoutTemplates).where(owned);
+    throw exists ? new ConflictException('Changed by someone else') : new NotFoundException('Template not found');
   }
 
   async removeTemplate(userId: string, id: string): Promise<void> {
@@ -84,7 +87,7 @@ export class FitnessWorkoutService {
   async workouts(userId: string, spaceId: string, from: string, to: string): Promise<WorkoutDto[]> {
     await this.fitness.assertSpace(userId, spaceId);
     const rows = await this.db
-      .select({ id: fitnessWorkouts.id, day: fitnessWorkouts.day, name: fitnessWorkouts.name, items: fitnessWorkouts.items })
+      .select({ id: fitnessWorkouts.id, day: fitnessWorkouts.day, name: fitnessWorkouts.name, items: fitnessWorkouts.items, version: fitnessWorkouts.version })
       .from(fitnessWorkouts)
       .where(and(eq(fitnessWorkouts.spaceId, spaceId), eq(fitnessWorkouts.userId, userId), between(fitnessWorkouts.day, from, to)))
       .orderBy(asc(fitnessWorkouts.day), asc(fitnessWorkouts.createdAt), asc(fitnessWorkouts.id));
@@ -96,13 +99,16 @@ export class FitnessWorkoutService {
     await this.db.insert(fitnessWorkouts).values({ ...workout, userId });
   }
 
-  async saveWorkout(userId: string, id: string, workout: WorkoutInput): Promise<void> {
-    const saved = await this.db
+  async saveWorkout(userId: string, id: string, { version, ...workout }: WorkoutInput & Versioned): Promise<Versioned> {
+    const owned = and(eq(fitnessWorkouts.id, id), eq(fitnessWorkouts.userId, userId));
+    const [saved] = await this.db
       .update(fitnessWorkouts)
-      .set(workout)
-      .where(and(eq(fitnessWorkouts.id, id), eq(fitnessWorkouts.userId, userId)))
-      .returning({ id: fitnessWorkouts.id });
-    if (saved.length === 0) throw new NotFoundException('Workout not found');
+      .set({ ...workout, version: sql`${fitnessWorkouts.version} + 1` })
+      .where(and(owned, eq(fitnessWorkouts.version, version)))
+      .returning({ version: fitnessWorkouts.version });
+    if (saved) return saved;
+    const [exists] = await this.db.select({ id: fitnessWorkouts.id }).from(fitnessWorkouts).where(owned);
+    throw exists ? new ConflictException('Changed by someone else') : new NotFoundException('Workout not found');
   }
 
   async removeWorkout(userId: string, id: string): Promise<void> {

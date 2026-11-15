@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces } from '../../../shared/db/schema.ts';
@@ -48,9 +48,11 @@ describe('FitnessService', () => {
     it('saves a plan with its items, replaces it whole, and deletes it', async () => {
       const plan = { id: crypto.randomUUID(), spaceId: space, name: 'Cutting day', items: [item, { ...item, meal: 'dinner' as const }] };
       await svc.createMealPlan('u1', plan);
-      expect((await svc.load('u1', space)).mealPlans).toEqual([{ id: plan.id, name: 'Cutting day', items: plan.items }]);
-      await svc.saveMealPlan('u1', plan.id, { name: 'Cut', items: [item] });
-      expect((await svc.load('u1', space)).mealPlans).toEqual([{ id: plan.id, name: 'Cut', items: [item] }]);
+      expect((await svc.load('u1', space)).mealPlans).toEqual([{ id: plan.id, name: 'Cutting day', items: plan.items, version: 0 }]);
+      expect(await svc.saveMealPlan('u1', plan.id, { name: 'Cut', items: [item], version: 0 })).toEqual({ version: 1 });
+      expect((await svc.load('u1', space)).mealPlans).toEqual([{ id: plan.id, name: 'Cut', items: [item], version: 1 }]);
+      await expect(svc.saveMealPlan('u1', plan.id, { name: 'Stale', items: [item], version: 0 })).rejects.toThrow(ConflictException);
+      expect((await svc.load('u1', space)).mealPlans).toMatchObject([{ name: 'Cut', version: 1 }]);
       await svc.removeMealPlan('u1', plan.id);
       expect((await svc.load('u1', space)).mealPlans).toEqual([]);
     });
@@ -58,7 +60,7 @@ describe('FitnessService', () => {
     it("keeps another user away from a plan, and refuses an empty or oversized one", async () => {
       const plan = { id: crypto.randomUUID(), spaceId: space, name: 'Mine', items: [item] };
       await svc.createMealPlan('u1', plan);
-      await expect(svc.saveMealPlan('u2', plan.id, { name: 'x', items: [item] })).rejects.toThrow(NotFoundException);
+      await expect(svc.saveMealPlan('u2', plan.id, { name: 'x', items: [item], version: 0 })).rejects.toThrow(NotFoundException);
       await expect(svc.removeMealPlan('u2', plan.id)).rejects.toThrow(NotFoundException);
       await expect(svc.createMealPlan('u1', { ...plan, id: crypto.randomUUID(), spaceId: theirs })).rejects.toThrow(NotFoundException);
       expect(mealPlanSchema.safeParse({ name: 'Ok', items: [item] }).success).toBe(true);

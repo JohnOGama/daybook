@@ -1,9 +1,10 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { notebookPages, spaces } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { updatePageSchema } from './notebook-schemas.ts';
 import { SpaceAccessService } from '../../spaces/src/space-access-service.ts';
 import { SpacesService } from '../../spaces/src/spaces-service.ts';
 import { TrashService } from '../../trash/src/trash-service.ts';
@@ -40,17 +41,36 @@ describe('NotebookService', () => {
     const id = await addPage();
     expect((await svc.list('u1', notebook))[0]).toMatchObject({ id, title: '', content: null });
     await svc.update('u1', id, { title: 'Plan' });
-    await svc.update('u1', id, { content: doc });
-    expect((await svc.list('u1', notebook))[0]).toMatchObject({ title: 'Plan', content: doc });
+    await svc.update('u1', id, { content: doc, version: 0 });
+    expect((await svc.list('u1', notebook))[0]).toMatchObject({ title: 'Plan', content: doc, version: 1 });
+  });
+
+  it('refuses a content save made from an old version, writing no history, but never a rename', async () => {
+    const para = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
+    const id = await addPage();
+    expect(await svc.update('u1', id, { content: para('mine'), version: 0 })).toEqual({ version: 1 });
+    await expect(svc.update('u1', id, { content: para('theirs'), version: 0 })).rejects.toThrow(ConflictException);
+    expect((await svc.list('u1', notebook))[0]).toMatchObject({ content: para('mine'), version: 1 });
+    expect(await svc.listVersions('u1', id)).toEqual([]);
+    expect(await svc.update('u1', id, { title: 'Renamed' })).toEqual({ version: 1 });
+    expect(await svc.update('u1', id, { content: para('next'), version: 1 })).toEqual({ version: 2 });
+    await expect(svc.update('u2', id, { content: para('x'), version: 2 })).rejects.toThrow(NotFoundException);
+  });
+
+  it('needs the version with content, but not with a title alone', () => {
+    expect(updatePageSchema.safeParse({ content: doc }).success).toBe(false);
+    expect(updatePageSchema.safeParse({ content: doc, version: 0 }).success).toBe(true);
+    expect(updatePageSchema.safeParse({ title: 'Plan' }).success).toBe(true);
+    expect(updatePageSchema.safeParse({ content: doc, version: -1 }).success).toBe(false);
   });
 
   it('keeps a copy of a page before it is edited, at most one per ten minutes, and one more on request', async () => {
     const para = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
     const id = await addPage();
-    await svc.update('u1', id, { content: para('one') });
+    await svc.update('u1', id, { content: para('one'), version: 0 });
     expect(await svc.listVersions('u1', id)).toEqual([]);
-    await svc.update('u1', id, { content: para('two') });
-    await svc.update('u1', id, { content: para('three') });
+    await svc.update('u1', id, { content: para('two'), version: 1 });
+    await svc.update('u1', id, { content: para('three'), version: 2 });
     await svc.update('u1', id, { title: 'Plan' });
     const [first] = await svc.listVersions('u1', id);
     expect((await svc.getVersion('u1', id, first.id)).content).toEqual(para('one'));
@@ -119,7 +139,7 @@ describe('NotebookService', () => {
 
   it('duplicating a notebook copies its pages but not deleted ones', async () => {
     const kept = await addPage();
-    await svc.update('u1', kept, { title: 'Keep', content: doc });
+    await svc.update('u1', kept, { title: 'Keep', content: doc, version: 0 });
     await svc.remove('u1', await addPage());
     const copy = await new SpacesService(db, new SpaceAccessService(db)).duplicate('u1', notebook);
     const pages = await db.select().from(notebookPages).where(eq(notebookPages.spaceId, copy.id));
