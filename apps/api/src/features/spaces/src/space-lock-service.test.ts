@@ -51,8 +51,7 @@ describe('SpaceLockService', () => {
     const [expires] = token.split('.');
     expect(await isOpen(`${Number(expires) + 1000}.${token.split('.')[1]}`)).toBe(false);
     expect(await isOpen('garbage')).toBe(false);
-    await db.insert(spaces).values({ id: crypto.randomUUID(), userId: 'u2', kind: 'space', title: 'x', tool: 'list' });
-    await expect(lock.isOpen('u2', notebook, cookie(notebook, token))).rejects.toThrow();
+    expect(await lock.isOpen('u2', notebook, cookie(notebook, token))).toBe(false);
     vi.useFakeTimers({ now: Date.now() + 13 * 60 * 60 * 1000 });
     expect(await isOpen(token)).toBe(false);
     vi.useRealTimers();

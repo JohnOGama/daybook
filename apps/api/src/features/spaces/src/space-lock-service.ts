@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, type SQL } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { spaces } from '../../../shared/db/schema.ts';
 
@@ -68,18 +68,18 @@ export class SpaceLockService {
     const [space] = await this.db
       .select({ id: spaces.id, lockHash: spaces.lockHash })
       .from(spaces)
-      .where(and(eq(spaces.id, spaceId), eq(spaces.userId, userId)));
+      .where(eq(spaces.id, spaceId));
     if (space && !this.isUnlocked(userId, space, readCookies(cookieHeader))) {
       throw new ForbiddenException('This space is locked');
     }
   }
 
   async isOpen(userId: string, spaceId: string, cookieHeader: string | undefined): Promise<boolean> {
-    return this.isUnlocked(userId, await this.lockable(userId, spaceId), readCookies(cookieHeader));
+    return this.isUnlocked(userId, await this.lockableById(spaceId), readCookies(cookieHeader));
   }
 
   async unlock(userId: string, spaceId: string, password: string): Promise<string> {
-    const space = await this.lockable(userId, spaceId);
+    const space = await this.lockableById(spaceId);
     if (!space.lockHash) throw new BadRequestException('This space has no password');
     await this.assertPassword(password, space.lockHash);
     return this.unlockToken(userId, space);
@@ -109,11 +109,20 @@ export class SpaceLockService {
     if (!(await matchesLockPassword(password, lockHash))) throw new ForbiddenException('That password is not right');
   }
 
+  // Callers must already have resolved the viewer's access to the space.
+  private async lockableById(spaceId: string): Promise<LockableSpace> {
+    return this.lockableWhere(eq(spaces.id, spaceId));
+  }
+
   private async lockable(userId: string, spaceId: string): Promise<LockableSpace> {
+    return this.lockableWhere(and(eq(spaces.id, spaceId), eq(spaces.userId, userId)));
+  }
+
+  private async lockableWhere(where: SQL | undefined): Promise<LockableSpace> {
     const [space] = await this.db
       .select({ id: spaces.id, kind: spaces.kind, tool: spaces.tool, lockHash: spaces.lockHash })
       .from(spaces)
-      .where(and(eq(spaces.id, spaceId), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
+      .where(and(where, isNull(spaces.deletedAt)));
     if (!space || space.kind !== 'space') throw new NotFoundException('Space not found');
     if (space.tool === 'vault') throw new BadRequestException('A vault already has its own passcode');
     return space;

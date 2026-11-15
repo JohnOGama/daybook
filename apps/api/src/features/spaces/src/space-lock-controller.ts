@@ -3,6 +3,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AUTH, type Auth, AuthGuard, UserId } from '../../auth/index.ts';
+import { SpaceAccessService } from './space-access-service.ts';
 import { SpaceLockService, unlockCookieName } from './space-lock-service.ts';
 import { removeLockSchema, setLockSchema, unlockSchema } from './space-schemas.ts';
 
@@ -18,11 +19,13 @@ const cookieOptions = {
 export class SpaceLockController {
   constructor(
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
     @Inject(AUTH) private readonly auth: Pick<Auth, 'api'>,
   ) {}
 
   @Get('unlock')
   async status(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Req() request: Request) {
+    await this.access.resolve(userId, id, 'view');
     return { unlocked: await this.lock.isOpen(userId, id, request.headers.cookie) };
   }
 
@@ -33,6 +36,7 @@ export class SpaceLockController {
     @Body() body: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
+    await this.access.resolve(userId, id, 'view');
     const token = await this.lock.unlock(userId, id, parseOrThrow(unlockSchema, body).password);
     response.cookie(unlockCookieName(id), token, cookieOptions);
   }
