@@ -1,8 +1,18 @@
-import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
+import { DB, type Db } from '../../../shared/db/create-db.ts';
+import {
+  budgetAccounts,
+  budgetCategories,
+  budgetEntries,
+  budgetGoalContributions,
+  budgetGoals,
+  budgetSchedules,
+} from '../../../shared/db/schema.ts';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
-import { SpaceLockService } from '../../spaces/index.ts';
+import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import {
   createAccountSchema,
   createCategorySchema,
@@ -32,142 +42,187 @@ export class BudgetController {
     @Inject(BudgetService) private readonly budget: BudgetService,
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
     @Inject(BudgetAiService) private readonly ai: BudgetAiService,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
+    @Inject(DB) private readonly db: Db,
   ) {}
 
   @Get()
   async load(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(spaceQuerySchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.budget.load(userId, spaceId);
+    return this.budget.load(ownerId, spaceId);
   }
 
   @Put(':spaceId')
-  updateSettings(@UserId() userId: string, @Param('spaceId', ParseUUIDPipe) spaceId: string, @Body() body: unknown) {
-    return this.budget.updateSettings(userId, spaceId, parseOrThrow(updateBudgetSchema, body));
+  async updateSettings(@UserId() userId: string, @Param('spaceId', ParseUUIDPipe) spaceId: string, @Body() body: unknown) {
+    const changes = parseOrThrow(updateBudgetSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.budget.updateSettings(ownerId, spaceId, changes);
   }
 
   @Post('accounts')
-  createAccount(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.createAccount(userId, parseOrThrow(createAccountSchema, body));
+  async createAccount(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createAccountSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.budget.createAccount(ownerId, input);
   }
 
   @Patch('accounts/:id')
-  updateAccount(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.budget.updateAccount(userId, id, parseOrThrow(updateAccountSchema, body));
+  async updateAccount(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const changes = parseOrThrow(updateAccountSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetAccounts, id, 'edit');
+    return this.budget.updateAccount(ownerId, id, changes);
   }
 
   @Delete('accounts/:id')
-  removeAccount(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeAccount(userId, id);
+  async removeAccount(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetAccounts, id, 'edit');
+    return this.budget.removeAccount(ownerId, id);
   }
 
   @Post('categories')
-  createCategory(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.createCategory(userId, parseOrThrow(createCategorySchema, body));
+  async createCategory(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createCategorySchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.budget.createCategory(ownerId, input);
   }
 
   @Patch('categories/:id')
-  updateCategory(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.budget.updateCategory(userId, id, parseOrThrow(updateCategorySchema, body));
+  async updateCategory(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const changes = parseOrThrow(updateCategorySchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetCategories, id, 'edit');
+    return this.budget.updateCategory(ownerId, id, changes);
   }
 
   @Delete('categories/:id')
-  removeCategory(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeCategory(userId, id);
+  async removeCategory(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetCategories, id, 'edit');
+    return this.budget.removeCategory(ownerId, id);
   }
 
   @Post('entries')
-  createEntry(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.createEntry(userId, parseOrThrow(createEntrySchema, body));
+  async createEntry(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createEntrySchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.budget.createEntry(ownerId, input);
   }
 
   @Put('entries/:id')
-  updateEntry(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.budget.updateEntry(userId, id, parseOrThrow(entryShapeSchema, body));
+  async updateEntry(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(entryShapeSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, id, 'edit');
+    return this.budget.updateEntry(ownerId, id, input);
   }
 
   @Delete('entries/:id')
-  removeEntry(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeEntry(userId, id);
+  async removeEntry(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, id, 'edit');
+    return this.budget.removeEntry(ownerId, id);
   }
 
   @Post('schedules')
-  createSchedule(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.createSchedule(userId, parseOrThrow(createScheduleSchema, body));
+  async createSchedule(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createScheduleSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.budget.createSchedule(ownerId, input);
   }
 
   @Put('schedules/:id')
-  updateSchedule(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.budget.updateSchedule(userId, id, parseOrThrow(scheduleShapeSchema, body));
+  async updateSchedule(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(scheduleShapeSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetSchedules, id, 'edit');
+    return this.budget.updateSchedule(ownerId, id, input);
   }
 
   @Delete('schedules/:id')
-  removeSchedule(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeSchedule(userId, id);
+  async removeSchedule(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetSchedules, id, 'edit');
+    return this.budget.removeSchedule(ownerId, id);
   }
 
   @Post('goals')
-  createGoal(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.createGoal(userId, parseOrThrow(createGoalSchema, body));
+  async createGoal(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createGoalSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.budget.createGoal(ownerId, input);
   }
 
   @Patch('goals/:id')
-  updateGoal(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.budget.updateGoal(userId, id, parseOrThrow(updateGoalSchema, body));
+  async updateGoal(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const changes = parseOrThrow(updateGoalSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetGoals, id, 'edit');
+    return this.budget.updateGoal(ownerId, id, changes);
   }
 
   @Delete('goals/:id')
-  removeGoal(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeGoal(userId, id);
+  async removeGoal(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetGoals, id, 'edit');
+    return this.budget.removeGoal(ownerId, id);
   }
 
   @Post('contributions')
-  addContribution(@UserId() userId: string, @Body() body: unknown) {
-    return this.budget.addContribution(userId, parseOrThrow(createContributionSchema, body));
+  async addContribution(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createContributionSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetGoals, input.goalId, 'edit');
+    return this.budget.addContribution(ownerId, input);
   }
 
   @Delete('contributions/:id')
-  removeContribution(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.budget.removeContribution(userId, id);
+  async removeContribution(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const [contribution] = await this.db
+      .select({ goalId: budgetGoalContributions.goalId })
+      .from(budgetGoalContributions)
+      .where(eq(budgetGoalContributions.id, id));
+    if (!contribution) throw new NotFoundException('Contribution not found');
+    const { ownerId } = await this.access.resolveRow(userId, budgetGoals, contribution.goalId, 'edit');
+    return this.budget.removeContribution(ownerId, id);
   }
 
   @Put('receipts/:entryId')
-  saveReceipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Body() body: unknown) {
-    return this.budget.saveReceipt(userId, entryId, parseOrThrow(receiptSchema, body));
+  async saveReceipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Body() body: unknown) {
+    const receipt = parseOrThrow(receiptSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, entryId, 'edit');
+    return this.budget.saveReceipt(ownerId, entryId, receipt);
   }
 
   @Get('receipts/:entryId')
   async receipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Res() response: Response) {
-    const { mediaType, data } = await this.budget.receipt(userId, entryId);
+    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, entryId, 'view');
+    const { mediaType, data } = await this.budget.receipt(ownerId, entryId);
     response.set({ 'Content-Type': mediaType, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' }).send(data);
   }
 
   @Delete('receipts/:entryId')
-  removeReceipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string) {
-    return this.budget.removeReceipt(userId, entryId);
+  async removeReceipt(@UserId() userId: string, @Param('entryId', ParseUUIDPipe) entryId: string) {
+    const { ownerId } = await this.access.resolveRow(userId, budgetEntries, entryId, 'edit');
+    return this.budget.removeReceipt(ownerId, entryId);
   }
 
   @Post('ai/categorize')
   async categorize(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
     const { spaceId, kind, note, amount } = parseOrThrow(categorizeSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    const categories = await this.budget.categoriesFor(userId, spaceId, kind);
+    const categories = await this.budget.categoriesFor(ownerId, spaceId, kind);
     return { categoryId: await this.ai.categorize(categories, { note, kind, amount }) };
   }
 
   @Post('ai/scan-receipt')
   async scanReceipt(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
     const { spaceId, today, mediaType, data } = parseOrThrow(scanReceiptSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    const categories = await this.budget.categoriesFor(userId, spaceId, 'expense');
+    const categories = await this.budget.categoriesFor(ownerId, spaceId, 'expense');
     return this.ai.scanReceipt(categories, { mediaType, data }, today);
   }
 
   @Post('ai/insights')
   async insights(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
     const { spaceId, summary } = parseOrThrow(insightsSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    await this.budget.categoriesFor(userId, spaceId);
+    await this.budget.categoriesFor(ownerId, spaceId);
     return this.ai.insights(summary);
   }
 }
