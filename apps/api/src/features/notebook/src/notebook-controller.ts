@@ -3,7 +3,8 @@ import type { Request } from 'express';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
 import { BudgetAiService } from '../../budget/index.ts';
-import { SpaceLockService } from '../../spaces/index.ts';
+import { notebookPages } from '../../../shared/db/schema.ts';
+import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import { createPageSchema, improveTextSchema, listPagesSchema, reorderPagesSchema, updatePageSchema } from './notebook-schemas.ts';
 import { NotebookService } from './notebook-service.ts';
 
@@ -13,38 +14,45 @@ export class NotebookController {
   constructor(
     @Inject(NotebookService) private readonly notebook: NotebookService,
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
     @Inject(BudgetAiService) private readonly ai: BudgetAiService,
   ) {}
 
   @Get()
   async list(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(listPagesSchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.notebook.list(userId, spaceId);
+    return this.notebook.list(ownerId, spaceId);
   }
 
   @Post()
-  create(@UserId() userId: string, @Body() body: unknown) {
-    return this.notebook.create(userId, parseOrThrow(createPageSchema, body));
+  async create(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(createPageSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.notebook.create(ownerId, input);
   }
 
-  // Works on the text sent with the request, so it reads nothing from a space.
+  // Works on the text sent with the request; the space is named only to check the caller may edit it.
   @Post('ai/improve')
-  async improve(@Body() body: unknown) {
-    const { text, instruction } = parseOrThrow(improveTextSchema, body);
+  async improve(@UserId() userId: string, @Body() body: unknown) {
+    const { spaceId, text, instruction } = parseOrThrow(improveTextSchema, body);
+    await this.access.resolve(userId, spaceId, 'edit');
     return { text: await this.ai.rewrite(text, instruction) };
   }
 
   @Put('order')
-  reorder(@UserId() userId: string, @Body() body: unknown) {
+  async reorder(@UserId() userId: string, @Body() body: unknown) {
     const { spaceId, ids } = parseOrThrow(reorderPagesSchema, body);
-    return this.notebook.reorder(userId, spaceId, ids);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.notebook.reorder(ownerId, spaceId, ids);
   }
 
   @Get(':id/versions')
   async versions(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Req() request: Request) {
-    await this.lock.assertUnlocked(userId, await this.notebook.spaceOf(userId, id), request.headers.cookie);
-    return this.notebook.listVersions(userId, id);
+    const { ownerId, spaceId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
+    return this.notebook.listVersions(ownerId, id);
   }
 
   @Get(':id/versions/:versionId')
@@ -54,22 +62,26 @@ export class NotebookController {
     @Param('versionId', ParseUUIDPipe) versionId: string,
     @Req() request: Request,
   ) {
-    await this.lock.assertUnlocked(userId, await this.notebook.spaceOf(userId, id), request.headers.cookie);
-    return this.notebook.getVersion(userId, id, versionId);
+    const { ownerId, spaceId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
+    return this.notebook.getVersion(ownerId, id, versionId);
   }
 
   @Post(':id/versions')
-  checkpoint(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.notebook.checkpoint(userId, id);
+  async checkpoint(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, notebookPages, id, 'edit');
+    return this.notebook.checkpoint(ownerId, id);
   }
 
   @Patch(':id')
-  update(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.notebook.update(userId, id, parseOrThrow(updatePageSchema, body));
+  async update(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const { ownerId } = await this.access.resolveRow(userId, notebookPages, id, 'edit');
+    return this.notebook.update(ownerId, id, parseOrThrow(updatePageSchema, body));
   }
 
   @Delete(':id')
-  remove(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.notebook.remove(userId, id);
+  async remove(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, notebookPages, id, 'edit');
+    return this.notebook.remove(ownerId, id);
   }
 }
