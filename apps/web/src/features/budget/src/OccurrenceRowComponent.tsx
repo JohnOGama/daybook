@@ -19,10 +19,11 @@ type OccurrenceRowProps = {
   budget: Budget;
   occurrence: Occurrence;
   today: string;
+  canEdit?: boolean;
   onOpenSchedule?: (scheduleId: string) => void;
 };
 
-export function OccurrenceRowComponent({ budget, occurrence, today, onOpenSchedule }: OccurrenceRowProps) {
+export function OccurrenceRowComponent({ budget, occurrence, today, canEdit = true, onOpenSchedule }: OccurrenceRowProps) {
   const { recordOccurrence, skipOccurrence, deleteEntryWithUndo } = useBudgetMutations();
   const { schedule, day, entry } = occurrence;
   const sign = schedule.kind === 'income' ? 1 : schedule.kind === 'expense' ? -1 : 0;
@@ -71,6 +72,7 @@ export function OccurrenceRowComponent({ budget, occurrence, today, onOpenSchedu
       <span className={cn('ml-auto text-sm font-medium tabular-nums', moneyTone(sign), entry && 'opacity-60')}>
         {sign > 0 ? `+${amount}` : sign < 0 ? `−${amount}` : amount}
       </span>
+      {canEdit && (
       <span className="flex gap-1.5">
         {entry ? (
           <Button
@@ -104,6 +106,7 @@ export function OccurrenceRowComponent({ budget, occurrence, today, onOpenSchedu
           </>
         )}
       </span>
+      )}
     </li>
   );
 }

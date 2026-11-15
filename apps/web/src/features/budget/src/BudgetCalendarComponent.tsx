@@ -24,7 +24,7 @@ const ICONS_SHOWN = 3;
 const dayKey = (month: string, date: number) => `${month}-${String(date).padStart(2, '0')}`;
 
 // A month at a glance: each day's money in and out, and the recurring items that fall on it.
-export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenEntry, onOpenSchedule, onRecordEntry }: BudgetViewProps) {
+export function BudgetCalendarComponent({ budget, month, today, hrefFor, canEdit = true, onOpenEntry, onOpenSchedule, onRecordEntry }: BudgetViewProps) {
   const entries = budget.entries;
   // Recurring items not yet recorded; recorded ones are already entries.
   const occurrences = occurrencesOf(budget, `${month}-01`, `${shiftMonth(month, 1)}-01`).filter(({ entry, day }) => !entry && monthOf(day) === month);
@@ -195,7 +195,8 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
                     budget={budget}
                     occurrence={occurrence}
                     today={today}
-                    onOpenSchedule={(scheduleId) => closeThen(() => onOpenSchedule(scheduleId))}
+                    canEdit={canEdit}
+                    onOpenSchedule={onOpenSchedule && ((scheduleId) => closeThen(() => onOpenSchedule(scheduleId)))}
                   />
                 ))}
                 {openedEntries.map((entry) => (
@@ -204,17 +205,19 @@ export function BudgetCalendarComponent({ budget, month, today, hrefFor, onOpenE
                     budget={budget}
                     entry={entry}
                     planned={entry.day > today}
-                    onOpen={(chosen) => closeThen(() => onOpenEntry(chosen))}
+                    onOpen={onOpenEntry && ((chosen) => closeThen(() => onOpenEntry(chosen)))}
                   />
                 ))}
               </ul>
             )}
-            <div className="border-t p-3">
-              <Button size="sm" variant="outline" className="w-full" onClick={() => closeThen(() => onRecordEntry({ day: opened }))}>
-                <Plus aria-hidden />
-                Add entry on this day
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="border-t p-3">
+                <Button size="sm" variant="outline" className="w-full" onClick={() => closeThen(() => onRecordEntry({ day: opened }))}>
+                  <Plus aria-hidden />
+                  Add entry on this day
+                </Button>
+              </div>
+            )}
           </DialogContent>
         )}
       </Dialog>

@@ -12,7 +12,7 @@ import { AmountInputComponent, BudgetMeterComponent, SectionCardComponent } from
 import type { BudgetViewProps } from './BudgetOverviewComponent';
 
 
-export function BudgetLimitsComponent({ budget, month, today }: BudgetViewProps) {
+export function BudgetLimitsComponent({ budget, month, today, canEdit = true }: BudgetViewProps) {
   const [editingId, setEditingId] = useState<string>();
   const { currency } = budget;
   const money = (cents: number) => formatMoney(cents, currency);
@@ -34,7 +34,8 @@ export function BudgetLimitsComponent({ budget, month, today }: BudgetViewProps)
       category={category}
       spent={spent.get(category.id) ?? 0}
       currency={currency}
-      editing={editingId === category.id}
+      editing={canEdit && editingId === category.id}
+      canEdit={canEdit}
       onEdit={(editing) => setEditingId(editing ? category.id : undefined)}
     />
   );
@@ -93,10 +94,11 @@ type LimitRowProps = {
   spent: number;
   currency: string;
   editing: boolean;
+  canEdit: boolean;
   onEdit: (editing: boolean) => void;
 };
 
-function LimitRow({ category, spent, currency, editing, onEdit }: LimitRowProps) {
+function LimitRow({ category, spent, currency, editing, canEdit, onEdit }: LimitRowProps) {
   const { saveCategory } = useBudgetMutations();
   const limit = category.monthlyLimit;
   const money = (cents: number) => formatMoney(cents, currency);
@@ -134,9 +136,11 @@ function LimitRow({ category, spent, currency, editing, onEdit }: LimitRowProps)
                 `${money(spent)} spent`
               )}
             </span>
-            <Button variant="outline" size="sm" onClick={() => onEdit(true)}>
-              {limit ? 'Edit' : 'Set limit'}
-            </Button>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(true)}>
+                {limit ? 'Edit' : 'Set limit'}
+              </Button>
+            )}
           </div>
         )}
       </div>

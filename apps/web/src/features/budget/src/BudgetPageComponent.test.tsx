@@ -44,7 +44,11 @@ const ai = vi.hoisted(() => ({ suggestCategory: vi.fn(), scanReceipt: vi.fn(), f
 vi.mock('./budget-api', async (original) => ({ ...(await original<typeof import('./budget-api')>()), ...ai }));
 vi.mock('./receipt-image', () => ({ shrinkReceipt: async () => ({ mediaType: 'image/jpeg', data: 'cGhvdG8=' }) }));
 vi.mock('../hooks/useOfflineQueue', () => ({ useOfflineQueue: () => ({ online: true, waiting: 0 }) }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Money' }) }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => ({ id: 's1', title: 'Money' }),
+  useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  ViewOnlyBadgeComponent: () => null,
+}));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-12' }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current) }));
 

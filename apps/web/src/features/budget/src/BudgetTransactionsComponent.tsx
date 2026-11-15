@@ -26,7 +26,7 @@ const KIND_FILTERS: { id: EntryKind | typeof ALL; label: string }[] = [
 ];
 
 // Every entry, newest first, grouped by day.
-export function BudgetTransactionsComponent({ budget, today, onOpenEntry, onAddEntry }: BudgetViewProps) {
+export function BudgetTransactionsComponent({ budget, today, canEdit = true, onOpenEntry, onAddEntry }: BudgetViewProps) {
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<EntryKind | typeof ALL>(ALL);
   const [accountId, setAccountId] = useState(ALL);
@@ -106,7 +106,7 @@ export function BudgetTransactionsComponent({ budget, today, onOpenEntry, onAddE
           <p className="max-w-xs text-sm text-muted-foreground">
             {filtered ? 'Try a different word or clear a filter.' : 'Record what came in and what went out, and it lists here by day.'}
           </p>
-          {!filtered && (
+          {!filtered && canEdit && (
             <Button size="sm" onClick={onAddEntry}>
               Add entry
             </Button>

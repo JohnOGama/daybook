@@ -35,15 +35,16 @@ export type BudgetViewProps = {
   budget: Budget;
   month: string;
   today: string;
-  onOpenEntry: (entry: BudgetEntry) => void;
+  canEdit?: boolean;
+  onOpenEntry?: (entry: BudgetEntry) => void;
   onAddEntry: () => void;
   onRecordEntry: (draft: Partial<EntryInput>) => void;
   onAddSchedule: () => void;
-  onOpenSchedule: (scheduleId: string) => void;
+  onOpenSchedule?: (scheduleId: string) => void;
   hrefFor: (change: { view?: BudgetView; month?: string }) => string;
 };
 
-export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onAddEntry, onOpenSchedule, hrefFor }: BudgetViewProps) {
+export function BudgetOverviewComponent({ budget, month, today, canEdit = true, onOpenEntry, onAddEntry, onOpenSchedule, hrefFor }: BudgetViewProps) {
   const { currency } = budget;
   const money = (cents: number) => formatMoney(cents, currency);
   const balances = accountBalances(budget, today);
@@ -97,6 +98,7 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
                   budget={budget}
                   occurrence={occurrence}
                   today={today}
+                  canEdit={canEdit}
                   onOpenSchedule={onOpenSchedule}
                 />
               ))}
@@ -193,9 +195,11 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
           ) : (
             <div className="flex flex-col items-start gap-3 px-4 pb-4 text-sm text-muted-foreground">
               Nothing recorded in {formatMonth(month)} yet.
-              <Button size="sm" onClick={onAddEntry}>
-                Add your first entry
-              </Button>
+              {canEdit && (
+                <Button size="sm" onClick={onAddEntry}>
+                  Add your first entry
+                </Button>
+              )}
             </div>
           )}
         </SectionCardComponent>
@@ -239,6 +243,7 @@ export function BudgetOverviewComponent({ budget, month, today, onOpenEntry, onA
                       budget={budget}
                       occurrence={occurrence}
                       today={today}
+                      canEdit={canEdit}
                       onOpenSchedule={onOpenSchedule}
                     />
                   ) : (

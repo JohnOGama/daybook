@@ -22,7 +22,7 @@ import { plusDays } from './schedule-math';
 const DUE_SOON_DAYS = 7;
 const HISTORY_SHOWN = 8;
 
-export function BudgetDebtsComponent({ budget, today, onOpenEntry, onRecordEntry }: BudgetViewProps) {
+export function BudgetDebtsComponent({ budget, today, canEdit = true, onOpenEntry, onRecordEntry }: BudgetViewProps) {
   const [accountForm, setAccountForm] = useState<BudgetAccount | 'new'>();
   const balances = accountBalances(budget, today);
   const debts = budget.accounts.filter(isDebt);
@@ -49,10 +49,12 @@ export function BudgetDebtsComponent({ budget, today, onOpenEntry, onRecordEntry
           <p className="max-w-sm text-sm text-muted-foreground">
             Add a credit card or a loan with its interest rate and due day. Daybook shows what's left, when it's due and when it'll be paid off.
           </p>
-          <Button onClick={() => setAccountForm('new')} className="mt-2">
-            <Plus aria-hidden />
-            Add a debt
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setAccountForm('new')} className="mt-2">
+              <Plus aria-hidden />
+              Add a debt
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -69,12 +71,14 @@ export function BudgetDebtsComponent({ budget, today, onOpenEntry, onRecordEntry
               }
             />
           </div>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setAccountForm('new')}>
-              <Plus aria-hidden />
-              Add a debt
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setAccountForm('new')}>
+                <Plus aria-hidden />
+                Add a debt
+              </Button>
+            </div>
+          )}
           <ul className="flex flex-col gap-4">
             {debts.map((account) => (
               <DebtCard
@@ -83,6 +87,7 @@ export function BudgetDebtsComponent({ budget, today, onOpenEntry, onRecordEntry
                 account={account}
                 balance={balances.get(account.id) ?? 0}
                 today={today}
+                canEdit={canEdit}
                 onEdit={() => setAccountForm(account)}
                 onOpenEntry={onOpenEntry}
                 onPay={() =>
@@ -111,10 +116,11 @@ type DebtCardProps = {
   today: string;
   onEdit: () => void;
   onPay: () => void;
+  canEdit: boolean;
   onOpenEntry: BudgetViewProps['onOpenEntry'];
 };
 
-function DebtCard({ budget, account, balance, today, onEdit, onPay, onOpenEntry }: DebtCardProps) {
+function DebtCard({ budget, account, balance, today, canEdit, onEdit, onPay, onOpenEntry }: DebtCardProps) {
   const [showHistory, setShowHistory] = useState(false);
   const money = (cents: number) => formatMoney(cents, currencyOf(budget, account.id));
   const remaining = owed(balance);
@@ -157,13 +163,17 @@ function DebtCard({ budget, account, balance, today, onEdit, onPay, onOpenEntry 
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={onPay} disabled={remaining === 0}>
-          Record payment
-        </Button>
-        <Button size="sm" variant="outline" onClick={onEdit}>
-          <Pencil aria-hidden />
-          Edit details
-        </Button>
+        {canEdit && (
+          <>
+            <Button size="sm" onClick={onPay} disabled={remaining === 0}>
+              Record payment
+            </Button>
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Pencil aria-hidden />
+              Edit details
+            </Button>
+          </>
+        )}
         {activity.length > 0 && (
           <Button size="sm" variant="ghost" className="ml-auto text-muted-foreground" aria-expanded={showHistory} onClick={() => setShowHistory((open) => !open)}>
             Payments and charges ({activity.length})

@@ -30,7 +30,7 @@ import { goalProgress } from './planning-math';
 
 type MoneyDialog = { goal: BudgetGoal; direction: 1 | -1 };
 
-export function BudgetGoalsComponent({ budget, today }: BudgetViewProps) {
+export function BudgetGoalsComponent({ budget, today, canEdit = true }: BudgetViewProps) {
   const { removeGoal } = useBudgetMutations();
   const [goalForm, setGoalForm] = useState<BudgetGoal | 'new'>();
   const [moneyDialog, setMoneyDialog] = useState<MoneyDialog>();
@@ -52,10 +52,12 @@ export function BudgetGoalsComponent({ budget, today }: BudgetViewProps) {
           <p className="max-w-sm text-sm text-muted-foreground">
             Name what you're saving for and how much it takes. Add money as you set it aside and watch it fill up.
           </p>
-          <Button onClick={() => setGoalForm('new')} className="mt-2">
-            <Plus aria-hidden />
-            Add goal
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setGoalForm('new')} className="mt-2">
+              <Plus aria-hidden />
+              Add goal
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -64,18 +66,21 @@ export function BudgetGoalsComponent({ budget, today }: BudgetViewProps) {
             <StatTileComponent label="Still to save" value={money(Math.max(0, target - saved))} />
             <StatTileComponent label="Needed per month" value={money(perMonth)} detail="To reach every goal with a date on time" />
           </div>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setGoalForm('new')}>
-              <Plus aria-hidden />
-              Add goal
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setGoalForm('new')}>
+                <Plus aria-hidden />
+                Add goal
+              </Button>
+            </div>
+          )}
           <ul className="grid gap-4 md:grid-cols-2">
             {progress.map((item) => (
               <GoalCard
                 key={item.goal.id}
                 budget={budget}
                 item={item}
+                canEdit={canEdit}
                 onAddMoney={(direction) => setMoneyDialog({ goal: item.goal, direction })}
                 onEdit={() => setGoalForm(item.goal)}
                 onDelete={() => setDeleting(item.goal)}
@@ -109,12 +114,13 @@ export function BudgetGoalsComponent({ budget, today }: BudgetViewProps) {
 type GoalCardProps = {
   budget: Budget;
   item: { goal: BudgetGoal } & ReturnType<typeof goalProgress>;
+  canEdit: boolean;
   onAddMoney: (direction: 1 | -1) => void;
   onEdit: () => void;
   onDelete: () => void;
 };
 
-function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps) {
+function GoalCard({ budget, item, canEdit, onAddMoney, onEdit, onDelete }: GoalCardProps) {
   const { removeContribution } = useBudgetMutations();
   const [showHistory, setShowHistory] = useState(false);
   const { goal, saved, remaining, reached, late, perMonth } = item;
@@ -132,6 +138,7 @@ function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps)
           </span>
           <span className="text-xs text-muted-foreground">{goal.targetDay ? `By ${formatShortDay(goal.targetDay)} ${goal.targetDay.slice(0, 4)}` : 'No target date'}</span>
         </div>
+        {canEdit && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="-mt-1 -mr-1 size-8" aria-label={`Options for ${goal.name}`}>
@@ -145,6 +152,7 @@ function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       <div className="flex items-baseline justify-between gap-3">
@@ -161,12 +169,16 @@ function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps)
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => onAddMoney(1)}>
-          Add money
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => onAddMoney(-1)} disabled={saved <= 0}>
-          Take out
-        </Button>
+        {canEdit && (
+          <>
+            <Button size="sm" onClick={() => onAddMoney(1)}>
+              Add money
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onAddMoney(-1)} disabled={saved <= 0}>
+              Take out
+            </Button>
+          </>
+        )}
         {history.length > 0 && (
           <Button size="sm" variant="ghost" className="ml-auto text-muted-foreground" aria-expanded={showHistory} onClick={() => setShowHistory((open) => !open)}>
             History ({history.length})
@@ -183,6 +195,7 @@ function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps)
               <span className={cn('tabular-nums', moneyTone(contribution.amount))}>
                 {formatMoney(contribution.amount, budget.currency, { signed: true })}
               </span>
+              {canEdit && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -192,6 +205,7 @@ function GoalCard({ budget, item, onAddMoney, onEdit, onDelete }: GoalCardProps)
               >
                 <X aria-hidden />
               </Button>
+              )}
             </li>
           ))}
         </ul>

@@ -15,7 +15,7 @@ type EntryRowProps = {
   entry: BudgetEntry;
   planned?: boolean;
   showDate?: boolean;
-  onOpen: (entry: BudgetEntry) => void;
+  onOpen?: (entry: BudgetEntry) => void;
 };
 
 export const EntryRowComponent = memo(function EntryRowComponent({ budget, entry, planned, showDate, onOpen }: EntryRowProps) {
@@ -30,7 +30,8 @@ export const EntryRowComponent = memo(function EntryRowComponent({ budget, entry
     <li>
       <button
         type="button"
-        onClick={() => onOpen(entry)}
+        onClick={() => onOpen?.(entry)}
+        disabled={!onOpen}
         className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
       >
         <BrandOrIconComponent

@@ -17,7 +17,7 @@ import { plusDays } from './schedule-math';
 
 const HORIZONS = [30, 90, 180];
 
-export function BudgetForecastComponent({ budget, today }: BudgetViewProps) {
+export function BudgetForecastComponent({ budget, today, canEdit = true }: BudgetViewProps) {
   const { saveSettings } = useBudgetMutations();
   const [days, setDays] = useState(90);
   // Until someone picks, every account that isn't a debt is in, including ones added later.
@@ -94,7 +94,7 @@ export function BudgetForecastComponent({ budget, today }: BudgetViewProps) {
         <StatTileComponent label="Today" value={money(points[0].balance)} detail="After anything overdue" />
         <StatTileComponent label={`In ${days} days`} value={money(end.balance)} valueClassName={moneyTone(end.balance - points[0].balance)} detail={`${formatMoney(end.balance - points[0].balance, budget.currency, { signed: true })} from today`} />
         <StatTileComponent label="Lowest point" value={money(low.balance)} detail={formatShortDay(low.day)} valueClassName={low.balance < budget.lowBalance ? 'text-destructive' : undefined} />
-        <LowBalanceTile value={budget.lowBalance} currency={budget.currency} onSave={(lowBalance) => saveSettings.mutate({ lowBalance })} />
+        <LowBalanceTile value={budget.lowBalance} currency={budget.currency} canEdit={canEdit} onSave={(lowBalance) => saveSettings.mutate({ lowBalance })} />
       </div>
 
       <SectionCardComponent title="Projected balance · estimate" action={<span className="text-xs text-muted-foreground">Includes schedules, planned entries and what-ifs</span>}>
@@ -149,13 +149,14 @@ export function BudgetForecastComponent({ budget, today }: BudgetViewProps) {
   );
 }
 
-function LowBalanceTile({ value, currency, onSave }: { value: number; currency: string; onSave: (cents: number) => void }) {
+function LowBalanceTile({ value, currency, canEdit, onSave }: { value: number; currency: string; canEdit: boolean; onSave: (cents: number) => void }) {
   const [text, setText] = useState(centsToInput(value));
   function save() {
     const cents = text.trim() === '' ? 0 : parseMoney(text, { allowNegative: true });
     if (cents === null) return setText(centsToInput(value));
     if (cents !== value) onSave(cents);
   }
+  if (!canEdit) return <StatTileComponent label="Warn me below" value={formatMoney(value, currency)} />;
   return (
     <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border bg-card p-4">
       <Label htmlFor="low-balance" className="text-xs font-medium text-muted-foreground">

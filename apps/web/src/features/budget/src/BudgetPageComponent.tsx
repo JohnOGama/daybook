@@ -20,7 +20,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "skullet/react";
-import { useActiveSpace } from "@/features/spaces";
+import {
+  useActiveSpace,
+  useSpaceAccess,
+  ViewOnlyBadgeComponent,
+} from "@/features/spaces";
 import { Button } from "@/shared/components/ui/button";
 import { useToday } from "@/shared/hooks/useToday";
 import { cn } from "@/shared/utils/cn";
@@ -100,6 +104,7 @@ const isMonth = (value: string | null): value is string =>
 export function BudgetPageComponent() {
   const params = useSearchParams();
   const space = useActiveSpace();
+  const { canEdit } = useSpaceAccess();
   const today = useToday();
   const { data, isPending, isError } = useBudget();
   const [sheet, setSheet] = useState<EntrySheetState>(null);
@@ -109,9 +114,11 @@ export function BudgetPageComponent() {
   const autoRecorded = useRef(new Set<string>());
 
   const requestedView = params.get("view") as BudgetView;
-  const view = BUDGET_VIEWS.includes(requestedView)
-    ? requestedView
-    : "overview";
+  const view =
+    BUDGET_VIEWS.includes(requestedView) &&
+    (canEdit || requestedView !== "settings")
+      ? requestedView
+      : "overview";
   const requestedMonth = params.get("month");
   const month = isMonth(requestedMonth) ? requestedMonth : monthOf(today);
   const sample = useMemo(() => sampleBudget(today), [today]);
@@ -157,6 +164,7 @@ export function BudgetPageComponent() {
 
   // Schedules set to record themselves catch up whenever the budget is open; the server refuses any day already recorded.
   useEffect(() => {
+    if (!canEdit) return;
     for (const occurrence of due) {
       const key = `${occurrence.schedule.id}|${occurrence.day}`;
       if (!occurrence.schedule.autoRecord || autoRecorded.current.has(key))
@@ -182,9 +190,12 @@ export function BudgetPageComponent() {
       <header>
         <div className="flex items-start justify-between gap-3 px-4 pt-5 md:px-6">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">
-              {space?.title ?? "Budget"}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-2xl font-semibold tracking-tight">
+                {space?.title ?? "Budget"}
+              </h1>
+              <ViewOnlyBadgeComponent />
+            </div>
             <Skeleton loading={isPending}>
               <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
                 {formatMoney(total, budget.currency)} across{" "}
@@ -193,44 +204,48 @@ export function BudgetPageComponent() {
               </p>
             </Skeleton>
           </div>
-          <Button
-            onClick={addEntry}
-            disabled={isPending}
-            aria-label="Add entry"
-            className="shrink-0"
-          >
-            <Plus aria-hidden />
-            <span className="hidden sm:inline">Add entry</span>
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={addEntry}
+              disabled={isPending}
+              aria-label="Add entry"
+              className="shrink-0"
+            >
+              <Plus aria-hidden />
+              <span className="hidden sm:inline">Add entry</span>
+            </Button>
+          )}
         </div>
         <nav
           aria-label="Budget views"
           className="mt-3 flex gap-1.5 overflow-x-auto border-b px-2 md:px-4"
         >
-          {TABS.map(({ view: tab, label, Icon }) => (
-            <Link
-              key={tab}
-              href={hrefFor({ view: tab })}
-              aria-current={view === tab ? "page" : undefined}
-              aria-label={
-                tab === "recurring" && needsConfirming > 0
-                  ? `${label}, ${needsConfirming} due`
-                  : undefined
-              }
-              className={cn(
-                "-mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground",
-                view === tab && "border-foreground text-foreground",
-              )}
-            >
-              <Icon className="size-[18px]" aria-hidden />
-              {label}
-              {tab === "recurring" && needsConfirming > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1.5 text-[11px] font-semibold text-black tabular-nums">
-                  {needsConfirming}
-                </span>
-              )}
-            </Link>
-          ))}
+          {TABS.filter(({ view: tab }) => canEdit || tab !== "settings").map(
+            ({ view: tab, label, Icon }) => (
+              <Link
+                key={tab}
+                href={hrefFor({ view: tab })}
+                aria-current={view === tab ? "page" : undefined}
+                aria-label={
+                  tab === "recurring" && needsConfirming > 0
+                    ? `${label}, ${needsConfirming} due`
+                    : undefined
+                }
+                className={cn(
+                  "-mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground",
+                  view === tab && "border-foreground text-foreground",
+                )}
+              >
+                <Icon className="size-[18px]" aria-hidden />
+                {label}
+                {tab === "recurring" && needsConfirming > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1.5 text-[11px] font-semibold text-black tabular-nums">
+                    {needsConfirming}
+                  </span>
+                )}
+              </Link>
+            ),
+          )}
         </nav>
       </header>
 
@@ -260,17 +275,18 @@ export function BudgetPageComponent() {
             budget={budget}
             month={month}
             today={today}
-            onOpenEntry={openEntry}
+            canEdit={canEdit}
+            onOpenEntry={canEdit ? openEntry : undefined}
             onAddEntry={addEntry}
             onRecordEntry={recordEntry}
             onAddSchedule={addSchedule}
-            onOpenSchedule={openSchedule}
+            onOpenSchedule={canEdit ? openSchedule : undefined}
             hrefFor={hrefFor}
           />
         </Skeleton>
       </div>
 
-      {data && (
+      {data && canEdit && (
         <>
           <EntrySheetComponent
             budget={data}

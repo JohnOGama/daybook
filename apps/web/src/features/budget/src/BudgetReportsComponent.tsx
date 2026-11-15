@@ -21,7 +21,7 @@ const RANGES = [6, 12];
 
 const percent = (rate: number | null) => (rate === null ? '—' : `${Math.round(rate * 100)}%`);
 
-export function BudgetReportsComponent({ budget, month, today, hrefFor }: BudgetViewProps) {
+export function BudgetReportsComponent({ budget, month, today, hrefFor, canEdit = true }: BudgetViewProps) {
   const { currency } = budget;
   const money = (cents: number) => formatMoney(cents, currency);
   const totals = monthTotals(baseEntries(budget), month, today);
@@ -91,7 +91,7 @@ export function BudgetReportsComponent({ budget, month, today, hrefFor }: Budget
         </p>
       )}
 
-      <InsightsCardComponent budget={budget} month={month} today={today} />
+      {canEdit && <InsightsCardComponent budget={budget} month={month} today={today} />}
 
       <SectionCardComponent title={`Last ${monthsShown} months`} action={<Legend />}>
         <div className="px-4 pb-4">

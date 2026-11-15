@@ -37,7 +37,7 @@ import { describeSchedule, dueOccurrences, monthlyAmount, monthlyTotals, nextOcc
 const AHEAD_DAYS = 30;
 const DUE_SHOWN = 12;
 
-export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenSchedule }: BudgetViewProps) {
+export function BudgetRecurringComponent({ budget, today, canEdit = true, onAddSchedule, onOpenSchedule }: BudgetViewProps) {
   const { currency } = budget;
   const money = (cents: number) => formatMoney(cents, currency);
   const [deleting, setDeleting] = useState<BudgetSchedule>();
@@ -58,10 +58,12 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
           Add your salary, rent, bills and subscriptions once. Daybook reminds you when each one is due, and nothing counts towards
           your balance until you confirm it.
         </p>
-        <Button onClick={onAddSchedule} className="mt-2">
-          <Plus aria-hidden />
-          Add recurring
-        </Button>
+        {canEdit && (
+          <Button onClick={onAddSchedule} className="mt-2">
+            <Plus aria-hidden />
+            Add recurring
+          </Button>
+        )}
       </div>
     );
   }
@@ -88,6 +90,7 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
                 budget={budget}
                 occurrence={occurrence}
                 today={today}
+                canEdit={canEdit}
                 onOpenSchedule={onOpenSchedule}
               />
             ))}
@@ -108,6 +111,7 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
                   budget={budget}
                   occurrence={occurrence}
                   today={today}
+                  canEdit={canEdit}
                   onOpenSchedule={onOpenSchedule}
                 />
               ))}
@@ -121,10 +125,12 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
           title="Schedules"
           className="lg:col-span-2"
           action={
-            <Button variant="ghost" size="sm" onClick={onAddSchedule}>
-              <Plus aria-hidden />
-              Add
-            </Button>
+            canEdit && (
+              <Button variant="ghost" size="sm" onClick={onAddSchedule}>
+                <Plus aria-hidden />
+                Add
+              </Button>
+            )
           }
         >
           <ul className="flex flex-col divide-y px-4 pb-1">
@@ -134,7 +140,8 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
                 schedule={schedule}
                 currency={currencyOf(budget, schedule.accountId)}
                 today={today}
-                onOpen={() => onOpenSchedule(schedule.id)}
+                canEdit={canEdit}
+                onOpen={() => onOpenSchedule?.(schedule.id)}
                 onDelete={() => setDeleting(schedule)}
               />
             ))}
@@ -162,9 +169,9 @@ export function BudgetRecurringComponent({ budget, today, onAddSchedule, onOpenS
   );
 }
 
-type ScheduleRowProps = { schedule: BudgetSchedule; currency: string; today: string; onOpen: () => void; onDelete: () => void };
+type ScheduleRowProps = { schedule: BudgetSchedule; currency: string; today: string; canEdit: boolean; onOpen: () => void; onDelete: () => void };
 
-function ScheduleRow({ schedule, currency, today, onOpen, onDelete }: ScheduleRowProps) {
+function ScheduleRow({ schedule, currency, today, canEdit, onOpen, onDelete }: ScheduleRowProps) {
   const { pauseSchedule, resumeSchedule } = useBudgetMutations();
   const paused = Boolean(schedule.pausedFrom);
   const ended = schedule.endDay !== null && schedule.endDay < today;
@@ -183,7 +190,7 @@ function ScheduleRow({ schedule, currency, today, onOpen, onDelete }: ScheduleRo
           </span>
         }
       />
-      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button type="button" onClick={onOpen} disabled={!canEdit} className="flex min-w-0 flex-1 flex-col gap-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="flex flex-wrap items-center gap-1.5">
           <span className="truncate text-sm font-medium">{schedule.name}</span>
           {paused && <Badge variant="outline">Paused</Badge>}
@@ -202,6 +209,7 @@ function ScheduleRow({ schedule, currency, today, onOpen, onDelete }: ScheduleRo
       <span className={cn('pt-0.5 text-sm font-medium tabular-nums', moneyTone(sign))}>
         {formatMoney(sign * schedule.amount, currency, { signed: true })}
       </span>
+      {canEdit && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="-mt-1 size-8" aria-label={`Options for ${schedule.name}`}>
@@ -222,6 +230,7 @@ function ScheduleRow({ schedule, currency, today, onOpen, onDelete }: ScheduleRo
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
     </li>
   );
 }
