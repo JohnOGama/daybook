@@ -378,3 +378,40 @@
     opacity: 0;
   }
 }
+
+/* The assistant's field of dots: idle breathes as one, thinking ripples out from the centre (delay set per dot). */
+@keyframes assistant-breathe {
+  0%,
+  100% {
+    transform: scale(0.55);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(0.75);
+    opacity: 0.6;
+  }
+}
+@keyframes assistant-ripple {
+  0%,
+  100% {
+    transform: scale(0.45);
+    opacity: 0.18;
+  }
+  45% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.assistant-dot-idle {
+  animation: assistant-breathe 5s ease-in-out infinite;
+}
+.assistant-dot-thinking {
+  animation: assistant-ripple 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-dot-idle,
+  .assistant-dot-thinking {
+    animation: none;
+    opacity: 0.6;
+  }
+}
