@@ -23,7 +23,7 @@ Anyone can sign up. Each person sees only their own tasks.
 
 - Backlog. The owner removed it: no sidebar item, no tab. Every task lives on a day.
 - Reminder or digest emails. Email is only for one-time codes.
-- Sharing, teams, or assigning tasks to other people.
+- Teams or assigning tasks to other people. (Sharing spaces is in 2026-11-15-sharing-design.md.)
 - Recurring tasks, task notes or descriptions, attachments **(my call)**.
 - Drag and drop on the calendar **(my call)**.
 - Changing email or password while signed in, deleting an account, dark mode, a marketing page **(my call)**.
