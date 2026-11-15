@@ -121,6 +121,30 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 - `Room` (`realtime-room.ts`) speaks the Yjs sync and awareness protocol plus message type 100, the member list. Only Database diagram rooms accept document changes, and only from people who can edit. Viewers' and other rooms' updates are dropped. Names in awareness and the member list come from the server; a connection can't speak for a client id another connection owns.
 - `PresenceAvatarsComponent` sits in every tool's header and shows the other people here (you never), four avatars then "+N", with name and access on hover. `RemoteCursorsComponent` draws other pointers on the diagram canvas from the awareness field `pointer`. `cursor` belongs to y-codemirror's text selection, so don't reuse it.
 - Rooms live in one API process's memory, so the API must run as a single instance. Shutdown hooks save open diagrams.
+- There is also one per-user socket per signed-in tab, `/api/realtime/me`, opened by `LiveUpdatesProviderComponent` in `AppShellComponent`. It is checked for Origin and session, and the session is rechecked every 60 s. `RealtimeService.sendToUsers` sends it JSON messages; today the only one is `{ type: 'pipeline', spaceId, status }`. It reconnects with backoff, refetches `['spaces']` after a reconnect, and stops after 4403.
+
+### Pipelines rules
+
+- **Reports.** Jenkins reports to `POST /api/pipelines/report` with `Authorization: Bearer <key>`. There is no session, Origin or space-password check: the key is the credential, and locks guard reading, not reporting.
+  - A bad, replaced or trashed key, or a non-Pipelines space, all answer the same bare 401.
+  - The order of checks is key, then the limit (120 a minute per space, in memory), then the body (`reportSchema`, 64 KB, `reportBodyParser` in `main.ts`). Replies are 202, 401, 429 or 400.
+- **Report shape.** With `stage`, status is `started|passed|failed|skipped`. Without it, the run finishes as `passed|failed|aborted`, sent by the helper's `daybookFinish`. A long `message` is cut to 500 characters and a long `error` keeps its last 8,000, so a report is never refused over length.
+- **Status rules** (`PipelinesService.report`):
+  - A finished stage never goes back to running, so late or repeated reports converge.
+  - A run is failed if any stage failed or its finish status was failed or aborted; passed only on a passed finish; otherwise running, even between stages.
+  - Each job keeps its 50 newest runs, and a run has at most 50 stages.
+  - Expected stages (the grey "still to come" steps, and "4 of 5") come from the job's last finished run.
+- **The sidebar dot** (`shared/utils/pipeline-status.ts`, used by `GET /spaces` and the notifier, so there is no module cycle): failed beats running beats passed, from each job's newest run. A running run with no report for 30 minutes counts as failed, shown as "Stopped reporting"; the browser works out the same rule in `pipeline-math.ts`.
+- **Keys.** There is one per space, `dbk_` plus 32 base64url characters, stored only as SHA-256 hex in `pipeline_keys` and shown once.
+  - Only the owner can make or replace one (`/pipelines/:spaceId/key`); everyone else gets 404.
+  - The web keeps the plain key in component state only, never in the query cache.
+- **Pushes.** After each stored report, `RealtimePipelinesNotifier` works out `SpaceAccessService.viewerIds` at that moment and pushes only `{ type, spaceId, status }`.
+  - The browser patches `space.pipelines` in `['spaces']` and invalidates `['pipelines', spaceId]` and `['pipeline-run']`.
+  - Run content always comes through the checked read routes, so a locked space's details still need its unlock cookie.
+- **The AI** (`POST /pipelines/ai/instrument`, `BudgetAiService.instrumentJenkinsfile`, edit access needed) is sent only the pasted Jenkinsfile and `BETTER_AUTH_URL`, never a key.
+  - `addedOnly` refuses any answer that changes, removes or reorders a pasted line (line endings and trailing spaces ignored), or doesn't read `credentials('DAYBOOK_KEY')`. It retries once, then answers 502. The web then offers `helperSnippet` to add by hand, and marks added lines with `markAdded`. Nothing is saved.
+  - The helpers build JSON with `writeFile` and `groovy.json.JsonOutput`, so no Jenkins plugin is needed beyond core.
+- **Space rules.** A Pipelines space can't be duplicated. Rows are hard-deleted with the space; trashing it makes its key answer 401, and restoring brings the key back.
 
 ### Sharing rules
 
@@ -132,7 +156,7 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 
 ### Web data flow
 
-- The active space comes from the `?space=` param through `useActiveSpace`. Task queries are keyed `['tasks', spaceId, from, to, today]`; the other roots are `['spaces']`, `['trash']`, `['pages', spaceId]` (Notebook pages and Book chapters, which autosave through `usePageAutosave` instead of rolling back), `['page-versions', pageId]` (a page's history, read only while its panel is open), `['vault']`, `['vault-items', spaceId]`, `['budget', spaceId]` (a Budget's accounts, categories and entries in one object), `['fitness', spaceId]` (profile, weigh-ins, meal plans and workout templates), `['fitness-days', spaceId, from, to]` (food logs and workouts for a range of days), `['fitness-foods', spaceId, …]` (food search, recent and own foods), `['fitness-exercises', spaceId]`, `['jobs', spaceId]` (the CV and every job in one object), `['diagram', spaceId]` (whether the diagram AI is on; the text and positions come from the live document), `['space-lock', spaceId]` (whether a locked space is unlocked in this browser) and `['space-shares', spaceId]` (who a space is shared with, read only while the Share dialog is open).
+- The active space comes from the `?space=` param through `useActiveSpace`. Task queries are keyed `['tasks', spaceId, from, to, today]`; the other roots are `['spaces']`, `['trash']`, `['pages', spaceId]` (Notebook pages and Book chapters, which autosave through `usePageAutosave` instead of rolling back), `['page-versions', pageId]` (a page's history, read only while its panel is open), `['vault']`, `['vault-items', spaceId]`, `['budget', spaceId]` (a Budget's accounts, categories and entries in one object), `['fitness', spaceId]` (profile, weigh-ins, meal plans and workout templates), `['fitness-days', spaceId, from, to]` (food logs and workouts for a range of days), `['fitness-foods', spaceId, …]` (food search, recent and own foods), `['fitness-exercises', spaceId]`, `['jobs', spaceId]` (the CV and every job in one object), `['diagram', spaceId]` (whether the diagram AI is on; the text and positions come from the live document), `['space-lock', spaceId]` (whether a locked space is unlocked in this browser), `['space-shares', spaceId]` (who a space is shared with, read only while the Share dialog is open), `['pipelines', spaceId]` (each job's newest run with its expected stages, plus the 30 newest runs), `['pipeline-run', runId]` (one run for the drawer, read only while it is open) and `['pipeline-key', spaceId]` (when the key was made and last used, owner only).
 - The Vault encrypts in the browser (`features/vault/src/vault-crypto.ts`). Its query cache holds ciphertext only. The key and decrypted items stay in component state, never in the cache, storage, the URL, toasts or logs.
 - Mutations are optimistic: the client generates IDs with `crypto.randomUUID()`, patches the cache, and on error restores the snapshot and shows a toast. A successful change does not refetch.
 - Task mutations are created once by `TaskMutationsProviderComponent`; rows read them with `useTaskMutations`, and memoised rows rely on `task-cache.ts` keeping unchanged tasks the same object.
