@@ -4,5 +4,5 @@ import { SpacesModule } from '../../spaces/index.ts';
 import { DiagramsController } from './diagrams-controller.ts';
 import { DiagramsService } from './diagrams-service.ts';
 
-@Module({ imports: [SpacesModule, BudgetModule], controllers: [DiagramsController], providers: [DiagramsService] })
+@Module({ imports: [SpacesModule, BudgetModule], controllers: [DiagramsController], providers: [DiagramsService], exports: [DiagramsService] })
 export class DiagramsModule {}

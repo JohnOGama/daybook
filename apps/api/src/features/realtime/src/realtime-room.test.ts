@@ -202,6 +202,22 @@ describe('Room', () => {
     expect(fresh.doc.getText('dbml').toString()).toBe('Table a {}\nTable b {}');
   });
 
+  it('a failed save stays pending and the next flush saves it', async () => {
+    const { store, saves } = memoryStore({ dbml: '', positions: {}, ydoc: null });
+    const room = await Room.open('s1', true, store);
+    saves.length = 0;
+    const client = connect(room, { userId: 'u1', access: 'owner' });
+    const save = store.save;
+    store.save = async () => {
+      throw new Error('database down');
+    };
+    client.doc.getText('dbml').insert(0, 'Table c {}');
+    await expect(room.flush()).rejects.toThrow('database down');
+    store.save = save;
+    await room.flush();
+    expect(saves.map((s) => s.dbml)).toEqual(['Table c {}']);
+  });
+
   it('flush saves pending rooms', async () => {
     const { store, saves } = memoryStore({ dbml: '', positions: {}, ydoc: null });
     const room = await Room.open('s1', true, store);

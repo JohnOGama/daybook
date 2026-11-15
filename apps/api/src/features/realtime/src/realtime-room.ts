@@ -53,7 +53,7 @@ export class Room {
       for (const peer of this.peers) if (peer !== origin) peer.send(data);
       this.dirty = true;
       clearTimeout(this.timer);
-      this.timer = setTimeout(() => void this.flush(), SAVE_PAUSE_MS);
+      this.timer = setTimeout(() => this.flush().catch((error) => console.error('Could not save a live diagram', error)), SAVE_PAUSE_MS);
     });
     this.awareness.on('update', ({ added, updated, removed }: Record<'added' | 'updated' | 'removed', number[]>) => {
       const changed = [...added, ...updated, ...removed];
@@ -126,11 +126,17 @@ export class Room {
     clearTimeout(this.timer);
     if (!this.live || !this.dirty) return;
     this.dirty = false;
-    await this.store.save({
-      dbml: this.doc.getText('dbml').toString(),
-      positions: this.doc.getMap('positions').toJSON() as Positions,
-      ydoc: Y.encodeStateAsUpdate(this.doc),
-    });
+    try {
+      await this.store.save({
+        dbml: this.doc.getText('dbml').toString(),
+        positions: this.doc.getMap('positions').toJSON() as Positions,
+        ydoc: Y.encodeStateAsUpdate(this.doc),
+      });
+    } catch (error) {
+      // Still unsaved: the next change or flush tries again.
+      this.dirty = true;
+      throw error;
+    }
   }
 
   close(): void {

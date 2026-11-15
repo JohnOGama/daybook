@@ -5,11 +5,12 @@ import { FitnessModule } from './features/fitness/index.ts';
 import { DiagramsModule } from './features/diagrams/index.ts';
 import { JobsModule } from './features/jobs/index.ts';
 import { NotebookModule } from './features/notebook/index.ts';
+import { RealtimeModule } from './features/realtime/index.ts';
 import { VaultModule } from './features/vault/index.ts';
 import { SpacesModule } from './features/spaces/index.ts';
 import { TasksModule } from './features/tasks/index.ts';
 import { TrashModule } from './features/trash/index.ts';
 import { DbModule } from './shared/db/db-module.ts';
 
-@Module({ imports: [DbModule, AuthModule, SpacesModule, TasksModule, NotebookModule, VaultModule, BudgetModule, FitnessModule, JobsModule, DiagramsModule, TrashModule] })
+@Module({ imports: [DbModule, AuthModule, SpacesModule, TasksModule, NotebookModule, VaultModule, BudgetModule, FitnessModule, JobsModule, DiagramsModule, TrashModule, RealtimeModule] })
 export class AppModule {}
