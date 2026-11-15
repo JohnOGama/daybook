@@ -5,6 +5,7 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
+import { WebsocketProvider } from 'y-websocket';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
@@ -127,6 +128,44 @@ describe('realtime endpoint', () => {
     await db.delete(spaceShares).where(and(eq(spaceShares.spaceId, diagram), eq(spaceShares.email, 'u2@example.com')));
     // 4403 tells y-websocket not to keep reconnecting.
     await expect(Promise.race([closed, new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe(4403);
+  });
+
+  it('two real y-websocket browsers share the text, and each hears the other in the member list', async () => {
+    await insertShare(db, { spaceId: diagram, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
+    const browser = (user: string) => {
+      const doc = new Y.Doc();
+      class AsUser extends WebSocket {
+        constructor(url: string, protocols?: string | string[]) {
+          super(url, protocols, { headers: { origin: ORIGIN, 'x-test-user': user } });
+        }
+      }
+      const provider = new WebsocketProvider(`ws://127.0.0.1:${port}/api/realtime`, diagram, doc, {
+        WebSocketPolyfill: AsUser as unknown as typeof globalThis.WebSocket,
+        disableBc: true,
+      });
+      let members: Member[] = [];
+      provider.messageHandlers[MESSAGE_MEMBERS] = (_encoder, decoder) => {
+        members = JSON.parse(decoding.readVarString(decoder));
+      };
+      const synced = new Promise<void>((resolve) => provider.once('sync', () => resolve()));
+      return { doc, provider, synced, members: () => members };
+    };
+    const owner = browser('u1');
+    const editor = browser('u2');
+    try {
+      await Promise.all([owner.synced, editor.synced]);
+      owner.doc.getText('dbml').insert(0, 'Table a {}');
+      editor.doc.getText('dbml').insert(0, '// note\n');
+      // Both typed at the same spot at once: Yjs picks the order, but both edits survive and both browsers agree.
+      const texts = () => [owner.doc.getText('dbml').toString(), editor.doc.getText('dbml').toString()];
+      await expect.poll(() => texts()[0] === texts()[1] && texts()[0].length === '// note\nTable a {}'.length, { timeout: 3000 }).toBe(true);
+      expect(texts()[0]).toContain('Table a {}');
+      expect(texts()[0]).toContain('// note\n');
+      await expect.poll(() => owner.members().map((m) => m.userId).sort(), { timeout: 3000 }).toEqual(['u1', 'u2']);
+    } finally {
+      owner.provider.destroy();
+      editor.provider.destroy();
+    }
   });
 
   it("an editor's change is saved to the diagrams row", async () => {
