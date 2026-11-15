@@ -59,9 +59,11 @@ function LockScreen({ space }: { space: Space }) {
       <Button type="submit" disabled={pending || !password}>
         {forgot ? 'Remove password' : 'Unlock'}
       </Button>
-      <Button type="button" variant="ghost" size="sm" className="self-center" onClick={() => switchMode(!forgot)}>
-        {forgot ? 'Back' : 'Forgot the password?'}
-      </Button>
+      {space.access === 'owner' && (
+        <Button type="button" variant="ghost" size="sm" className="self-center" onClick={() => switchMode(!forgot)}>
+          {forgot ? 'Back' : 'Forgot the password?'}
+        </Button>
+      )}
     </form>
   );
 }

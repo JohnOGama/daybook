@@ -52,6 +52,14 @@ it('shows the space once unlocked', () => {
   expect(screen.getByText('secret pages')).toBeInTheDocument();
 });
 
+it('does not offer someone it is shared with a way to remove the password', () => {
+  render(
+    <SpaceLockGateComponent space={{ ...space, access: 'edit', ownerName: 'Sam' }}>secret pages</SpaceLockGateComponent>,
+  );
+  expect(screen.getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Forgot the password?' })).not.toBeInTheDocument();
+});
+
 it('removes a forgotten password with the account password', async () => {
   renderGate();
   await userEvent.click(screen.getByRole('button', { name: 'Forgot the password?' }));
