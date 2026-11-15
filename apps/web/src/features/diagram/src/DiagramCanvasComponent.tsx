@@ -14,15 +14,18 @@ import {
   ReactFlowProvider,
   useReactFlow,
   useViewport,
+  ViewportPortal,
 } from '@xyflow/react';
 import { toPng, toSvg } from 'html-to-image';
 import { LayoutGrid, Maximize, Minus, PanelLeftOpen, Plus } from 'lucide-react';
 import { type ReactNode, type Ref, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useSpacePresence } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { TABLE_WIDTH, tableHeight } from './diagram-layout';
 import type { ColumnRef, DiagramModel, Point, Positions } from './diagram-types';
 import { type RelationEdge, RelationEdgeComponent } from './RelationEdgeComponent';
+import { RemoteCursorsComponent } from './RemoteCursorsComponent';
 import { handleId, type TableNode, TableNodeComponent } from './TableNodeComponent';
 
 export type CanvasHandle = { fitView(): void; toImage(kind: 'png' | 'svg'): Promise<string> };
@@ -95,6 +98,8 @@ function Controls({ onTidy, onShowCode }: { onTidy?: () => void; onShowCode?: ()
 function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, onShowCode, readOnly = false, ref }: DiagramCanvasProps) {
   const flow = useReactFlow<TableNode, RelationEdge>();
   const wrapper = useRef<HTMLDivElement>(null);
+  const presence = useSpacePresence();
+  const cursorSent = useRef(0);
 
   // Each card keeps the same node object until its own table, links, position or selection changes,
   // so React Flow only redraws the cards that changed (a click redraws two cards, not all of them).
@@ -181,7 +186,17 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
   }));
 
   return (
-    <div ref={wrapper} className="@container size-full">
+    <div
+      ref={wrapper}
+      className="@container size-full"
+      // Your pointer, in diagram coordinates, for everyone else's canvas (at most every 50 ms).
+      onPointerMove={(event) => {
+        if (!presence || Date.now() - cursorSent.current < 50) return;
+        cursorSent.current = Date.now();
+        presence.awareness.setLocalStateField('cursor', flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+      }}
+      onPointerLeave={() => presence?.awareness.setLocalStateField('cursor', null)}
+    >
       <ReactFlow<TableNode, RelationEdge>
         nodes={nodes}
         edges={edges}
@@ -214,6 +229,11 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         className="!bg-background"
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#262626" />
+        {presence && (
+          <ViewportPortal>
+            <RemoteCursorsComponent awareness={presence.awareness} members={presence.members} />
+          </ViewportPortal>
+        )}
         <Controls onTidy={onTidy} onShowCode={onShowCode} />
         {/* Top-right: the app's Assistant button sits in the bottom-right corner. */}
         {nodes.length > 0 && (
