@@ -25,6 +25,7 @@ export type RunView = {
 export type PipelinesView = { jobs: { job: string; latest: RunView; expected: string[] }[]; recent: RunView[] };
 
 const KEEP_RUNS = 50;
+const KEEP_RUNS_PER_SPACE = 500;
 const MAX_STAGES = 50;
 const RECENT = 30;
 
@@ -136,9 +137,15 @@ export class PipelinesService {
     if (inserted.length > 0) {
       const keep = tx.select({ id: pipelineRuns.id }).from(pipelineRuns).where(match).orderBy(desc(pipelineRuns.number)).limit(KEEP_RUNS);
       await tx.delete(pipelineRuns).where(and(match, notInArray(pipelineRuns.id, keep)));
+      // Also a cap for the whole space, since jobs can come and go (a job per branch) and are never pruned otherwise.
+      const inSpace = eq(pipelineRuns.spaceId, spaceId);
+      const keepInSpace = tx.select({ id: pipelineRuns.id }).from(pipelineRuns).where(inSpace).orderBy(desc(pipelineRuns.startedAt), desc(pipelineRuns.id)).limit(KEEP_RUNS_PER_SPACE);
+      await tx.delete(pipelineRuns).where(and(inSpace, notInArray(pipelineRuns.id, keepInSpace)));
       return inserted[0];
     }
-    const [existing] = await tx.select().from(pipelineRuns).where(and(match, eq(pipelineRuns.number, report.run)));
+    // Locked until this report commits, so two reports for one run (parallel stages) apply one after the other:
+    // the run's status and each new stage's position are worked out from what the other one wrote.
+    const [existing] = await tx.select().from(pipelineRuns).where(and(match, eq(pipelineRuns.number, report.run))).for('update');
     return existing;
   }
 

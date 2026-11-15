@@ -3,13 +3,17 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { pipelineKeys, spaces } from '../../../shared/db/schema.ts';
+import { SpaceAccessService } from '../../spaces/index.ts';
 
 // A random 192-bit key needs no slow hash: SHA-256 is enough to keep the stored value useless on its own.
 const hash = (key: string) => createHash('sha256').update(key).digest('hex');
 
 @Injectable()
 export class PipelineKeysService {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
+  ) {}
 
   // Makes a new key for the space, replacing any old one, which stops working at once. The plain key is returned only here.
   async create(spaceId: string): Promise<string> {
@@ -32,6 +36,8 @@ export class PipelineKeysService {
       .innerJoin(spaces, eq(spaces.id, pipelineKeys.spaceId))
       .where(and(eq(pipelineKeys.keyHash, hash(key)), eq(spaces.tool, 'pipelines'), isNull(spaces.deletedAt)));
     if (!row) return null;
+    // A space inside a trashed folder is in the Trash too: same ancestor rules as reading it (no viewers means hidden).
+    if ((await this.access.viewerIds(row.spaceId)).length === 0) return null;
     await this.db.update(pipelineKeys).set({ lastUsedAt: new Date().toISOString() }).where(eq(pipelineKeys.spaceId, row.spaceId));
     return row;
   }

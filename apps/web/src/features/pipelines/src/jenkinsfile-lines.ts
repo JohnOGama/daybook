@@ -15,17 +15,29 @@ export function markAdded(original: string, result: string): { text: string; add
 }
 
 // What the AI adds, for anyone adding it by hand. `daybookUrl` is the address Jenkins reports to.
+// Kept word for word in step with JENKINS_HELPER in the API's features/budget/src/jenkins-helper.ts:
+// one file per stage (parallel stages can't swap reports), and try/catch so it never fails the build.
 export function helperSnippet(daybookUrl: string): string {
-  const send = `sh label: 'Report to Daybook', script: 'curl -sS -m 5 -X POST "$DAYBOOK_URL/api/pipelines/report" -H "Authorization: Bearer $DAYBOOK_KEY" -H "Content-Type: application/json" --data @.daybook.json || true'`;
+  const send = (file: string) =>
+    `    sh label: 'Report to Daybook', script: "curl -sS -m 5 -X POST \\"\\$DAYBOOK_URL/api/pipelines/report\\" -H \\"Authorization: Bearer \\$DAYBOOK_KEY\\" -H 'Content-Type: application/json' --data @${file} || true"`;
   return [
-    '// Reports to Daybook. It never fails the build: 5 s timeout, errors ignored.',
+    '// Reports to Daybook. It never fails the build: 5 s timeout, every error caught.',
     "def daybook(String stage, String status, String message = '') {",
-    "  writeFile file: '.daybook.json', text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, stage: stage, status: status, message: message])",
-    `  ${send}`,
+    '  try {',
+    '    def file = ".daybook-${stage.replaceAll(\'[^A-Za-z0-9_-]\', \'_\')}.json"',
+    '    writeFile file: file, text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, stage: stage, status: status, message: message])',
+    send('${file}'),
+    '  } catch (e) {',
+    '    echo "Daybook report skipped: ${e}"',
+    '  }',
     '}',
     'def daybookFinish(String status) {',
-    "  writeFile file: '.daybook.json', text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, status: status])",
-    `  ${send}`,
+    '  try {',
+    "    writeFile file: '.daybook-run.json', text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, status: status])",
+    send('.daybook-run.json'),
+    '  } catch (e) {',
+    '    echo "Daybook report skipped: ${e}"',
+    '  }',
     '}',
     '',
     '// Inside pipeline { … }:',

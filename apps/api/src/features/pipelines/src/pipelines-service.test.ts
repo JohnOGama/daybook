@@ -80,6 +80,19 @@ describe('PipelinesService', () => {
     expect(runs.filter((r) => r.job === 'web')).toHaveLength(1);
   });
 
+  it('keeps at most 500 runs per space across jobs, dropping the oldest', async () => {
+    // A multibranch pipeline makes a new job per branch; each job alone stays under 50 runs.
+    const old = (index: number) => new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString();
+    await db.insert(pipelineRuns).values(
+      Array.from({ length: 500 }, (_, index) => ({ spaceId: space, userId: 'u1', job: `repo/branch-${index}`, number: 1, status: 'passed', startedAt: old(index), updatedAt: old(index) })),
+    );
+    await send({ job: 'repo/main', run: 1, stage: 'Build', status: 'started' });
+    const runs = await db.select().from(pipelineRuns);
+    expect(runs).toHaveLength(500);
+    expect(runs.some((r) => r.job === 'repo/branch-0')).toBe(false);
+    expect(runs.some((r) => r.job === 'repo/main')).toBe(true);
+  });
+
   it('refuses a 51st stage', async () => {
     for (let index = 0; index < 50; index++) await send({ stage: `S${index}`, status: 'started' });
     await expect(send({ stage: 'S50', status: 'started' })).rejects.toThrow(BadRequestException);
@@ -129,6 +142,12 @@ describe('reportSchema', () => {
     expect(parsed.error).toBe('b'.repeat(8000));
     expect(reportSchema.safeParse({ job: 'api', run: 1, status: 'passed', url: 'javascript:alert(1)' }).success).toBe(false);
     expect(reportSchema.safeParse({ job: 'api', run: 1, status: 'passed', url: 'https://jenkins.example.com/job/api/1/' }).success).toBe(true);
+  });
+
+  it('accepts null for the optional fields, as Jenkins sends when no Jenkins URL is set', () => {
+    const parsed = reportSchema.parse({ job: 'api', run: '3', stage: 'Build', status: 'started', url: null, branch: null, commit: null, message: null, error: null });
+    expect(parsed).toMatchObject({ job: 'api', run: 3, stage: 'Build' });
+    expect(parsed.url ?? undefined).toBeUndefined();
   });
 
   it('refuses a stage status without a stage, a finish status with a stage, and a run that is not a positive integer', () => {

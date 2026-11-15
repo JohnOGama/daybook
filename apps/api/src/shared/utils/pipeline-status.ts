@@ -1,4 +1,4 @@
-import { inArray } from 'drizzle-orm';
+import { desc, inArray } from 'drizzle-orm';
 import type { Db } from '../db/create-db.ts';
 import { pipelineRuns } from '../db/schema.ts';
 
@@ -11,20 +11,16 @@ const RANK = { passed: 1, running: 2, failed: 3 } as const;
 
 // The sidebar dot for each Pipelines space: from each job's newest run, failed beats running beats passed.
 // Lives here rather than in the pipelines feature so SpacesService can use it without a module cycle.
-// ponytail: reads every kept run of these spaces (at most 50 per job); a "latest run per job" query if spaces grow huge.
+// Reads only each job's newest run (DISTINCT ON), since this runs on every GET /spaces.
 export async function dotStatuses(db: Db, spaceIds: string[], now = new Date()): Promise<Map<string, DotStatus>> {
   const result = new Map<string, DotStatus>(spaceIds.map((id) => [id, null]));
   if (spaceIds.length === 0) return result;
-  const runs = await db
-    .select({ spaceId: pipelineRuns.spaceId, job: pipelineRuns.job, number: pipelineRuns.number, status: pipelineRuns.status, updatedAt: pipelineRuns.updatedAt })
+  const newest = await db
+    .selectDistinctOn([pipelineRuns.spaceId, pipelineRuns.job], { spaceId: pipelineRuns.spaceId, status: pipelineRuns.status, updatedAt: pipelineRuns.updatedAt })
     .from(pipelineRuns)
-    .where(inArray(pipelineRuns.spaceId, spaceIds));
-  const newest = new Map<string, (typeof runs)[number]>();
-  for (const run of runs) {
-    const key = `${run.spaceId}\u0000${run.job}`;
-    if ((newest.get(key)?.number ?? 0) < run.number) newest.set(key, run);
-  }
-  for (const run of newest.values()) {
+    .where(inArray(pipelineRuns.spaceId, spaceIds))
+    .orderBy(pipelineRuns.spaceId, pipelineRuns.job, desc(pipelineRuns.number));
+  for (const run of newest) {
     const stale = run.status === 'running' && now.getTime() - new Date(run.updatedAt).getTime() > STALE_MS;
     const status = stale ? 'failed' : (run.status as keyof typeof RANK);
     const current = result.get(run.spaceId) ?? null;

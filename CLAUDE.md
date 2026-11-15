@@ -132,7 +132,9 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 - **Status rules** (`PipelinesService.report`):
   - A finished stage never goes back to running, so late or repeated reports converge.
   - A run is failed if any stage failed or its finish status was failed or aborted; passed only on a passed finish; otherwise running, even between stages.
-  - Each job keeps its 50 newest runs, and a run has at most 50 stages.
+  - Each job keeps its 50 newest runs, a space its 500 newest across jobs (a job per branch is never pruned otherwise), and a run has at most 50 stages.
+  - The run row is locked (`FOR UPDATE`) for the rest of each report, so parallel stages reporting at once apply one after the other.
+  - Fields Jenkins sends as `null` (BUILD_URL before a Jenkins URL is set) count as not given.
   - Expected stages (the grey "still to come" steps, and "4 of 5") come from the job's last finished run.
 - **The sidebar dot** (`shared/utils/pipeline-status.ts`, used by `GET /spaces` and the notifier, so there is no module cycle): failed beats running beats passed, from each job's newest run. A running run with no report for 30 minutes counts as failed, shown as "Stopped reporting"; the browser works out the same rule in `pipeline-math.ts`.
 - **Keys.** There is one per space, `dbk_` plus 32 base64url characters, stored only as SHA-256 hex in `pipeline_keys` and shown once.
@@ -143,8 +145,9 @@ No linter or formatter is configured. API tests run the real migrations in `apps
   - Run content always comes through the checked read routes, so a locked space's details still need its unlock cookie.
 - **The AI** (`POST /pipelines/ai/instrument`, `BudgetAiService.instrumentJenkinsfile`, edit access needed) is sent only the pasted Jenkinsfile and `BETTER_AUTH_URL`, never a key.
   - `addedOnly` refuses any answer that changes, removes or reorders a pasted line (line endings and trailing spaces ignored), or doesn't read `credentials('DAYBOOK_KEY')`. It retries once, then answers 502. The web then offers `helperSnippet` to add by hand, and marks added lines with `markAdded`. Nothing is saved.
-  - The helpers build JSON with `writeFile` and `groovy.json.JsonOutput`, so no Jenkins plugin is needed beyond core.
-- **Space rules.** A Pipelines space can't be duplicated. Rows are hard-deleted with the space; trashing it makes its key answer 401, and restoring brings the key back.
+  - Every added line must also be Daybook reporting (it mentions Daybook, or is a bare `post`/`success`/`try`/brace line), so the AI can't slip in a step.
+  - The helpers (`JENKINS_HELPER` in the API, `helperSnippet` in the web, kept word for word in step) build JSON with `writeFile` and `groovy.json.JsonOutput`, so no Jenkins plugin is needed beyond core. They write one file per stage, so parallel stages can't swap reports, and catch every error, so reporting can never fail a build.
+- **Space rules.** A Pipelines space can't be duplicated. Rows are hard-deleted with the space. Trashing it, or a folder above it, makes its key answer 401 (`spaceFor` uses `viewerIds`' ancestor rules), and restoring brings the key back.
 
 ### Sharing rules
 

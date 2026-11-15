@@ -48,6 +48,31 @@ describe('addedOnly', () => {
     expect(addedOnly(ORIGINAL, WITH_REPORTING.replaceAll('\n', '\r\n'))).toBeNull();
   });
 
+  it('refuses added lines that are not Daybook reporting', () => {
+    const add = (line: string) => WITH_REPORTING.replace("        daybook('Test', 'started')", `        daybook('Test', 'started')\n${line}`);
+    expect(addedOnly(ORIGINAL, add("        sh 'rm -rf /'"))).toContain("sh 'rm -rf /'");
+    expect(addedOnly(ORIGINAL, add('      when { expression { false } }'))).toContain('when');
+    expect(addedOnly(ORIGINAL, add('/*'))).toContain('/*');
+  });
+
+  it("accepts the helper's own lines and the post blocks", () => {
+    const helper = [
+      "def daybook(String stage, String status, String message = '') {",
+      '  try {',
+      '    def file = ".daybook-${stage.replaceAll(\'[^A-Za-z0-9_-]\', \'_\')}.json"',
+      '  } catch (e) {',
+      '    echo "Daybook report skipped: ${e}"',
+      '  }',
+      '}',
+      '',
+    ].join('\n');
+    const withPost = `${helper}${WITH_REPORTING}`.replace(
+      '  stages {',
+      "  post {\n    success { daybookFinish('passed') }\n    aborted { daybookFinish('aborted') }\n  }\n  stages {",
+    );
+    expect(addedOnly(ORIGINAL, withPost)).toBeNull();
+  });
+
   it("refuses an answer without credentials('DAYBOOK_KEY')", () => {
     expect(addedOnly(ORIGINAL, WITH_REPORTING.replace("credentials('DAYBOOK_KEY')", "'dbk_hardcoded'"))).toMatch(/credentials/);
   });

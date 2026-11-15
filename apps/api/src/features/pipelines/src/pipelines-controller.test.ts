@@ -6,7 +6,7 @@ import request from 'supertest';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { pipelineKeys, pipelineRuns, spaces, spaceShares } from '../../../shared/db/schema.ts';
-import { createTestDb, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { createTestDb, insertFolder, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
 import { BudgetAiService } from '../../budget/index.ts';
 import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
@@ -105,6 +105,16 @@ describe('pipelines API', () => {
     await expect401(await app.get(PipelineKeysService).create(list));
   });
 
+  it('401 for a space inside a trashed folder, and reports work again once it is restored', async () => {
+    const folder = await insertFolder(db, 'u1');
+    await db.update(spaces).set({ parentId: folder }).where(eq(spaces.id, space));
+    await report({ job: 'api', run: 1, status: 'passed' }).expect(202);
+    await db.update(spaces).set({ deletedAt: new Date() }).where(eq(spaces.id, folder));
+    await report({ job: 'api', run: 2, status: 'passed' }).expect(401);
+    await db.update(spaces).set({ deletedAt: null }).where(eq(spaces.id, folder));
+    await report({ job: 'api', run: 3, status: 'passed' }).expect(202);
+  });
+
   it('400 names the field for a bad body', async () => {
     const res = await report({ job: 'api', run: 'abc', stage: 'Build', status: 'started' }).expect(400);
     expect(JSON.stringify(res.body)).toContain('run');
@@ -201,6 +211,16 @@ describe('pipelines API', () => {
       expect(sent).toContain('pnpm test');
       expect(sent).toContain('https://daybook.example.com');
       expect(sent).not.toContain(key);
+    });
+
+    it('the helper it asks for writes one file per stage and can never fail the build', async () => {
+      replies.push(instrumented(JENKINSFILE));
+      await instrument('u1').expect(201);
+      const prompt = String((generateContent.mock.calls[0][0] as { config: { systemInstruction: string } }).config.systemInstruction);
+      expect(prompt).toContain(".daybook-${stage.replaceAll('[^A-Za-z0-9_-]', '_')}.json");
+      expect(prompt).toContain('.daybook-run.json');
+      expect(prompt.match(/catch \(e\)/g)).toHaveLength(2);
+      expect(prompt).toContain('echo "Daybook report skipped: ${e}"');
     });
 
     it("refuses after two answers that change existing steps, with the spec's message", async () => {

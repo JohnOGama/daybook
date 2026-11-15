@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectJenkinsDialogComponent } from './ConnectJenkinsDialogComponent';
-import { markAdded } from './jenkinsfile-lines';
+import { helperSnippet, markAdded } from './jenkinsfile-lines';
 
 const KEY = 'dbk_7Qm2c9VxR4tLp0Hs8aZe1Wn6Ku3Jy5Db';
 const PASTED = "pipeline {\n  agent any\n  stages {\n    stage('Test') {\n      steps {\n        sh 'pnpm test'\n      }\n    }\n  }\n}";
@@ -101,6 +101,17 @@ describe('ConnectJenkinsDialogComponent', () => {
     const [, init] = fetchMock.mock.calls.find(([url]) => url === '/api/pipelines/ai/instrument') as [string, RequestInit];
     expect(String(init.body)).not.toContain(KEY);
     expect(JSON.parse(String(init.body))).toEqual({ spaceId: 's1', jenkinsfile: PASTED });
+  });
+});
+
+describe('helperSnippet', () => {
+  it('writes one file per stage, can never fail the build, and points at Daybook', () => {
+    const snippet = helperSnippet('https://daybook.example.com');
+    expect(snippet).toContain(".daybook-${stage.replaceAll('[^A-Za-z0-9_-]', '_')}.json");
+    expect(snippet).toContain('.daybook-run.json');
+    expect(snippet.match(/catch \(e\)/g)).toHaveLength(2);
+    expect(snippet).toContain("DAYBOOK_URL = 'https://daybook.example.com'");
+    expect(snippet).not.toContain('dbk_');
   });
 });
 

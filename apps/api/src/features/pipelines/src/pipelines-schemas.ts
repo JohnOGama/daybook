@@ -17,9 +17,13 @@ const httpUrl = z
 // Jenkins sends BUILD_NUMBER as a string; a number works too.
 const runNumber = z.union([z.number(), z.string().regex(/^\d+$/, 'Must be a whole number').transform(Number)]).pipe(z.number().int().positive().max(2_147_483_647));
 
+// Jenkins sends null for values it doesn't have (BUILD_URL before a Jenkins URL is set): null means "not given".
+const dropNulls = (value: unknown) =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).filter(([, field]) => field !== null)) : value;
+
 // One report from a pipeline: a stage starting or finishing, or (without `stage`) the whole run finishing.
 // A long message or error is cut rather than refused, so a report is never lost over its length.
-export const reportSchema = z
+const reportShape = z
   .object({
     job: z.string().trim().min(1).max(200),
     run: runNumber,
@@ -43,7 +47,8 @@ export const reportSchema = z
       ctx.addIssue({ code: 'custom', path: ['status'], message: 'Without a stage, a run finishes as passed, failed or aborted' });
     }
   });
-export type Report = z.infer<typeof reportSchema>;
+export const reportSchema = z.preprocess(dropNulls, reportShape);
+export type Report = z.infer<typeof reportShape>;
 
 export const spaceQuerySchema = z.object({ spaceId: z.uuid() });
 
