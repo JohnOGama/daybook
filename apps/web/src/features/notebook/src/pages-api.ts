@@ -43,7 +43,7 @@ export async function deletePage(id: string): Promise<void> {
   if (!response.ok) throw new Error('That page could not be deleted. Please try again.');
 }
 
-export async function improveText(input: { text: string; instruction: string }): Promise<{ text: string }> {
+export async function improveText(input: { spaceId: string; text: string; instruction: string }): Promise<{ text: string }> {
   const response = await fetch('/api/notebook-pages/ai/improve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

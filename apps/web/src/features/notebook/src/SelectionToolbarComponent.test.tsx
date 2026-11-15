@@ -2,6 +2,7 @@ import { Editor } from '@tiptap/react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', tool: 'notebook' }) }));
 import { EDITOR_EXTENSIONS } from './editor-extensions';
 import { SelectionPanel } from './SelectionToolbarComponent';
 
@@ -82,5 +83,6 @@ it('offers AI on the highlighted text only where it is turned on, and puts the r
   await waitFor(() => expect(editor.getHTML()).toBe('<p>Hi there</p>'));
   expect(send.mock.calls[0][0]).toBe('/api/notebook-pages/ai/improve');
   expect(String(send.mock.calls[0][1].body)).toContain('Hello world');
+  expect(JSON.parse(String(send.mock.calls[0][1].body)).spaceId).toBe('s1');
   vi.unstubAllGlobals();
 });
