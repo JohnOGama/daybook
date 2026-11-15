@@ -1,0 +1,40 @@
+const split = (text: string) => text.replace(/\r\n?/g, '\n').split('\n');
+
+// The result's lines, each marked when the AI added it. The server already checked that every pasted line is still
+// there in order, so walking both in step is enough (line endings and trailing spaces don't count as changes).
+export function markAdded(original: string, result: string): { text: string; added: boolean }[] {
+  const before = split(original).map((line) => line.trimEnd());
+  let next = 0;
+  return split(result).map((text) => {
+    if (next < before.length && text.trimEnd() === before[next]) {
+      next++;
+      return { text, added: false };
+    }
+    return { text, added: true };
+  });
+}
+
+// What the AI adds, for anyone adding it by hand. `daybookUrl` is the address Jenkins reports to.
+export function helperSnippet(daybookUrl: string): string {
+  const send = `sh label: 'Report to Daybook', script: 'curl -sS -m 5 -X POST "$DAYBOOK_URL/api/pipelines/report" -H "Authorization: Bearer $DAYBOOK_KEY" -H "Content-Type: application/json" --data @.daybook.json || true'`;
+  return [
+    '// Reports to Daybook. It never fails the build: 5 s timeout, errors ignored.',
+    "def daybook(String stage, String status, String message = '') {",
+    "  writeFile file: '.daybook.json', text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, stage: stage, status: status, message: message])",
+    `  ${send}`,
+    '}',
+    'def daybookFinish(String status) {',
+    "  writeFile file: '.daybook.json', text: groovy.json.JsonOutput.toJson([job: env.JOB_NAME, run: env.BUILD_NUMBER, url: env.BUILD_URL, status: status])",
+    `  ${send}`,
+    '}',
+    '',
+    '// Inside pipeline { … }:',
+    'environment {',
+    `  DAYBOOK_URL = '${daybookUrl}'`,
+    "  DAYBOOK_KEY = credentials('DAYBOOK_KEY')",
+    '}',
+    "// In each stage: daybook('Test', 'started') first in steps, and",
+    "// post { success { daybook('Test', 'passed') } failure { daybook('Test', 'failed', 'Test failed, see Jenkins') } }",
+    "// At the end of pipeline: post { success { daybookFinish('passed') } failure { daybookFinish('failed') } aborted { daybookFinish('aborted') } }",
+  ].join('\n');
+}
