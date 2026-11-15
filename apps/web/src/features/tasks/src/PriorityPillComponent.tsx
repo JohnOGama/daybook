@@ -8,9 +8,19 @@ import type { Task } from './task-types';
 
 const PILL_CLASS = cn(badgeVariants({ variant: 'outline' }), 'gap-1 px-1.5 text-muted-foreground [&>svg]:size-3.5');
 
-export function PriorityPillComponent({ task }: { task: Task }) {
+export function PriorityPillComponent({ task, readOnly }: { task: Task; readOnly?: boolean }) {
   const { update } = useTaskMutations();
   const toggle = () => update.mutate({ id: task.id, input: { highPriority: !task.highPriority } });
+
+  if (readOnly) {
+    if (!task.highPriority) return null;
+    return (
+      <span className={PILL_CLASS}>
+        <Flag className="fill-current text-signal" aria-hidden />
+        High
+      </span>
+    );
+  }
 
   if (task.highPriority) {
     return (

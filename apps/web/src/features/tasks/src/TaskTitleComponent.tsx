@@ -6,7 +6,7 @@ import { cn } from '@/shared/utils/cn';
 import { useTaskMutations } from '../hooks/useTaskMutations';
 import type { Task } from './task-types';
 
-export function TaskTitleComponent({ task, finished }: { task: Task; finished: boolean }) {
+export function TaskTitleComponent({ task, finished, readOnly }: { task: Task; finished: boolean; readOnly?: boolean }) {
   const { update } = useTaskMutations();
   const [editing, setEditing] = useState(false);
 
@@ -23,7 +23,7 @@ export function TaskTitleComponent({ task, finished }: { task: Task; finished: b
 
   return (
     <span
-      onDoubleClick={() => setEditing(true)}
+      onDoubleClick={readOnly ? undefined : () => setEditing(true)}
       className={cn('truncate font-medium', finished && 'text-muted-foreground line-through')}
     >
       {task.title}

@@ -7,9 +7,9 @@ import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/utils/cn';
 import { FiltersMenuComponent } from './FiltersMenuComponent';
 
-type TaskToolbarProps = { onNewTask: () => void; onClearTable?: () => void; children?: ReactNode };
+type TaskToolbarProps = { onNewTask: () => void; onClearTable?: () => void; canEdit?: boolean; children?: ReactNode };
 
-export function TaskToolbarComponent({ onNewTask, onClearTable, children }: TaskToolbarProps) {
+export function TaskToolbarComponent({ onNewTask, onClearTable, canEdit = true, children }: TaskToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -37,16 +37,18 @@ export function TaskToolbarComponent({ onNewTask, onClearTable, children }: Task
           Show closed
         </Button>
         <FiltersMenuComponent />
-        {onClearTable && (
+        {canEdit && onClearTable && (
           <Button variant="ghost" size="sm" onClick={onClearTable}>
             <Trash2 aria-hidden />
             Clear table
           </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={onNewTask}>
-          <Plus aria-hidden />
-          New task
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="sm" onClick={onNewTask}>
+            <Plus aria-hidden />
+            New task
+          </Button>
+        )}
       </div>
     </div>
   );

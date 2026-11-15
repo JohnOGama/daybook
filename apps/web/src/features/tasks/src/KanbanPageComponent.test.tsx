@@ -5,7 +5,7 @@ import { SpaceSettingsPageComponent } from './SpaceSettingsPageComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
 
 const { active, replace } = vi.hoisted(() => ({
-  active: { space: { id: 's1', title: 'Home', tool: 'list' as string | null }, isOwner: true },
+  active: { space: { id: 's1', title: 'Home', tool: 'list' as string | null, access: 'owner' }, isOwner: true },
   replace: vi.fn(),
 }));
 
@@ -13,6 +13,7 @@ vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => active.space,
   useSpaceAccess: () => ({ isOwner: active.isOwner }),
   SpaceSettingsComponent: () => <p>settings content</p>,
+  ViewOnlyBadgeComponent: () => (active.space.access === 'view' ? <span>View only</span> : null),
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));
 vi.mock('next/navigation', () => ({
@@ -30,7 +31,7 @@ const kanbanTab = () => screen.queryByRole('link', { name: 'Kanban' });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  active.space = { id: 's1', title: 'Home', tool: 'list' };
+  active.space = { id: 's1', title: 'Home', tool: 'list', access: 'owner' };
   active.isOwner = true;
 });
 
@@ -75,4 +76,15 @@ it('sends any other tool away from the board', () => {
   render(<KanbanPageComponent />);
   expect(screen.queryByText('board')).not.toBeInTheDocument();
   expect(replace).toHaveBeenCalledWith('/list?space=s1');
+});
+
+it('keeps New task and the badge off an owner, and gives a viewer the badge only', () => {
+  const { unmount } = render(<KanbanPageComponent />);
+  expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
+  expect(screen.queryByText('View only')).not.toBeInTheDocument();
+  unmount();
+  active.space.access = 'view';
+  render(<KanbanPageComponent />);
+  expect(screen.getByText('View only')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
 });

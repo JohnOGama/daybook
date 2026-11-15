@@ -26,6 +26,7 @@ type TaskRowProps = {
   depth?: number;
   enterIndex?: number;
   canReorder: boolean;
+  canEdit?: boolean;
   expanded?: boolean;
   onToggleExpanded?: (id: string) => void;
 };
@@ -39,6 +40,7 @@ export const TaskRowComponent = memo(function TaskRowComponent({
   depth = 0,
   enterIndex,
   canReorder,
+  canEdit = true,
   expanded,
   onToggleExpanded,
 }: TaskRowProps) {
@@ -56,6 +58,7 @@ export const TaskRowComponent = memo(function TaskRowComponent({
     <Checkbox
       aria-label={`Finish ${task.title}`}
       checked={finished}
+      disabled={!canEdit}
       onCheckedChange={(checked) => {
         setJustFinished(checked === true);
         setFinished.mutate({ id: task.id, finished: checked === true });
@@ -85,7 +88,12 @@ export const TaskRowComponent = memo(function TaskRowComponent({
 
   return (
     <>
-      <TaskRowContextMenuComponent task={task} onOpenForm={setFormMode} onDelete={() => setDeleting(true)}>
+      <TaskRowContextMenuComponent
+        task={task}
+        canEdit={canEdit}
+        onOpenForm={setFormMode}
+        onDelete={() => setDeleting(true)}
+      >
         <TableRow
           ref={setNodeRef}
           style={rowStyle}
@@ -124,7 +132,7 @@ export const TaskRowComponent = memo(function TaskRowComponent({
             >
               {isSubtask && <span className="grid w-5 shrink-0 place-items-center">{expandToggle}</span>}
               {isSubtask && finishBox}
-              <TaskTitleComponent task={task} finished={finished} />
+              <TaskTitleComponent task={task} finished={finished} readOnly={!canEdit} />
             </div>
           </TableCell>
           <TableCell className="px-3 py-0">
@@ -134,16 +142,18 @@ export const TaskRowComponent = memo(function TaskRowComponent({
                 Completed
               </Badge>
             ) : (
-              <StatusPillComponent task={task} />
+              <StatusPillComponent task={task} readOnly={!canEdit} />
             )}
           </TableCell>
           <TableCell className="px-3 py-0">
-            <PriorityPillComponent task={task} />
+            <PriorityPillComponent task={task} readOnly={!canEdit} />
           </TableCell>
           <TableCell className="truncate px-3 py-0">{formatShortDate(task.createdAt)}</TableCell>
           <TableCell className="truncate px-3 py-0">{task.completedOn ? formatShortDay(task.completedOn) : '-'}</TableCell>
           <TableCell className="py-0 pr-2 pl-0 text-right">
-            <TaskRowMenuComponent task={task} onOpenForm={setFormMode} onDelete={() => setDeleting(true)} />
+            {canEdit && (
+              <TaskRowMenuComponent task={task} onOpenForm={setFormMode} onDelete={() => setDeleting(true)} />
+            )}
           </TableCell>
         </TableRow>
       </TaskRowContextMenuComponent>

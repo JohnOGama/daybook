@@ -39,9 +39,10 @@ type TaskRowsProps = {
   collapsed: Set<string>;
   draggingId?: string;
   onToggle: (id: string) => void;
+  canEdit: boolean;
 };
 
-const TaskRows = memo(function TaskRows({ rows, listId, depth, collapsed, draggingId, onToggle }: TaskRowsProps) {
+const TaskRows = memo(function TaskRows({ rows, listId, depth, collapsed, draggingId, onToggle, canEdit }: TaskRowsProps) {
   const idList = rows.map((row) => row.id).join();
   const items = useMemo(() => idList.split(','), [idList]);
 
@@ -55,7 +56,8 @@ const TaskRows = memo(function TaskRows({ rows, listId, depth, collapsed, draggi
               task={task}
               depth={depth}
               enterIndex={depth === 0 && index < MAX_STAGGERED_ROWS ? index : undefined}
-              canReorder={rows.length > 1}
+              canReorder={canEdit && rows.length > 1}
+              canEdit={canEdit}
               expanded={expanded}
               onToggleExpanded={onToggle}
             />
@@ -67,6 +69,7 @@ const TaskRows = memo(function TaskRows({ rows, listId, depth, collapsed, draggi
                 collapsed={collapsed}
                 draggingId={draggingId}
                 onToggle={onToggle}
+                canEdit={canEdit}
               />
             )}
           </Fragment>
@@ -76,7 +79,15 @@ const TaskRows = memo(function TaskRows({ rows, listId, depth, collapsed, draggi
   );
 });
 
-export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTasks: Task[] }) {
+export function TaskTableComponent({
+  tasks,
+  allTasks,
+  canEdit = true,
+}: {
+  tasks: Task[];
+  allTasks: Task[];
+  canEdit?: boolean;
+}) {
   const { reorder } = useTaskMutations();
   const [collapsed, toggle] = useCollapsedTasks();
   const [draggingId, setDraggingId] = useState<string>();
@@ -170,7 +181,7 @@ export function TaskTableComponent({ tasks, allTasks }: { tasks: Task[]; allTask
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TaskRows rows={shownTasks} listId="tasks" depth={0} collapsed={collapsed} draggingId={draggingId} onToggle={toggle} />
+              <TaskRows rows={shownTasks} listId="tasks" depth={0} collapsed={collapsed} draggingId={draggingId} onToggle={toggle} canEdit={canEdit} />
             </TableBody>
           </Table>
         </DndContext>

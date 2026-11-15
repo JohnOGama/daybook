@@ -26,8 +26,16 @@ type TaskRowMenuProps = {
 function CopyToMenu({ task }: { task: Task }) {
   const { copy } = useTaskMutations();
   const { data: spaces = [] } = useSpaces();
-  const activeId = useActiveSpace()?.id;
-  const otherSpaces = spaces.filter((space) => space.tool === 'list' && space.id !== activeId);
+  const active = useActiveSpace();
+  const ownSpace = active?.access === undefined || active.access === 'owner';
+  const otherSpaces = spaces.filter(
+    (space) =>
+      space.tool === 'list' &&
+      space.id !== active?.id &&
+      (ownSpace
+        ? space.access === undefined || space.access === 'owner'
+        : space.ownerId === active?.ownerId && space.access !== 'view'),
+  );
 
   if (otherSpaces.length === 0) return null;
 

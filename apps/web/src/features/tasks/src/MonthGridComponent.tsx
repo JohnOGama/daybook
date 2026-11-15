@@ -14,7 +14,7 @@ type MonthGridProps = {
   today: string;
   tasks: Task[];
   filterParams: URLSearchParams;
-  onSelectTask: (task: Task) => void;
+  onSelectTask?: (task: Task) => void;
 };
 
 function entryColor(task: Task): string {
@@ -63,9 +63,10 @@ export function MonthGridComponent({ days, month, today, tasks, filterParams, on
                 <button
                   key={task.id}
                   type="button"
+                  disabled={!onSelectTask}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onSelectTask(task);
+                    onSelectTask?.(task);
                   }}
                   className={cn(
                     'mt-0.5 block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium',

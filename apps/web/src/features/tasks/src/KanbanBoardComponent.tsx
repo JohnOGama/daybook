@@ -34,7 +34,7 @@ const stepAcrossColumns: KeyboardCoordinateGetter = (event, { context, currentCo
   return undefined;
 };
 
-type KanbanColumnProps = { id: KanbanColumnId; label: string; tasks: Task[]; onOpen: (task: Task) => void };
+type KanbanColumnProps = { id: KanbanColumnId; label: string; tasks: Task[]; onOpen?: (task: Task) => void };
 
 function KanbanColumn({ id, label, tasks, onOpen }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -54,14 +54,14 @@ function KanbanColumn({ id, label, tasks, onOpen }: KanbanColumnProps) {
       </h2>
       <ul className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {tasks.map((task) => (
-          <KanbanCardComponent key={task.id} task={task} onOpen={() => onOpen(task)} />
+          <KanbanCardComponent key={task.id} task={task} onOpen={onOpen && (() => onOpen(task))} />
         ))}
       </ul>
     </section>
   );
 }
 
-export function KanbanBoardComponent({ tasks }: { tasks: Task[] }) {
+export function KanbanBoardComponent({ tasks, canEdit = true }: { tasks: Task[]; canEdit?: boolean }) {
   const { update, setFinished } = useTaskMutations();
   const [draggingId, setDraggingId] = useState<string>();
   const [editing, setEditing] = useState<Task>();
@@ -99,7 +99,7 @@ export function KanbanBoardComponent({ tasks }: { tasks: Task[] }) {
                 id={id}
                 label={label}
                 tasks={tasks.filter((task) => columnOf(task) === id)}
-                onOpen={setEditing}
+                onOpen={canEdit ? setEditing : undefined}
               />
             ))}
           </div>

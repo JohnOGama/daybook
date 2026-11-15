@@ -7,7 +7,7 @@ import type { Task } from './task-types';
 const { useTasks, state, clearFilters, clearDialog } = vi.hoisted(() => ({
   clearDialog: vi.fn((_props: { tasks: { id: string; subtasks: unknown[] }[]; someHidden: boolean }) => null),
   useTasks: vi.fn(),
-  state: { filters: { statuses: [] as string[], high: false }, params: new URLSearchParams() },
+  state: { filters: { statuses: [] as string[], high: false }, params: new URLSearchParams(), access: 'owner' },
   clearFilters: vi.fn(),
 }));
 
@@ -15,7 +15,7 @@ vi.mock('../hooks/useTasks', () => ({ useTasks }));
 vi.mock('../hooks/useTaskFilters', () => ({
   useTaskFilters: () => ({ filters: state.filters, clearFilters }),
 }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ title: 'Home' }) }));
+vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ title: 'Home', access: state.access }) }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => state.params }));
 vi.mock('./TasksHeaderComponent', () => ({ TasksHeaderComponent: () => null }));
@@ -49,6 +49,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.filters = { statuses: [], high: false };
   state.params = new URLSearchParams();
+  state.access = 'owner';
 });
 
 it('offers a new task on an empty day', () => {
@@ -79,4 +80,11 @@ it('points to Show closed when every task is finished and hidden', () => {
   state.params = new URLSearchParams('closed=0');
   renderWith([task({ finished: true })]);
   expect(screen.getByRole('heading', { name: 'Everything here is finished' })).toBeInTheDocument();
+});
+
+it('offers a viewer no way to add a task on an empty day', () => {
+  state.access = 'view';
+  renderWith([]);
+  expect(screen.getByRole('heading', { name: 'Nothing planned for today' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
 });

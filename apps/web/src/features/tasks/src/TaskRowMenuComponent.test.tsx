@@ -4,14 +4,18 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { TaskRowMenuComponent } from './TaskRowMenuComponent';
 import type { Task } from './task-types';
 
-const { copy, spacesData } = vi.hoisted(() => ({ copy: vi.fn(), spacesData: { current: [] as unknown[] } }));
+const { copy, spacesData, active } = vi.hoisted(() => ({
+  copy: vi.fn(),
+  spacesData: { current: [] as unknown[] },
+  active: { current: { id: 'here' } as Record<string, unknown> },
+}));
 
 vi.mock('../hooks/useTaskMutations', () => ({
   useTaskMutations: () => ({ copy: { mutate: copy } }),
 }));
 vi.mock('@/features/spaces', () => ({
   useSpaces: () => ({ data: spacesData.current }),
-  useActiveSpace: () => ({ id: 'here' }),
+  useActiveSpace: () => active.current,
 }));
 
 const baseTask: Task = {
@@ -40,6 +44,7 @@ async function openMenu(task: Task) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  active.current = { id: 'here' };
   spacesData.current = [
     { id: 'here', kind: 'space', title: 'Here', tool: 'list' },
     { id: 'folder', kind: 'folder', title: 'Team', tool: null },
@@ -105,4 +110,47 @@ it('Delete asks the row to confirm', async () => {
   await openMenu(baseTask);
   await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
   expect(onDelete).toHaveBeenCalled();
+});
+
+const ACTIONS = ['Edit', 'Add subtask', 'Move to another day', 'Duplicate', 'Copy to', 'Delete'];
+
+async function copyTargets() {
+  await openMenu(baseTask);
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Copy to' }));
+  await screen.findAllByRole('menuitem', { name: /^(Theirs|Mine|Mine too|Other owner|Read only)$/ });
+  return screen
+    .getAllByRole('menuitem')
+    .map((item) => item.textContent ?? '')
+    .filter((name) => !ACTIONS.includes(name));
+}
+
+const listSpace = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  kind: 'space',
+  title: id,
+  tool: 'list',
+  ...fields,
+});
+
+it("from a shared edit list, Copy to lists only that owner's other editable lists", async () => {
+  active.current = { id: 'here', access: 'edit', ownerId: 'u2' };
+  spacesData.current = [
+    listSpace('here', { access: 'edit', ownerId: 'u2' }),
+    listSpace('Theirs', { access: 'edit', ownerId: 'u2' }),
+    listSpace('Read only', { access: 'view', ownerId: 'u2' }),
+    listSpace('Other owner', { access: 'edit', ownerId: 'u3' }),
+    listSpace('Mine', { access: 'owner', ownerId: 'u1' }),
+  ];
+  expect(await copyTargets()).toEqual(['Theirs']);
+});
+
+it('from an owned list, Copy to lists only the other lists the user owns', async () => {
+  active.current = { id: 'here', access: 'owner', ownerId: '' };
+  spacesData.current = [
+    listSpace('here', { access: 'owner', ownerId: '' }),
+    listSpace('Mine', { access: 'owner', ownerId: 'u1' }),
+    listSpace('Mine too', { access: 'owner', ownerId: '' }),
+    listSpace('Theirs', { access: 'edit', ownerId: 'u2' }),
+  ];
+  expect(await copyTargets()).toEqual(['Mine', 'Mine too']);
 });

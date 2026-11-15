@@ -4,7 +4,7 @@ import { CalendarDays, List, Settings, SquareKanban } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Skeleton } from 'skullet/react';
-import { useActiveSpace, useSpaceAccess } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { hasKanban } from './kanban-columns';
 
@@ -33,7 +33,10 @@ export function TasksHeaderComponent({ title, subtitle, subtitleLoading }: Tasks
   return (
     <header>
       <div className="px-4 pt-5 md:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <ViewOnlyBadgeComponent />
+        </div>
         <Skeleton loading={subtitleLoading}>
           <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>
         </Skeleton>

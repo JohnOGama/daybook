@@ -6,7 +6,7 @@ import type { PointerEventHandler, ReactNode } from 'react';
 import { cn } from '@/shared/utils/cn';
 import type { Task } from './task-types';
 
-type KanbanCardFaceProps = { task: Task; handle: ReactNode; onOpen?: () => void; className?: string };
+type KanbanCardFaceProps = { task: Task; handle?: ReactNode; onOpen?: () => void; className?: string };
 
 export function KanbanCardFace({ task, handle, onOpen, className }: KanbanCardFaceProps) {
   const subtasksDone = task.subtasks.filter((subtask) => subtask.finished).length;
@@ -41,19 +41,25 @@ export function KanbanCardFace({ task, handle, onOpen, className }: KanbanCardFa
   );
 }
 
-export function KanbanCardComponent({ task, onOpen }: { task: Task; onOpen: () => void }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: task.id });
+export function KanbanCardComponent({ task, onOpen }: { task: Task; onOpen?: () => void }) {
+  const canEdit = onOpen !== undefined;
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    disabled: !canEdit,
+  });
 
   return (
     <li
       ref={setNodeRef}
-      onPointerDown={listeners?.onPointerDown as PointerEventHandler | undefined}
+      onPointerDown={canEdit ? (listeners?.onPointerDown as PointerEventHandler | undefined) : undefined}
       className={cn('group', isDragging && 'opacity-40')}
     >
       <KanbanCardFace
         task={task}
         onOpen={onOpen}
+        className={canEdit ? undefined : 'cursor-default active:cursor-default'}
         handle={
+          canEdit && (
           <button
             type="button"
             ref={setActivatorNodeRef}
@@ -64,6 +70,7 @@ export function KanbanCardComponent({ task, onOpen }: { task: Task; onOpen: () =
           >
             <GripVertical className="size-3.5" aria-hidden />
           </button>
+          )
         }
       />
     </li>

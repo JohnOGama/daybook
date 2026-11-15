@@ -30,6 +30,7 @@ export function KanbanPageComponent() {
   const [creating, setCreating] = useState(false);
   const unavailable = space !== undefined && !hasKanban(space);
   const spaceId = space?.id;
+  const canEdit = space?.access !== 'view';
 
   useEffect(() => {
     if (unavailable) router.replace(`/list?space=${spaceId}`);
@@ -52,17 +53,19 @@ export function KanbanPageComponent() {
         </Skeleton>
         <div role="group" aria-label="Task actions" className="ml-auto flex items-center gap-1 rounded-xl border bg-card p-1">
           <FiltersMenuComponent />
-          <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
-            <Plus aria-hidden />
-            New task
-          </Button>
+          {canEdit && (
+            <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
+              <Plus aria-hidden />
+              New task
+            </Button>
+          )}
         </div>
       </div>
       {isError ? (
         <p className="px-6 py-8 text-sm text-destructive">Could not load tasks. Please try again.</p>
       ) : (
         <Skeleton loading={isPending} label="Loading board" className="min-h-0 flex-1 md:[&>[skullet-pane]]:h-full">
-          <KanbanBoardComponent tasks={filterTasks(tasks, filters)} />
+          <KanbanBoardComponent tasks={filterTasks(tasks, filters)} canEdit={canEdit} />
         </Skeleton>
       )}
       <TaskFormDialogComponent mode="new" defaultDay={today} open={creating} onOpenChange={setCreating} />

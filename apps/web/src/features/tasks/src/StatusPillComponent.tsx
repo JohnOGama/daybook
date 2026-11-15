@@ -14,8 +14,17 @@ import { useTaskMutations } from '../hooks/useTaskMutations';
 import { StatusIconComponent } from './StatusIconComponent';
 import { STATUS_LABELS, STATUSES, type Task, type TaskStatus } from './task-types';
 
-export function StatusPillComponent({ task }: { task: Task }) {
+export function StatusPillComponent({ task, readOnly }: { task: Task; readOnly?: boolean }) {
   const { update } = useTaskMutations();
+
+  if (readOnly) {
+    return (
+      <span className={cn(badgeVariants({ variant: 'outline' }), 'gap-1 px-1.5 text-muted-foreground [&>svg]:size-3.5')}>
+        <StatusIconComponent status={task.status} />
+        {STATUS_LABELS[task.status]}
+      </span>
+    );
+  }
 
   return (
     <DropdownMenu modal={false}>

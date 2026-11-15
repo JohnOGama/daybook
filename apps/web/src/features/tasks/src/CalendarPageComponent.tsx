@@ -38,7 +38,9 @@ export function CalendarPageComponent() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Task>();
 
-  const spaceTitle = useActiveSpace()?.title;
+  const space = useActiveSpace();
+  const spaceTitle = space?.title;
+  const canEdit = space?.access !== 'view';
   const filterParams = new URLSearchParams(
     [...params].filter(([name]) => ['space', 'status', 'high'].includes(name)),
   );
@@ -68,10 +70,12 @@ export function CalendarPageComponent() {
         </Button>
         <div role="group" aria-label="Task actions" className="ml-auto flex items-center gap-1 rounded-xl border bg-card p-1">
           <FiltersMenuComponent />
-          <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
-            <Plus aria-hidden />
-            New task
-          </Button>
+          {canEdit && (
+            <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
+              <Plus aria-hidden />
+              New task
+            </Button>
+          )}
         </div>
       </div>
       {isError && <p className="px-6 pb-3 text-sm text-destructive">Could not load tasks. Please try again.</p>}
@@ -82,7 +86,7 @@ export function CalendarPageComponent() {
           today={today}
           tasks={filterTasks(tasks, filters)}
           filterParams={filterParams}
-          onSelectTask={setEditing}
+          onSelectTask={canEdit ? setEditing : undefined}
         />
       </Skeleton>
       <TaskFormDialogComponent mode="new" defaultDay={today} open={creating} onOpenChange={setCreating} />

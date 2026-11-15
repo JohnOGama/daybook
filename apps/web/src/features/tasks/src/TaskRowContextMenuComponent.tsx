@@ -15,11 +15,14 @@ type TaskRowContextMenuProps = {
   task: Task;
   onOpenForm: (mode: TaskFormMode) => void;
   onDelete: () => void;
+  canEdit?: boolean;
   children: ReactNode;
 };
 
-export function TaskRowContextMenuComponent({ task, onOpenForm, onDelete, children }: TaskRowContextMenuProps) {
+export function TaskRowContextMenuComponent({ task, onOpenForm, onDelete, canEdit = true, children }: TaskRowContextMenuProps) {
   const { copy } = useTaskMutations();
+
+  if (!canEdit) return children;
 
   return (
     <ContextMenu>

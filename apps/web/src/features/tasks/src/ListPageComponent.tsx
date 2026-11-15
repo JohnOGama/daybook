@@ -36,6 +36,7 @@ export function ListPageComponent() {
   const [clearing, setClearing] = useState(false);
   const space = useActiveSpace();
   const spaceTitle = space?.title;
+  const canEdit = space?.access !== 'view';
 
   const filtered = filterTasks(tasks, filters);
   const visible = params.get('closed') === '0' ? withoutFinished(filtered) : filtered;
@@ -50,11 +51,13 @@ export function ListPageComponent() {
           icon={<EmptyDayIcon />}
           title={day === today ? 'Nothing planned for today' : 'Nothing planned for this day'}
           description={
-            space?.carryOver === false
-              ? 'Add a task and it stays on this day.'
-              : 'Add a task, and it carries forward until you finish it.'
+            !canEdit
+              ? 'Tasks planned for this day will show here.'
+              : space?.carryOver === false
+                ? 'Add a task and it stays on this day.'
+                : 'Add a task, and it carries forward until you finish it.'
           }
-          action={<Button onClick={() => setCreating(true)}>New task</Button>}
+          action={canEdit ? <Button onClick={() => setCreating(true)}>New task</Button> : undefined}
         />
       );
     }
@@ -89,6 +92,7 @@ export function ListPageComponent() {
         subtitleLoading={isPending}
       />
       <TaskToolbarComponent
+        canEdit={canEdit}
         onNewTask={() => setCreating(true)}
         onClearTable={!isPending && clearable.length > 0 ? () => setClearing(true) : undefined}
       >
@@ -99,7 +103,7 @@ export function ListPageComponent() {
       <Skeleton loading={isPending} label="Loading tasks">
         {isError && <p className="px-6 py-8 text-sm text-destructive">Could not load tasks. Please try again.</p>}
         {!isError && visible.length > 0 && (
-          <TaskTableComponent key={`${space?.id}:${day}`} tasks={visible} allTasks={tasks} />
+          <TaskTableComponent key={`${space?.id}:${day}`} tasks={visible} allTasks={tasks} canEdit={canEdit} />
         )}
         {!isError && visible.length === 0 && renderEmptyState()}
       </Skeleton>
