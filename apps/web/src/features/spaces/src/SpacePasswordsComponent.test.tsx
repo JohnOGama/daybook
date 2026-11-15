@@ -32,6 +32,10 @@ const space: Space = {
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
 };
 
 function show(spaces: Space[]) {
@@ -59,6 +63,12 @@ it('lists every space but vaults, with its folder and a password switch each', (
   expect(screen.getAllByRole('row')).toHaveLength(3);
   expect(screen.getByRole('switch', { name: 'Password for Diary' })).not.toBeChecked();
   expect(screen.getByRole('switch', { name: 'Password for Tasks' })).toBeChecked();
+});
+
+it('leaves out spaces shared with me', () => {
+  show([space, { ...space, id: 'theirs', title: 'Their Diary', access: 'edit', ownerName: 'Sam' }]);
+  expect(screen.queryByText('Their Diary')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('row')).toHaveLength(2);
 });
 
 it('locks every space with a password at once', async () => {

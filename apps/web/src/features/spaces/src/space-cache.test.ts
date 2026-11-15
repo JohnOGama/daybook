@@ -3,7 +3,7 @@ import { addSpace, applySpaceOrder, buildSpace, duplicateOf, removeSpace, rename
 import type { Space } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, access: 'owner', shared: false, ownerId: 'me', ownerName: null, ...fields };
 }
 
 it('changes carry over on only the matching space', () => {
@@ -47,12 +47,13 @@ it('removing a space leaves its siblings', () => {
   expect(removeSpace(list, 'in').map((s) => s.id)).toEqual(['other']);
 });
 
-it('a duplicate keeps the folder and count, with a marked title and new id', () => {
-  expect(duplicateOf(space('a', { title: 'Home', parentId: 'f', openToday: 3 }), 'b')).toMatchObject({
+it('a duplicate keeps the folder and count, with a marked title and new id, and is not shared', () => {
+  expect(duplicateOf(space('a', { title: 'Home', parentId: 'f', openToday: 3, shared: true }), 'b')).toMatchObject({
     id: 'b',
     title: 'Home (copy)',
     parentId: 'f',
     openToday: 3,
+    shared: false,
   });
 });
 

@@ -24,6 +24,10 @@ const spaceWith = (tool: string) => ({
   tool,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
 });
 
 it.each([

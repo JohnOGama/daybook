@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
-import { buildSpaceTree, isOnWrongScreen, resolveActiveSpace, spaceHref } from './space-tree';
+import { buildOwnTree, buildSharedTree, buildSpaceTree, isOnWrongScreen, resolveActiveSpace, spaceHref } from './space-tree';
 import type { Space, SpaceTool } from './space-types';
 
 function space(id: string, fields: Partial<Space> = {}): Space {
-  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, ...fields };
+  return { id, parentId: null, kind: 'space', title: id, tool: 'list', carryOver: true, locked: false, createdAt: '', openToday: 0, access: 'owner', shared: false, ownerId: 'me', ownerName: null, ...fields };
 }
 
 const folder = space('team', { kind: 'folder', tool: null });
@@ -15,6 +15,20 @@ it('nests spaces under their folder and keeps the order', () => {
   expect(tree.map((node) => node.id)).toEqual(['team', 'home']);
   expect(tree[0].children.map((child) => child.id)).toEqual(['requests']);
   expect(tree[1].children).toEqual([]);
+});
+
+it('splits my own spaces from shared ones, with shared folders first', () => {
+  const theirs = { access: 'view', ownerId: 'sam', ownerName: 'Sam' } as const;
+  const spaces = [
+    top,
+    space('direct', theirs),
+    space('their-folder', { ...theirs, kind: 'folder', tool: null }),
+    space('in-theirs', { ...theirs, parentId: 'their-folder' }),
+  ];
+  expect(buildOwnTree(spaces).map((node) => node.id)).toEqual(['home']);
+  const shared = buildSharedTree(spaces);
+  expect(shared.map((node) => node.id)).toEqual(['their-folder', 'direct']);
+  expect(shared[0].children.map((child) => child.id)).toEqual(['in-theirs']);
 });
 
 it('uses the requested space', () => {

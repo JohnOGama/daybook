@@ -4,7 +4,7 @@ import { CalendarDays, List, Settings, SquareKanban } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Skeleton } from 'skullet/react';
-import { useActiveSpace } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { hasKanban } from './kanban-columns';
 
@@ -26,7 +26,9 @@ export function TasksHeaderComponent({ title, subtitle, subtitleLoading }: Tasks
     if (value) kept.set(name, value);
   }
   const query = kept.size > 0 ? `?${kept}` : '';
-  const tabs = hasKanban(useActiveSpace()) ? [...TABS, KANBAN_TAB, SETTINGS_TAB] : TABS;
+  const { isOwner } = useSpaceAccess();
+  const listTabs = isOwner ? [...TABS, KANBAN_TAB, SETTINGS_TAB] : [...TABS, KANBAN_TAB];
+  const tabs = hasKanban(useActiveSpace()) ? listTabs : TABS;
 
   return (
     <header>

@@ -11,7 +11,7 @@ import { canLock, useSpaceLock, useSpaceUnlocked } from '../hooks/useSpaceLock';
 import { useSpaces } from '../hooks/useSpaces';
 import { type PasswordDialogMode, SpacePasswordDialogComponent } from './SpacePasswordDialogComponent';
 import { TOOL_ICONS } from './SpacesNavComponent';
-import { buildSpaceTree } from './space-tree';
+import { buildOwnTree } from './space-tree';
 import { type Space, TOOLS } from './space-types';
 
 const SAMPLE_SPACES: Space[] = ['Work', 'Journal', 'Side project'].map((title, index) => ({
@@ -24,12 +24,16 @@ const SAMPLE_SPACES: Space[] = ['Work', 'Journal', 'Side project'].map((title, i
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'sample',
+  ownerName: null,
 }));
 
 type Row = { space: Space; folder?: string };
 
 function lockableRows(spaces: Space[]): Row[] {
-  return buildSpaceTree(spaces).flatMap((node): Row[] =>
+  return buildOwnTree(spaces).flatMap((node): Row[] =>
     node.kind === 'folder'
       ? node.children.filter((space) => canLock(space)).map((space) => ({ space, folder: node.title }))
       : canLock(node)

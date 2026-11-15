@@ -14,6 +14,10 @@ export function buildSpace(input: NewSpaceInput): Space {
     locked: false,
     createdAt: new Date().toISOString(),
     openToday: 0,
+    access: 'owner',
+    shared: false,
+    ownerId: '',
+    ownerName: null,
   };
 }
 
@@ -44,5 +48,6 @@ export const duplicateOf = (space: Space, id: string): Space => ({
   ...space,
   id,
   title: copyTitle(space.title),
+  shared: false,
   createdAt: new Date().toISOString(),
 });

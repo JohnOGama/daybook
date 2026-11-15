@@ -21,6 +21,15 @@ export function buildSpaceTree(spaces: Space[]): SpaceNode[] {
     }));
 }
 
+export const isOwn = (space: Pick<Space, 'access'>) => space.access === 'owner';
+
+export const buildOwnTree = (spaces: Space[]) => buildSpaceTree(spaces.filter(isOwn));
+
+export const buildSharedTree = (spaces: Space[]): SpaceNode[] =>
+  buildSpaceTree(spaces.filter((space) => !isOwn(space))).sort(
+    (a, b) => Number(a.kind === 'space') - Number(b.kind === 'space'),
+  );
+
 export const spaceHref = ({ id, tool }: Pick<Space, 'id' | 'tool'>) =>
   `${(tool && TOOL_SCREENS[tool]) || '/list'}?space=${id}`;
 

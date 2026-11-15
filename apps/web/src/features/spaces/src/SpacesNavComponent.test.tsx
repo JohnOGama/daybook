@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { SpacesNavComponent } from './SpacesNavComponent';
@@ -14,14 +14,19 @@ const space = (id: string, title: string, fields: Partial<Space> = {}): Space =>
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
   ...fields,
 });
 
-const data = [
+const ownSpaces = [
   space('guide', 'Team Setup Guide', { openToday: 2 }),
   space('team', 'Design Team', { kind: 'folder', tool: null }),
   space('requests', 'Design Requests', { parentId: 'team', openToday: 7 }),
 ];
+let data = ownSpaces;
 
 vi.mock('../hooks/useSpaces', () => ({ useSpaces: () => ({ data }) }));
 vi.mock('../hooks/useActiveSpace', () => ({ useActiveSpace: () => data[2] }));
@@ -31,12 +36,54 @@ const { rename } = vi.hoisted(() => ({ rename: vi.fn() }));
 vi.mock('../hooks/useDeleteSpace', () => ({ useDeleteSpace: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useDuplicateSpace', () => ({ useDuplicateSpace: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useMoveSpace', () => ({ useMoveSpace: () => ({ mutate: vi.fn() }) }));
+vi.mock('../hooks/useShares', () => ({ useLeaveShare: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useRenameSpace', () => ({ useRenameSpace: () => ({ mutate: rename }) }));
 vi.mock('../hooks/useReorderSpaces', () => ({ useReorderSpaces: () => ({ mutate: vi.fn() }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 beforeEach(() => {
+  data = ownSpaces;
   render(<SpacesNavComponent />);
+});
+
+function showWith(spaces: Space[]) {
+  cleanup();
+  data = spaces;
+  render(<SpacesNavComponent />);
+}
+
+const fromSam = { access: 'view', ownerId: 'sam', ownerName: 'Sam' } as const;
+
+it('hides Shared with me when nothing is shared', () => {
+  expect(screen.queryByText('Shared with me')).not.toBeInTheDocument();
+});
+
+it('lists spaces shared with me under their own heading, with the owner name and no drag handles', () => {
+  showWith([
+    ...ownSpaces,
+    space('theirs', 'Their Plans', fromSam),
+    space('other', 'Other Plans', fromSam),
+  ]);
+  expect(screen.getByText('Shared with me')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Their Plans/ })).toHaveTextContent('Sam');
+  expect(screen.queryByRole('button', { name: 'Reorder Their Plans' })).not.toBeInTheDocument();
+});
+
+it('puts a shared folder with its spaces in Shared with me, with no new space button', () => {
+  showWith([
+    ...ownSpaces,
+    space('their-folder', 'Their Folder', { ...fromSam, kind: 'folder', tool: null }),
+    space('inside', 'Inside Theirs', { ...fromSam, parentId: 'their-folder' }),
+  ]);
+  expect(screen.getByRole('button', { name: /Their Folder/ })).toHaveTextContent('Sam');
+  expect(screen.getByRole('link', { name: /Inside Theirs/ })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'New space in Their Folder' })).not.toBeInTheDocument();
+});
+
+it('marks my own shared spaces', () => {
+  showWith([space('mine', 'Mine Shared', { shared: true }), space('alone', 'Not Shared')]);
+  expect(screen.getByRole('link', { name: /Mine Shared/ })).toContainElement(screen.getByLabelText('Shared'));
+  expect(screen.getAllByLabelText('Shared')).toHaveLength(1);
 });
 
 it('links each space to its tool with its count', () => {

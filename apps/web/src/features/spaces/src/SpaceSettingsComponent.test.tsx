@@ -17,6 +17,10 @@ const space: Space = {
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
 };
 
 function showSettings(target: Space) {

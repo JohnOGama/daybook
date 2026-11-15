@@ -1,5 +1,9 @@
 export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram';
 
+export type SpaceAccess = 'owner' | 'edit' | 'view';
+export type ShareRole = Exclude<SpaceAccess, 'owner'>;
+export type Share = { id: string; email: string; role: ShareRole };
+
 export type Space = {
   id: string;
   parentId: string | null;
@@ -10,6 +14,10 @@ export type Space = {
   locked: boolean;
   createdAt: string;
   openToday: number;
+  access: SpaceAccess;
+  shared: boolean;
+  ownerId: string;
+  ownerName: string | null;
 };
 
 export type CreateSpaceInput =

@@ -24,6 +24,10 @@ const space: Space = {
   locked: true,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
 };
 
 const renderGate = () => render(<SpaceLockGateComponent space={space}>secret pages</SpaceLockGateComponent>);

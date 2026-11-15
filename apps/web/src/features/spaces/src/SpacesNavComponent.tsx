@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus } from 'lucide-react';
+import { BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -41,7 +41,7 @@ import { useReorderSpaces } from '../hooks/useReorderSpaces';
 import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
-import { buildSpaceTree, type SpaceNode, spaceHref } from './space-tree';
+import { buildOwnTree, buildSharedTree, isOwn, type SpaceNode, spaceHref } from './space-tree';
 import type { Space, SpaceTool } from './space-types';
 
 type CreatingState = { parentFolder?: Space };
@@ -62,7 +62,16 @@ const SAMPLE_SPACES: Space[] = ['My first list', 'Weekly plans', 'Side project']
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'sample',
+  ownerName: null,
 }));
+
+function OwnerName({ space }: { space: Space }) {
+  if (isOwn(space) || !space.ownerName) return null;
+  return <span className="shrink-0 truncate text-xs font-normal text-muted-foreground">{space.ownerName}</span>;
+}
 
 function LabelEditor({ space, icon, onClose }: { space: Space; icon: ReactNode; onClose: () => void }) {
   const rename = useRenameSpace();
@@ -118,6 +127,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
   const sortable = useSortable({ id: space.id });
   const Icon = TOOL_ICONS[space.tool ?? 'list'];
   const icon = <Icon className="size-4 shrink-0" data-active={isActive || undefined} aria-hidden />;
+  const startEditing = isOwn(space) ? () => setEditing(true) : undefined;
 
   return (
     <div
@@ -137,7 +147,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
               <Link
                 href={spaceHref(space)}
                 aria-current={isActive ? 'page' : undefined}
-                onDoubleClick={() => setEditing(true)}
+                onDoubleClick={startEditing}
                 className={cn(
                   'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-foreground hover:bg-accent',
                   nested && 'row-enter',
@@ -146,6 +156,8 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
               >
                 {icon}
                 <span className="truncate">{space.title}</span>
+                {space.shared && <Users className="size-3.5 shrink-0 text-muted-foreground" aria-label="Shared" />}
+                <OwnerName space={space} />
                 {space.openToday > 0 && (
                   <span className={cn('ml-auto text-xs text-muted-foreground', isActive && 'text-foreground')}>
                     {space.openToday}
@@ -178,6 +190,7 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
   const sortable = useSortable({ id: folder.id });
   const Icon = isOpen ? FolderOpenIcon : FolderIcon;
   const icon = <Icon className="size-4 shrink-0" aria-hidden />;
+  const own = isOwn(folder);
 
   return (
     <div ref={sortable.setNodeRef} style={dragStyle(sortable)} className={cn('relative', draggingClass(sortable))}>
@@ -194,20 +207,24 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
                 type="button"
                 aria-expanded={isOpen}
                 onClick={onToggle}
-                onDoubleClick={() => setEditing(true)}
+                onDoubleClick={own ? () => setEditing(true) : undefined}
                 className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-foreground"
               >
                 {icon}
                 <span className="truncate">{folder.title}</span>
+                {folder.shared && <Users className="size-3.5 shrink-0 text-muted-foreground" aria-label="Shared" />}
+                <OwnerName space={folder} />
               </button>
-              <button
-                type="button"
-                aria-label={`New space in ${folder.title}`}
-                onClick={onAddSpace}
-                className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="size-3.5" aria-hidden />
-              </button>
+              {own && (
+                <button
+                  type="button"
+                  aria-label={`New space in ${folder.title}`}
+                  onClick={onAddSpace}
+                  className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                </button>
+              )}
             </div>
           )}
         </SpaceContextMenuComponent>
@@ -219,7 +236,7 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
               key={child.id}
               space={child}
               isActive={child.id === activeId}
-              canReorder={folder.children.length > 1}
+              canReorder={own && folder.children.length > 1}
               nested
               renderSummary={renderSummary}
             />
@@ -241,8 +258,33 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const tree = buildSpaceTree(spaces);
+  const tree = buildOwnTree(spaces);
+  const sharedTree = buildSharedTree(spaces);
   const canReorder = !isPending && tree.length > 1;
+
+  const renderNodes = (nodes: SpaceNode[], canReorderNodes: boolean) =>
+    nodes.map((node) =>
+      node.kind === 'space' ? (
+        <SpaceRow
+          key={node.id}
+          space={node}
+          isActive={node.id === active?.id}
+          canReorder={canReorderNodes}
+          renderSummary={renderSpaceSummary}
+        />
+      ) : (
+        <FolderRow
+          key={node.id}
+          folder={node}
+          activeId={active?.id}
+          isOpen={!collapsed.has(node.id)}
+          canReorder={canReorderNodes}
+          onToggle={() => toggleFolder(node.id)}
+          onAddSpace={() => setCreating({ parentFolder: node })}
+          renderSummary={renderSpaceSummary}
+        />
+      ),
+    );
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
@@ -283,30 +325,18 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
       >
         <Skeleton loading={isPending} label="Loading spaces">
           <SortableContext id="spaces" items={tree.map(({ id }) => id)} strategy={verticalListSortingStrategy}>
-            {tree.map((node) =>
-              node.kind === 'space' ? (
-                <SpaceRow
-                  key={node.id}
-                  space={node}
-                  isActive={node.id === active?.id}
-                  canReorder={canReorder}
-                  renderSummary={renderSpaceSummary}
-                />
-              ) : (
-                <FolderRow
-                  key={node.id}
-                  folder={node}
-                  activeId={active?.id}
-                  isOpen={!collapsed.has(node.id)}
-                  canReorder={canReorder}
-                  onToggle={() => toggleFolder(node.id)}
-                  onAddSpace={() => setCreating({ parentFolder: node })}
-                  renderSummary={renderSpaceSummary}
-                />
-              ),
-            )}
+            {renderNodes(tree, canReorder)}
           </SortableContext>
         </Skeleton>
+
+        {sharedTree.length > 0 && (
+          <>
+            <div className="mx-2 mt-5 mb-1.5 text-[13px] font-medium text-muted-foreground">Shared with me</div>
+            <SortableContext id="shared-spaces" items={sharedTree.map(({ id }) => id)}>
+              {renderNodes(sharedTree, false)}
+            </SortableContext>
+          </>
+        )}
       </DndContext>
 
       <Dialog open={creating !== undefined} onOpenChange={(open) => !open && close()}>

@@ -5,12 +5,13 @@ import { SpaceSettingsPageComponent } from './SpaceSettingsPageComponent';
 import { TasksHeaderComponent } from './TasksHeaderComponent';
 
 const { active, replace } = vi.hoisted(() => ({
-  active: { space: { id: 's1', title: 'Home', tool: 'list' as string | null } },
+  active: { space: { id: 's1', title: 'Home', tool: 'list' as string | null }, isOwner: true },
   replace: vi.fn(),
 }));
 
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => active.space,
+  useSpaceAccess: () => ({ isOwner: active.isOwner }),
   SpaceSettingsComponent: () => <p>settings content</p>,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));
@@ -30,9 +31,18 @@ const kanbanTab = () => screen.queryByRole('link', { name: 'Kanban' });
 beforeEach(() => {
   vi.clearAllMocks();
   active.space = { id: 's1', title: 'Home', tool: 'list' };
+  active.isOwner = true;
 });
 
 const settings = () => screen.queryByRole('link', { name: 'Settings' });
+
+it('offers Settings only to the owner of a shared list', () => {
+  active.isOwner = false;
+  render(<SpaceSettingsPageComponent />);
+  expect(kanbanTab()).toBeInTheDocument();
+  expect(settings()).not.toBeInTheDocument();
+  expect(screen.queryByText('settings content')).not.toBeInTheDocument();
+});
 
 it('opens Settings as a page of its own, under the same tabs', () => {
   render(<SpaceSettingsPageComponent />);

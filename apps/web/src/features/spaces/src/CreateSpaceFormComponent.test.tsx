@@ -19,6 +19,10 @@ const folder: Space = {
   locked: false,
   createdAt: '',
   openToday: 0,
+  access: 'owner',
+  shared: false,
+  ownerId: 'me',
+  ownerName: null,
 };
 const onDone = vi.fn();
 

@@ -1,4 +1,4 @@
-import type { NewSpaceInput, Space } from './space-types';
+import type { NewSpaceInput, Share, ShareRole, Space } from './space-types';
 
 async function send(url: string, method: string, failure: string, body?: object): Promise<void> {
   const response = await fetch(url, {
@@ -42,3 +42,29 @@ export const duplicateSpace =({ source, id }: { source: Space; id: string }) =>
 
 export const deleteSpace = (id: string) =>
   send(`/api/spaces/${id}`, 'DELETE', 'That space could not be deleted. Please try again.');
+
+export async function fetchShares(spaceId: string): Promise<Share[]> {
+  const response = await fetch(`/api/spaces/${spaceId}/shares`);
+  if (!response.ok) throw new Error('Could not load who this is shared with');
+  return response.json();
+}
+
+export async function addShare({ spaceId, ...share }: Share & { spaceId: string }): Promise<void> {
+  const response = await fetch(`/api/spaces/${spaceId}/shares`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(share),
+  });
+  if (response.ok) return;
+  const { message } = response.status === 400 ? await response.json().catch(() => ({})) : {};
+  throw new Error(typeof message === 'string' ? message : 'That invite could not be sent. Please try again.');
+}
+
+export const setShareRole = ({ spaceId, shareId, role }: { spaceId: string; shareId: string; role: ShareRole }) =>
+  send(`/api/spaces/${spaceId}/shares/${shareId}`, 'PATCH', 'That role could not be saved. Please try again.', { role });
+
+export const removeShare = ({ spaceId, shareId }: { spaceId: string; shareId: string }) =>
+  send(`/api/spaces/${spaceId}/shares/${shareId}`, 'DELETE', 'That person could not be removed. Please try again.');
+
+export const leaveShare = (spaceId: string) =>
+  send(`/api/spaces/${spaceId}/shares/me`, 'DELETE', 'That space could not be left. Please try again.');
