@@ -194,7 +194,7 @@ it('saves a set as done when it is ticked, shows last time, and lights up the mu
   expect(within(screen.getByRole('group', { name: 'Primary' })).getByText('Chest')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Push day.*3 of 3 sets/ })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('checkbox', { name: 'Bench press, set 2 done' }));
-  expect(mutations.saveWorkout.mutate).toHaveBeenCalledWith({ ...todays, items: [bench([false, true])] });
+  expect(mutations.saveWorkout.mutate).toHaveBeenCalledWith(expect.objectContaining({ workout: { ...todays, items: [bench([false, true])] } }));
   expect(screen.getByText('1 of 2 sets done')).toBeInTheDocument();
 });
 

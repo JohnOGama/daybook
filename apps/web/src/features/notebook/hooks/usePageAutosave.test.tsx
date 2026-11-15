@@ -28,7 +28,7 @@ it('shows edits at once but sends one merged save after a pause', () => {
     vi.advanceTimersByTime(600);
   });
   expect(mutate).toHaveBeenCalledTimes(1);
-  expect(mutate.mock.calls[0][0]).toEqual({ id: 'p', changes: { title: 'A', content: doc }, base: { current: 3 } });
+  expect(mutate.mock.calls[0][0]).toEqual({ id: 'p', changes: { title: 'A', content: doc }, from: { version: 3, conflicted: false } });
 
   act(() => (mutate.mock.calls[0][1] as Callbacks).onSuccess());
   expect(result.current.status).toBe('saved');
@@ -112,5 +112,31 @@ it('reloads the page, drops local changes and saves again after that', async () 
     vi.advanceTimersByTime(600);
   });
   expect(mutate).toHaveBeenCalledTimes(2);
-  expect(mutate.mock.calls[1][0]).toEqual({ id: 'p', changes: { title: 'B' }, base: { current: 7 } });
+  expect(mutate.mock.calls[1][0]).toEqual({ id: 'p', changes: { title: 'B' }, from: { version: 7, conflicted: false } });
+});
+
+it('shows a refused content save even when a title-only save queued behind it succeeds', () => {
+  const { result } = renderHook(() => usePageAutosave('p', 3));
+  act(() => result.current.schedule({ content: doc }));
+  act(() => {
+    vi.advanceTimersByTime(600);
+  });
+  act(() => result.current.schedule({ title: 'B' }));
+  act(() => {
+    vi.advanceTimersByTime(600);
+  });
+  expect(mutate).toHaveBeenCalledTimes(2);
+
+  // What usePageMutations does when the first save is refused; its per-call callbacks never run, being superseded.
+  act(() => {
+    mutate.mock.calls[0][0].from.conflicted = true;
+  });
+  act(() => (mutate.mock.calls[1][1] as Callbacks).onSuccess());
+  expect(result.current.status).toBe('conflict');
+
+  act(() => result.current.schedule({ title: 'C' }));
+  act(() => {
+    vi.advanceTimersByTime(600);
+  });
+  expect(mutate).toHaveBeenCalledTimes(2);
 });

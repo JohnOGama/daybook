@@ -21,7 +21,7 @@ export function MealPlanEditorComponent({ plan, isNew, onSave, onCancel, onDelet
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (valid) onSave({ id: plan.id, name: name.trim(), items });
+    if (valid) onSave({ id: plan.id, name: name.trim(), items, version: plan.version });
   }
 
   return (

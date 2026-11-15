@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ConflictError } from '@/shared/utils/conflict-error';
+import { ConflictError, type EditedFrom } from '@/shared/utils/conflict-error';
 import type { PageChanges } from '../src/page-types';
 import { usePageMutations } from './usePageMutations';
 
@@ -17,34 +17,36 @@ export function usePageAutosave(pageId: string, version: number) {
   const [status, setStatus] = useState<SaveStatus>('saved');
   const pending = useRef<PageChanges>({});
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const base = useRef(version);
-  const conflicted = useRef(false);
+  const from = useRef<EditedFrom>({ version, conflicted: false }).current;
+
+  const showConflict = useCallback(() => {
+    from.conflicted = true;
+    pending.current = {};
+    setStatus('conflict');
+  }, [from]);
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     const changes = pending.current;
-    if (conflicted.current || Object.keys(changes).length === 0) return;
+    if (from.conflicted || Object.keys(changes).length === 0) return;
     pending.current = {};
     setStatus('saving');
+    // These callbacks run only for the latest save, so each checks `from` for a refusal of one queued ahead of it.
     mutate(
-      { id: pageId, changes, base },
+      { id: pageId, changes, from },
       {
         onSuccess: () => {
-          if (Object.keys(pending.current).length === 0) setStatus('saved');
+          if (from.conflicted) showConflict();
+          else if (Object.keys(pending.current).length === 0) setStatus('saved');
         },
         onError: (error) => {
-          if (error instanceof ConflictError) {
-            conflicted.current = true;
-            pending.current = {};
-            setStatus('conflict');
-            return;
-          }
+          if (from.conflicted || error instanceof ConflictError) return showConflict();
           pending.current = { ...changes, ...pending.current };
           setStatus('failed');
         },
       },
     );
-  }, [pageId, mutate]);
+  }, [pageId, mutate, from, showConflict]);
 
   useEffect(() => {
     window.addEventListener('pagehide', flush);
@@ -55,7 +57,7 @@ export function usePageAutosave(pageId: string, version: number) {
   }, [flush]);
 
   function schedule(changes: PageChanges) {
-    if (conflicted.current) return;
+    if (from.conflicted) return;
     pending.current = { ...pending.current, ...changes };
     patchPage(pageId, changes);
     setStatus('saving');
@@ -68,8 +70,8 @@ export function usePageAutosave(pageId: string, version: number) {
     clearTimeout(timer.current);
     pending.current = {};
     const page = await reloadPage(pageId);
-    if (page) base.current = page.version;
-    conflicted.current = false;
+    if (page) from.version = page.version;
+    from.conflicted = false;
     setStatus('saved');
     return page;
   }

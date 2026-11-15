@@ -52,38 +52,40 @@ it('sends the version the content was edited from and keeps the one the server r
   const fetch = vi.fn(async () => Response.json({ version: fetch.mock.calls.length + 3 }));
   vi.stubGlobal('fetch', fetch);
   const result = renderMutations();
-  const base = { current: 3 };
+  const from = { version: 3, conflicted: false };
 
-  act(() => result.current.save.mutate({ id: 'a', changes: { content: doc }, base }));
-  act(() => result.current.save.mutate({ id: 'a', changes: { content: doc }, base }));
+  act(() => result.current.save.mutate({ id: 'a', changes: { content: doc }, from }));
+  act(() => result.current.save.mutate({ id: 'a', changes: { content: doc }, from }));
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(versionOf('a')).toBe(5));
 
   expect(sentBody(fetch, 0)).toEqual({ content: doc, version: 3 });
   expect(sentBody(fetch, 1)).toEqual({ content: doc, version: 4 });
-  expect(base.current).toBe(5);
+  expect(from.version).toBe(5);
 });
 
 it('never takes the version from a title-only save, which may be out of date', async () => {
   const fetch = vi.fn(async () => Response.json({ version: 1 }));
   vi.stubGlobal('fetch', fetch);
   const result = renderMutations();
-  const base = { current: 3 };
+  const from = { version: 3, conflicted: false };
 
-  await act(async () => result.current.save.mutateAsync({ id: 'a', changes: { title: 'Renamed' }, base }));
+  await act(async () => result.current.save.mutateAsync({ id: 'a', changes: { title: 'Renamed' }, from }));
 
   expect(sentBody(fetch, 0)).toEqual({ title: 'Renamed' });
-  expect(base.current).toBe(3);
+  expect(from.version).toBe(3);
   expect(versionOf('a')).toBe(3);
 });
 
-it('does not retry or toast a save someone else got to first', async () => {
+it('marks the editor conflicted, without retrying or a toast, when someone else saved first', async () => {
   const fetch = vi.fn(async () => Response.json({ message: 'Changed by someone else' }, { status: 409 }));
   vi.stubGlobal('fetch', fetch);
   const result = renderMutations();
+  const from = { version: 3, conflicted: false };
 
-  await act(async () => result.current.save.mutateAsync({ id: 'a', changes: { content: doc }, base: { current: 3 } }).catch(() => {}));
+  await act(async () => result.current.save.mutateAsync({ id: 'a', changes: { content: doc }, from }).catch(() => {}));
 
+  expect(from.conflicted).toBe(true);
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(toast.error).not.toHaveBeenCalled();
 });

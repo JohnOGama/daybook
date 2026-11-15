@@ -3,16 +3,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useActiveSpace } from '@/features/spaces';
-import { ConflictError } from '@/shared/utils/conflict-error';
+import { ConflictError, type EditedFrom } from '@/shared/utils/conflict-error';
 import type { NotebookPage, PageChanges } from '../src/page-types';
 import { createPage, deletePage, reorderPages, updatePage } from '../src/pages-api';
 
 // Runs page requests one at a time, so typing in a new page can't reach the server before the page exists.
 const scope = { id: 'notebook-pages' };
 
-// `base` is the version the editor's content was edited from. It is read when the request actually starts,
-// so a save queued behind another sends the version that one returned.
-type Save = { id: string; changes: PageChanges; base: { current: number } };
+// `from` belongs to the editor. A refused content save marks it here, where every save is seen: React Query runs
+// per-call callbacks only for the latest call, so the editor could otherwise miss a refusal queued ahead of it.
+type Save = { id: string; changes: PageChanges; from: EditedFrom };
 
 export function usePageMutations() {
   const queryClient = useQueryClient();
@@ -41,15 +41,22 @@ export function usePageMutations() {
 
   const save = useMutation({
     scope,
-    mutationFn: ({ id, changes, base }: Save) =>
-      updatePage({ id, changes: changes.content === undefined ? changes : { ...changes, version: base.current } }),
+    mutationFn: async ({ id, changes, from }: Save) => {
+      // A title-only save returns whatever version is current, which may be newer than this editor's content.
+      if (changes.content === undefined) return updatePage({ id, changes });
+      try {
+        const saved = await updatePage({ id, changes: { ...changes, version: from.version } });
+        from.version = saved.version;
+        return saved;
+      } catch (error) {
+        if (error instanceof ConflictError) from.conflicted = true;
+        throw error;
+      }
+    },
     retry: (failures, error) => !(error instanceof ConflictError) && failures < 2,
     onMutate: () => queryClient.cancelQueries({ queryKey: ['pages'] }),
-    // A title-only save returns whatever version is current, which may be newer than this editor's content.
-    onSuccess: ({ version }, { id, changes, base }) => {
-      if (changes.content === undefined) return;
-      base.current = version;
-      patchPage(id, { version });
+    onSuccess: ({ version }, { id, changes }) => {
+      if (changes.content !== undefined) patchPage(id, { version });
     },
     onError: (error: Error) => {
       if (!(error instanceof ConflictError)) toast.error(error.message);

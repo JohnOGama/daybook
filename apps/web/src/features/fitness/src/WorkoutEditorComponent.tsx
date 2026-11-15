@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/shared/components/ui/button';
+import type { EditedFrom } from '@/shared/utils/conflict-error';
 import { Input } from '@/shared/components/ui/input';
 import { useFitnessMutations } from '../hooks/useFitnessMutations';
 import { BodyDiagramComponent, strengthFromMuscles } from './BodyDiagramComponent';
@@ -18,6 +19,7 @@ type WorkoutEditorProps = { workout: Workout; history: Workout[] };
 export function WorkoutEditorComponent({ workout, history }: WorkoutEditorProps) {
   const { saveWorkout, deleteWorkoutWithUndo, addTemplate } = useFitnessMutations();
   const [draft, setDraft] = useState(workout);
+  const from = useRef<EditedFrom>({ version: workout.version ?? 0, conflicted: false }).current;
   const pending = useRef<Workout | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const save = useRef(saveWorkout.mutate);
@@ -25,13 +27,23 @@ export function WorkoutEditorComponent({ workout, history }: WorkoutEditorProps)
 
   const flush = useRef(() => {
     clearTimeout(timer.current);
-    if (pending.current) save.current(pending.current);
+    if (pending.current && !from.conflicted) save.current({ workout: pending.current, from });
     pending.current = null;
   }).current;
 
   useEffect(() => flush, [flush]);
 
+  // After a refused save nothing more is sent. Once a reload brings the saved workout in, the editor starts over from it.
+  useEffect(() => {
+    if (!from.conflicted || (workout.version ?? 0) === from.version) return;
+    from.version = workout.version ?? 0;
+    from.conflicted = false;
+    pending.current = null;
+    setDraft(workout);
+  }, [workout, from]);
+
   function change(next: Workout, now: boolean) {
+    if (from.conflicted) return;
     setDraft(next);
     pending.current = next;
     clearTimeout(timer.current);

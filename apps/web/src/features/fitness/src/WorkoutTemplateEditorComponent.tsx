@@ -17,7 +17,7 @@ export function WorkoutTemplateEditorComponent({ template, isNew, onSave, onCanc
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (valid) onSave({ id: template.id, name: name.trim(), items });
+    if (valid) onSave({ id: template.id, name: name.trim(), items, version: template.version });
   }
 
   return (
