@@ -80,4 +80,6 @@ export type FitnessViewProps = {
   today: string;
   day: string;
   hrefFor: (change: { view?: FitnessView; day?: string }) => string;
+  // False for someone the space is shared with as "Can view": nothing that writes is offered.
+  canEdit?: boolean;
 };

@@ -16,7 +16,7 @@ const HEIGHT = 80;
 const dayNumber = (day: string) => Date.parse(`${day}T00:00:00Z`) / 86_400_000;
 
 // Current weight, how it is moving and how far from the goal, with a weigh-in for the shown day.
-export function WeightCardComponent({ fitness, today, day, hrefFor }: FitnessViewProps) {
+export function WeightCardComponent({ fitness, today, day, hrefFor, canEdit = true }: FitnessViewProps) {
   const { profile, weights } = fitness;
   const { saveWeight } = useFitnessMutations();
   const [typed, setTyped] = useState('');
@@ -98,6 +98,7 @@ export function WeightCardComponent({ fitness, today, day, hrefFor }: FitnessVie
           <p className="text-sm text-muted-foreground">Weigh in on two days to see your trend.</p>
         )}
 
+        {canEdit && (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             aria-label="Weight in kg"
@@ -112,6 +113,7 @@ export function WeightCardComponent({ fitness, today, day, hrefFor }: FitnessVie
             Log weight
           </Button>
         </form>
+        )}
       </div>
     </SectionCardComponent>
   );

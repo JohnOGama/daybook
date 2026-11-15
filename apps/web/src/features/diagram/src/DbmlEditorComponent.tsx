@@ -12,7 +12,7 @@ import type { Problem } from './diagram-types';
 
 export type LineRange = { from: number; to: number };
 
-type DbmlEditorProps = { value: string; problems: Problem[]; fresh: LineRange[]; onChange(text: string): void; scrollTo: string | null };
+type DbmlEditorProps = { value: string; problems: Problem[]; fresh: LineRange[]; onChange(text: string): void; scrollTo: string | null; readOnly?: boolean };
 
 // Marks text put in from outside (AI, import, undo) so it isn't reported back as typing.
 const fromOutside = Annotation.define<boolean>();
@@ -63,7 +63,7 @@ const theme = EditorView.theme(
 const tableLine = (name: string) => new RegExp(`^\\s*Table\\s+"?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"?(\\s|\\{|$)`);
 
 // CodeMirror holding the DBML; the page owns the text and hears about every edit the owner types.
-export function DbmlEditorComponent({ value, problems, fresh, onChange, scrollTo }: DbmlEditorProps) {
+export function DbmlEditorComponent({ value, problems, fresh, onChange, scrollTo, readOnly = false }: DbmlEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -81,6 +81,8 @@ export function DbmlEditorComponent({ value, problems, fresh, onChange, scrollTo
           freshLines,
           theme,
           EditorView.contentAttributes.of({ 'aria-label': 'DBML' }),
+          EditorView.editable.of(!readOnly),
+          EditorState.readOnly.of(readOnly),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && !update.transactions.some((transaction) => transaction.annotation(fromOutside))) {
               changed.current(update.state.doc.toString());

@@ -101,6 +101,7 @@ type JobsTableProps = {
   empty: string;
   profile: JobProfile;
   aiEnabled: boolean;
+  canEdit?: boolean;
   today: string;
   pendingUrl: string | null;
   sort: JobSort;
@@ -110,7 +111,7 @@ type JobsTableProps = {
   onAddCv: () => void;
 };
 
-export function JobsTableComponent({ jobs, empty, profile, aiEnabled, today, pendingUrl, sort, onSort, selectedId, onSelect, onAddCv }: JobsTableProps) {
+export function JobsTableComponent({ jobs, empty, profile, aiEnabled, canEdit = true, today, pendingUrl, sort, onSort, selectedId, onSelect, onAddCv }: JobsTableProps) {
   const columns = aiEnabled ? 5 : 4;
   return (
     <Table className="[&_td]:py-2.5">
@@ -162,7 +163,7 @@ export function JobsTableComponent({ jobs, empty, profile, aiEnabled, today, pen
               <TableCell className="hidden md:table-cell" onClick={(event) => event.stopPropagation()}>
                 {job.match ? (
                   <MatchRingComponent pct={job.match.pct} />
-                ) : !profile.cvText ? (
+                ) : !profile.cvText && canEdit ? (
                   <Button variant="link" size="sm" aria-label="Add your CV to see the match" onClick={onAddCv} className="h-auto p-0 text-xs text-muted-foreground">
                     Add your CV
                   </Button>
@@ -178,7 +179,7 @@ export function JobsTableComponent({ jobs, empty, profile, aiEnabled, today, pen
               <AppliedCell job={job} today={today} />
             </TableCell>
             <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-              <RowAction job={job} today={today} />
+              {canEdit && <RowAction job={job} today={today} />}
             </TableCell>
           </TableRow>
         ))}

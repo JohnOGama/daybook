@@ -23,9 +23,17 @@ const NOTES_PAUSE_MS = 800;
 type TextField = 'location' | 'salary' | 'employmentType' | 'postedOn';
 
 // A text input that saves when the owner leaves it, and only if the value changed.
-function DetailField({ field, label, job, max, type = 'text', onSave }: { field: TextField; label: string; job: Job; max?: number; type?: string; onSave: (changes: Partial<JobFields>) => void }) {
+function DetailField({ field, label, job, max, type = 'text', canEdit, onSave }: { field: TextField; label: string; job: Job; max?: number; type?: string; canEdit: boolean; onSave: (changes: Partial<JobFields>) => void }) {
   const [value, setValue] = useState(job[field] ?? '');
   const id = `job-${field}`;
+  if (!canEdit) {
+    return (
+      <div className="grid grid-cols-[7rem_1fr] items-center gap-2">
+        <span className="text-muted-foreground">{label}</span>
+        <span>{job[field] ?? '—'}</span>
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-[7rem_1fr] items-center gap-2">
       <Label htmlFor={id} className="font-normal text-muted-foreground">
@@ -84,7 +92,7 @@ function Notes({ job, onSave }: { job: Job; onSave: (changes: Partial<JobFields>
   );
 }
 
-function Description({ job, onSave }: { job: Job; onSave: (changes: Partial<JobFields>) => void }) {
+function Description({ job, canEdit, onSave }: { job: Job; canEdit: boolean; onSave: (changes: Partial<JobFields>) => void }) {
   const [text, setText] = useState(job.description);
   const [expanded, setExpanded] = useState(false);
   return (
@@ -97,6 +105,10 @@ function Description({ job, onSave }: { job: Job; onSave: (changes: Partial<JobF
       }
     >
       <div className="px-4 pb-4">
+        {!canEdit ? (
+          <p className={cn('overflow-y-auto text-sm whitespace-pre-wrap text-muted-foreground', expanded ? 'max-h-96' : 'max-h-24')}>{job.description || 'No description.'}</p>
+        ) : (
+          <>
         <Label htmlFor="job-description-edit" className="sr-only">
           Job description
         </Label>
@@ -109,17 +121,19 @@ function Description({ job, onSave }: { job: Job; onSave: (changes: Partial<JobF
           onBlur={() => text.trim() !== job.description && onSave({ description: text.trim() })}
           className={cn('resize-none text-muted-foreground', expanded ? 'h-96' : 'h-24')}
         />
+          </>
+        )}
       </div>
     </SectionCardComponent>
   );
 }
 
-type JobPanelProps = { job: Job; profile: JobProfile; aiEnabled: boolean; today: string; onClose: () => void; onAddCv: () => void };
+type JobPanelProps = { job: Job; profile: JobProfile; aiEnabled: boolean; canEdit?: boolean; today: string; onClose: () => void; onAddCv: () => void };
 
 // Lives inside a non-modal <Drawer>: the list stays usable, and picking another job swaps what the panel shows.
 
 // One job in full: status, match, details, description and notes, in a drawer floating on the right.
-export function JobPanelComponent({ job, profile, aiEnabled, today, onClose, onAddCv }: JobPanelProps) {
+export function JobPanelComponent({ job, profile, aiEnabled, canEdit = true, today, onClose, onAddCv }: JobPanelProps) {
   const { saveJob, deleteJobWithUndo } = useJobsMutations();
   const save = (changes: Partial<JobFields>) => saveJob.mutate({ id: job.id, changes });
 
@@ -142,6 +156,7 @@ export function JobPanelComponent({ job, profile, aiEnabled, today, onClose, onA
             )}
           </DrawerDescription>
         </div>
+        {canEdit && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Job actions" className="size-8">
@@ -161,6 +176,7 @@ export function JobPanelComponent({ job, profile, aiEnabled, today, onClose, onA
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
         <DrawerClose asChild>
           <Button variant="ghost" size="icon" aria-label="Close" className="size-8">
             <X aria-hidden />
@@ -168,28 +184,33 @@ export function JobPanelComponent({ job, profile, aiEnabled, today, onClose, onA
         </DrawerClose>
       </div>
 
-      <JobStatusCardComponent job={job} today={today} />
-      {aiEnabled && <JobMatchCardComponent job={job} profile={profile} onAddCv={onAddCv} />}
+      <JobStatusCardComponent job={job} today={today} canEdit={canEdit} />
+      {aiEnabled && <JobMatchCardComponent job={job} profile={profile} onAddCv={onAddCv} canEdit={canEdit} />}
 
       <SectionCardComponent title="Details">
         <div className="flex flex-col gap-2 px-4 pb-4 text-sm">
-          <DetailField field="location" label="Location" job={job} max={120} onSave={save} />
+          <DetailField field="location" label="Location" job={job} max={120} canEdit={canEdit} onSave={save} />
           <div className="grid grid-cols-[7rem_1fr] items-center gap-2">
             <span className="text-muted-foreground">Work mode</span>
-            <ChoiceComponent label="Work mode" value={job.workMode} options={WORK_MODE_LABELS} onChange={(workMode) => save({ workMode })} allowNone />
+            {canEdit ? (
+              <ChoiceComponent label="Work mode" value={job.workMode} options={WORK_MODE_LABELS} onChange={(workMode) => save({ workMode })} allowNone />
+            ) : (
+              <span>{job.workMode ? WORK_MODE_LABELS[job.workMode] : '—'}</span>
+            )}
           </div>
-          <DetailField field="salary" label="Salary" job={job} max={80} onSave={save} />
-          <DetailField field="employmentType" label="Type" job={job} max={40} onSave={save} />
-          <DetailField field="postedOn" label="Posted" job={job} type="date" onSave={save} />
+          <DetailField field="salary" label="Salary" job={job} max={80} canEdit={canEdit} onSave={save} />
+          <DetailField field="employmentType" label="Type" job={job} max={40} canEdit={canEdit} onSave={save} />
+          <DetailField field="postedOn" label="Posted" job={job} type="date" canEdit={canEdit} onSave={save} />
         </div>
       </SectionCardComponent>
 
-      <Description job={job} onSave={save} />
+      <Description job={job} canEdit={canEdit} onSave={save} />
 
       <SectionCardComponent title="Notes">
-        <Notes job={job} onSave={save} />
+        {canEdit ? <Notes job={job} onSave={save} /> : <p className="px-4 pb-4 text-sm whitespace-pre-wrap text-muted-foreground">{job.notes || 'No notes.'}</p>}
       </SectionCardComponent>
 
+      {canEdit && (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed p-4">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">Tailor my CV</span>
@@ -200,6 +221,7 @@ export function JobPanelComponent({ job, profile, aiEnabled, today, onClose, onA
           Tailor
         </Button>
       </div>
+      )}
     </DrawerContent>
   );
 }

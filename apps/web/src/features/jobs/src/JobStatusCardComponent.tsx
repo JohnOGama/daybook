@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-grou
 import { formatShortDay } from '@/shared/utils/date-formatter';
 import { useJobsMutations } from '../hooks/useJobsMutations';
 import { moveTo } from './jobs-math';
+import { StatusPillComponent } from './JobsTableComponent';
 import { type Job, type JobFields, type JobStatus, STATUS_LABELS, STATUS_STEPS } from './jobs-types';
 
 function History({ job }: { job: Job }) {
@@ -30,7 +31,7 @@ function History({ job }: { job: Job }) {
 }
 
 // The status steps, the day a change is recorded on, the next step while interviewing, and the trail so far.
-export function JobStatusCardComponent({ job, today }: { job: Job; today: string }) {
+export function JobStatusCardComponent({ job, today, canEdit = true }: { job: Job; today: string; canEdit?: boolean }) {
   const { saveJob } = useJobsMutations();
   const [day, setDay] = useState(today);
   const [askingNext, setAskingNext] = useState(false);
@@ -54,6 +55,15 @@ export function JobStatusCardComponent({ job, today }: { job: Job; today: string
   return (
     <SectionCardComponent title="Status">
       <div className="flex flex-col gap-3 px-4 pb-4">
+        {!canEdit ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <StatusPillComponent job={job} />
+            {job.status === 'interviewing' && (job.nextStepDay || job.nextStepNote) && (
+              <span className="text-muted-foreground">{[job.nextStepNote, job.nextStepDay].filter(Boolean).join(' · ')}</span>
+            )}
+          </div>
+        ) : (
+          <>
         <ToggleGroup
           type="single"
           variant="outline"
@@ -107,6 +117,9 @@ export function JobStatusCardComponent({ job, today }: { job: Job; today: string
               </Button>
             </div>
           </div>
+        )}
+
+          </>
         )}
 
         <History job={job} />

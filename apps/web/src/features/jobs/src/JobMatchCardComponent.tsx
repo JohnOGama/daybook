@@ -28,7 +28,7 @@ function Skills({ label, skills, missing }: { label: string; skills: string[]; m
 const SAMPLE_MATCH = { pct: 80, summary: 'A strong fit on most of what the role asks for, with one or two gaps.', skillsHave: ['React', 'TypeScript'], skillsMissing: ['Testing'] };
 
 // How well the owner's CV fits this job, as the AI estimates it, or why there is no estimate yet.
-export function JobMatchCardComponent({ job, profile, onAddCv }: { job: Job; profile: JobProfile; onAddCv: () => void }) {
+export function JobMatchCardComponent({ job, profile, onAddCv, canEdit = true }: { job: Job; profile: JobProfile; onAddCv: () => void; canEdit?: boolean }) {
   const { recheckMatch } = useJobsMutations();
   const checking = recheckMatch.isPending && recheckMatch.variables === job.id;
   const match = job.match ?? (checking ? { ...SAMPLE_MATCH, matchedAt: '' } : null);
@@ -39,10 +39,12 @@ export function JobMatchCardComponent({ job, profile, onAddCv }: { job: Job; pro
       <div className="flex flex-col gap-3 px-4 pb-4 text-sm">
         {!profile.cvText ? (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-muted-foreground">Add your CV to see how well you match.</p>
-            <Button variant="outline" size="sm" onClick={onAddCv}>
-              Add your CV
-            </Button>
+            <p className="text-muted-foreground">{canEdit ? 'Add your CV to see how well you match.' : 'No CV added yet.'}</p>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={onAddCv}>
+                Add your CV
+              </Button>
+            )}
           </div>
         ) : !canCheck ? (
           <p className="text-muted-foreground">Add a job description to see how well it matches.</p>
@@ -60,7 +62,7 @@ export function JobMatchCardComponent({ job, profile, onAddCv }: { job: Job; pro
         ) : (
           <p className="text-muted-foreground">Not checked yet.</p>
         )}
-        {canCheck && (
+        {canCheck && canEdit && (
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-signal">{isMatchStale(job, profile) ? 'CV changed since this match' : ''}</span>
             <Button variant="ghost" size="sm" disabled={checking} onClick={() => recheckMatch.mutate(job.id)}>

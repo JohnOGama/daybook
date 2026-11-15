@@ -19,10 +19,10 @@ import { WorkoutTemplateEditorComponent } from './WorkoutTemplateEditorComponent
 const SAMPLE_ROWS = ['First sample row', 'Second sample row'].map((name, index) => ({ id: `sample-${index}`, name, detail: 'Sample detail' }));
 
 type Row = { id: string; name: string; detail: string };
-type OwnListProps = { title: string; label: string; rows: Row[] | undefined; isPending: boolean; isError: boolean; empty: string; onDelete: (id: string) => void };
+type OwnListProps = { title: string; label: string; rows: Row[] | undefined; isPending: boolean; isError: boolean; empty: string; canEdit: boolean; onDelete: (id: string) => void };
 
 // A list of the owner's own foods or exercises, each with a delete button.
-function OwnList({ title, label, rows, isPending, isError, empty, onDelete }: OwnListProps) {
+function OwnList({ title, label, rows, isPending, isError, empty, canEdit, onDelete }: OwnListProps) {
   const shown = isPending ? SAMPLE_ROWS : (rows ?? []);
   return (
     <SectionCardComponent title={title}>
@@ -39,9 +39,11 @@ function OwnList({ title, label, rows, isPending, isError, empty, onDelete }: Ow
                 <span className="truncate text-sm font-medium">{row.name}</span>
                 <span className="truncate text-xs text-muted-foreground tabular-nums">{row.detail}</span>
               </span>
-              <Button variant="ghost" size="icon" aria-label={`Delete ${row.name}`} className="size-8 text-muted-foreground" onClick={() => onDelete(row.id)}>
-                <Trash2 aria-hidden />
-              </Button>
+              {canEdit && (
+                <Button variant="ghost" size="icon" aria-label={`Delete ${row.name}`} className="size-8 text-muted-foreground" onClick={() => onDelete(row.id)}>
+                  <Trash2 aria-hidden />
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -51,7 +53,7 @@ function OwnList({ title, label, rows, isPending, isError, empty, onDelete }: Ow
   );
 }
 
-function MyFoods() {
+function MyFoods({ canEdit }: { canEdit: boolean }) {
   const { data, isPending, isError } = useMyFoods();
   const { removeFood, createFood } = useFitnessMutations();
 
@@ -70,12 +72,13 @@ function MyFoods() {
       isPending={isPending}
       isError={isError}
       empty="No foods of your own yet. Add one from “Add food” on Today when the food list does not have it."
+      canEdit={canEdit}
       onDelete={(id) => remove(data?.find((food) => food.id === id) as Food)}
     />
   );
 }
 
-function MyExercises() {
+function MyExercises({ canEdit }: { canEdit: boolean }) {
   const { data, isPending, isError } = useExercises();
   const { deleteExerciseWithUndo } = useFitnessMutations();
   const mine = data?.filter((exercise) => exercise.custom);
@@ -87,36 +90,46 @@ function MyExercises() {
       isPending={isPending}
       isError={isError}
       empty="No exercises of your own yet. Add one from “Add exercise” in a workout when the list does not have it."
+      canEdit={canEdit}
       onDelete={(id) => deleteExerciseWithUndo(mine?.find((exercise) => exercise.id === id) as NonNullable<typeof mine>[number])}
     />
   );
 }
 
-type SavedListProps<T extends { id: string; name: string }> = { title: string; newLabel: string; items: T[]; detail: (item: T) => string; empty: string; onNew: () => void; onOpen: (item: T) => void };
+type SavedListProps<T extends { id: string; name: string }> = { title: string; newLabel: string; items: T[]; detail: (item: T) => string; empty: string; canEdit: boolean; onNew: () => void; onOpen: (item: T) => void };
 
-function SavedList<T extends { id: string; name: string }>({ title, newLabel, items, detail, empty, onNew, onOpen }: SavedListProps<T>): ReactNode {
+function SavedList<T extends { id: string; name: string }>({ title, newLabel, items, detail, empty, canEdit, onNew, onOpen }: SavedListProps<T>): ReactNode {
   return (
     <SectionCardComponent
       title={title}
       action={
-        <Button variant="ghost" size="sm" onClick={onNew}>
-          <Plus aria-hidden />
-          {newLabel}
-        </Button>
+        canEdit && (
+          <Button variant="ghost" size="sm" onClick={onNew}>
+            <Plus aria-hidden />
+            {newLabel}
+          </Button>
+        )
       }
     >
       {items.length > 0 ? (
         <ul className="px-2 pb-2">
           {items.map((item) => (
             <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => onOpen(item)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="truncate text-sm font-medium">{item.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{detail(item)}</span>
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen(item)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="truncate text-sm font-medium">{item.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{detail(item)}</span>
+                </button>
+              ) : (
+                <div className="flex w-full items-center justify-between gap-3 px-2 py-2">
+                  <span className="truncate text-sm font-medium">{item.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{detail(item)}</span>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -131,7 +144,7 @@ type Editing = { kind: 'plan'; plan: MealPlan; isNew: boolean } | { kind: 'templ
 
 const count = (amount: number, one: string, many: string) => `${amount} ${amount === 1 ? one : many}`;
 
-export function FitnessLibraryComponent({ fitness }: FitnessViewProps) {
+export function FitnessLibraryComponent({ fitness, canEdit = true }: FitnessViewProps) {
   const { addMealPlan, saveMealPlan, deleteMealPlanWithUndo, addTemplate, saveTemplate, deleteTemplateWithUndo } = useFitnessMutations();
   const [editing, setEditing] = useState<Editing>();
   const close = () => setEditing(undefined);
@@ -182,6 +195,7 @@ export function FitnessLibraryComponent({ fitness }: FitnessViewProps) {
         items={fitness.templates}
         detail={(template) => `${count(template.items.length, 'exercise', 'exercises')} · ${count(template.items.reduce((sets, item) => sets + item.sets.length, 0), 'set', 'sets')}`}
         empty="A template is a workout you can reuse. Start a workout from it, then tick off the sets you actually did."
+        canEdit={canEdit}
         onNew={() => setEditing({ kind: 'template', template: { id: crypto.randomUUID(), name: '', items: [] }, isNew: true })}
         onOpen={(template) => setEditing({ kind: 'template', template, isNew: false })}
       />
@@ -191,11 +205,12 @@ export function FitnessLibraryComponent({ fitness }: FitnessViewProps) {
         items={fitness.mealPlans}
         detail={(plan) => `${count(plan.items.length, 'food', 'foods')} · ${formatKcal(totalsOf(plan.items).kcal)}`}
         empty="A meal plan is a day of eating you can reuse. Apply it on Today, then tick off what you actually ate."
+        canEdit={canEdit}
         onNew={() => setEditing({ kind: 'plan', plan: { id: crypto.randomUUID(), name: '', items: [] }, isNew: true })}
         onOpen={(plan) => setEditing({ kind: 'plan', plan, isNew: false })}
       />
-      <MyExercises />
-      <MyFoods />
+      <MyExercises canEdit={canEdit} />
+      <MyFoods canEdit={canEdit} />
     </div>
   );
 }

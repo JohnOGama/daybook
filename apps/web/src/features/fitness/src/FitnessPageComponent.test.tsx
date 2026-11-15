@@ -46,7 +46,11 @@ vi.mock('../hooks/useMyFoods', () => ({ useMyFoods: () => ({ data: [], isPending
 vi.mock('../hooks/useFitnessMutations', () => ({ useFitnessMutations: () => mutations }));
 const ai = vi.hoisted(() => ({ fetchFitnessRead: vi.fn() }));
 vi.mock('./fitness-api', async (original) => ({ ...(await original<typeof import('./fitness-api')>()), ...ai }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Body', tool: 'fitness' }) }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => ({ id: 's1', title: 'Body', tool: 'fitness' }),
+  useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  ViewOnlyBadgeComponent: () => null,
+}));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-13' }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current) }));
 

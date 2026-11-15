@@ -87,7 +87,7 @@ function Choice<T extends string>({ label, value, labels, onChange }: ChoiceProp
   );
 }
 
-export function FitnessSettingsComponent({ fitness, today }: FitnessViewProps) {
+export function FitnessSettingsComponent({ fitness, today, canEdit = true }: FitnessViewProps) {
   const { saveProfile } = useFitnessMutations();
   const [profile, setProfile] = useState<Profile>(fitness.profile);
   const set = (changes: Partial<Profile>) => setProfile((current) => ({ ...current, ...changes }));
@@ -123,6 +123,26 @@ export function FitnessSettingsComponent({ fitness, today }: FitnessViewProps) {
         </ul>
       )}
 
+      {!canEdit ? (
+        <SectionCardComponent title="Profile">
+          <dl className="grid gap-3 px-4 pb-4 text-sm sm:grid-cols-2">
+            {[
+              ['Sex', profile.sex === 'male' ? 'Male' : profile.sex === 'female' ? 'Female' : '—'],
+              ['Date of birth', profile.birthDate ?? '—'],
+              ['Height', profile.heightMm ? `${profile.heightMm / 10} cm` : '—'],
+              ['Activity level', profile.activity ? ACTIVITY_LABELS[profile.activity] : '—'],
+              ['Goal', profile.goal ? GOAL_LABELS[profile.goal] : '—'],
+              ['Goal weight', profile.goalWeightG ? formatKg(profile.goalWeightG) : '—'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </SectionCardComponent>
+      ) : (
+        <>
       <SectionCardComponent title="About you">
         <div className="grid gap-4 px-4 pb-4 sm:grid-cols-2">
           <Choice<Sex> label="Sex" value={profile.sex} labels={{ male: 'Male', female: 'Female' }} onChange={(sex) => set({ sex })} />
@@ -195,6 +215,8 @@ export function FitnessSettingsComponent({ fitness, today }: FitnessViewProps) {
         </Button>
         {unsaved && <span className="text-sm text-muted-foreground">You have unsaved changes.</span>}
       </div>
+        </>
+      )}
     </form>
   );
 }

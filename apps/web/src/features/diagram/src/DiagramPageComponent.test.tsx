@@ -49,7 +49,11 @@ vi.mock('../hooks/useDiagramAutosave', () => ({ useDiagramAutosave: () => ({ sta
 vi.mock('./diagram-api', async (original) => ({ ...(await original<typeof import('./diagram-api')>()), ...api }));
 vi.mock('./download', () => download);
 vi.mock('sonner', () => ({ toast }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Shop database', tool: 'diagram' }) }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => ({ id: 's1', title: 'Shop database', tool: 'diagram' }),
+  useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  ViewOnlyBadgeComponent: () => null,
+}));
 
 const shopModel = (() => {
   const parsed = parseDiagram(SHOP);

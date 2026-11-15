@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { Skeleton } from 'skullet/react';
-import { useActiveSpace } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
 import { cn } from '@/shared/utils/cn';
 import { useFitness } from '../hooks/useFitness';
@@ -38,6 +38,7 @@ const isDay = (value: string | null): value is string => Boolean(value && /^\d{4
 export function FitnessPageComponent() {
   const params = useSearchParams();
   const space = useActiveSpace();
+  const { canEdit } = useSpaceAccess();
   const today = useToday();
   const { data, isPending, isError } = useFitness();
   const requestedView = params.get('view') as FitnessView;
@@ -71,7 +72,10 @@ export function FitnessPageComponent() {
   return (
     <div className="pb-16">
       <header>
-        <h1 className="truncate px-4 pt-5 text-2xl font-semibold tracking-tight md:px-6">{space?.title ?? 'Fitness'}</h1>
+        <div className="flex items-center gap-2 px-4 pt-5 md:px-6">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{space?.title ?? 'Fitness'}</h1>
+          <ViewOnlyBadgeComponent />
+        </div>
         <nav aria-label="Fitness views" className="mt-3 flex gap-1.5 overflow-x-auto border-b px-2 md:px-4">
           {TABS.map(({ view: tab, label, Icon }) => (
             <Link
@@ -92,7 +96,7 @@ export function FitnessPageComponent() {
 
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pt-4 md:px-6">
         <Skeleton loading={isPending} label="Loading fitness">
-          <Screen fitness={data ?? sample} today={today} day={day} hrefFor={hrefFor} />
+          <Screen fitness={data ?? sample} today={today} day={day} hrefFor={hrefFor} canEdit={canEdit} />
         </Skeleton>
       </div>
     </div>

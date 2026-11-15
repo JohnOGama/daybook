@@ -19,7 +19,11 @@ vi.mock('../hooks/useJobs', () => ({ useJobs, useJobsSpaceId: () => 's1' }));
 vi.mock('../hooks/useJobsMutations', () => ({ useJobsMutations: () => mutations }));
 vi.mock('./jobs-api', async (original) => ({ ...(await original<typeof import('./jobs-api')>()), ...api }));
 vi.mock('sonner', () => ({ toast }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Job hunt', tool: 'jobs' }) }));
+vi.mock('@/features/spaces', () => ({
+  useActiveSpace: () => ({ id: 's1', title: 'Job hunt', tool: 'jobs' }),
+  useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  ViewOnlyBadgeComponent: () => null,
+}));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-14' }));
 
 const TODAY = '2026-11-14';

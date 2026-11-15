@@ -4,7 +4,7 @@ import { ArrowUp, FileUp, PanelLeftClose, Sparkles } from 'lucide-react';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { toast } from 'sonner';
-import { useActiveSpace } from '@/features/spaces';
+import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { cn } from '@/shared/utils/cn';
@@ -61,7 +61,10 @@ function tableLines(text: string, names: Set<string>): LineRange[] {
 
 function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: string; onReloaded?: () => void }) {
   const spaceId = useDiagramSpaceId() as string;
-  const { status, queue, reload } = useDiagramAutosave(spaceId, diagram.version);
+  const { canEdit } = useSpaceAccess();
+  const { status, queue: queueSave, reload } = useDiagramAutosave(spaceId, diagram.version);
+  // A viewer never saves: the server would refuse it, so nothing is queued.
+  const queue = useCallback((next: Snapshot) => (canEdit ? queueSave(next) : undefined), [canEdit, queueSave]);
   const canvas = useRef<CanvasHandle>(null);
 
   // Read once; afterwards the text lives here and the cache only follows it.
@@ -205,17 +208,20 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3 md:px-5">
         <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
-        <span className={cn('text-xs', status === 'error' || status === 'conflict' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_LABEL[status]}</span>
-        {status === 'conflict' && (
+        <ViewOnlyBadgeComponent />
+        {canEdit && <span className={cn('text-xs', status === 'error' || status === 'conflict' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_LABEL[status]}</span>}
+        {canEdit && status === 'conflict' && (
           <Button variant="outline" size="sm" onClick={() => void reload().then(onReloaded)}>
             Reload
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setImporting(true)}>
-            <FileUp aria-hidden />
-            Import
-          </Button>
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setImporting(true)}>
+              <FileUp aria-hidden />
+              Import
+            </Button>
+          )}
           <ExportMenuComponent disabled={problems.length > 0 || model.tables.length === 0} onExport={handleExport} />
         </div>
       </header>
@@ -235,6 +241,7 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
                 value={text}
                 problems={problems}
                 fresh={fresh.lines}
+                readOnly={!canEdit}
                 scrollTo={selected}
                 onChange={(next: string) => {
                   typed.current = true;
@@ -257,8 +264,8 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
         )}
 
         <section aria-label="Diagram" className={cn('relative min-w-0 flex-1', codeOpen && 'hidden md:block')}>
-          <DiagramCanvas ref={canvas} model={model} positions={positions} fresh={fresh.tables} selected={selected} onSelect={setSelected} onMove={handleMove} onTidy={handleTidy} onShowCode={codeOpen ? undefined : showCode} />
-          {empty && (
+          <DiagramCanvas ref={canvas} model={model} positions={positions} fresh={fresh.tables} selected={selected} onSelect={setSelected} onMove={handleMove} onTidy={canEdit ? handleTidy : undefined} readOnly={!canEdit} onShowCode={codeOpen ? undefined : showCode} />
+          {empty && canEdit && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
               <div className="pointer-events-auto flex max-w-md flex-col items-center gap-3 text-center">
                 <p className="text-sm text-muted-foreground">Describe your database below, or write DBML on the left</p>
@@ -276,7 +283,7 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
           )}
 
           {/* Floats at the bottom centre of the canvas, clear of the zoom controls (top left) and the Assistant button. */}
-          {diagram.aiEnabled && (
+          {diagram.aiEnabled && canEdit && (
             <form
               onSubmit={handleAsk}
               className="absolute bottom-16 left-1/2 z-10 flex w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-full border bg-popover py-1.5 pr-1.5 pl-4 shadow-lg shadow-black/50 focus-within:border-foreground/30 xl:bottom-5"
@@ -299,7 +306,7 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
         </section>
       </div>
 
-      <ImportDialogComponent open={importing} replacing={!empty} onClose={() => setImporting(false)} onImport={handleImport} />
+      {canEdit && <ImportDialogComponent open={importing} replacing={!empty} onClose={() => setImporting(false)} onImport={handleImport} />}
     </div>
   );
 }

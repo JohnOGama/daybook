@@ -44,7 +44,7 @@ function AverageRow({ label, average, targets }: { label: string; average: { day
   );
 }
 
-export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessViewProps) {
+export function FitnessProgressComponent({ fitness, today, hrefFor, canEdit = true }: FitnessViewProps) {
   const { profile, weights } = fitness;
   const { saveWeight, deleteWeightWithUndo, saveProfile } = useFitnessMutations();
   const days = useFitnessDays(addDays(today, -(LOOK_BACK_DAYS - 1)), today);
@@ -134,6 +134,7 @@ export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessVie
         </SectionCardComponent>
 
         <SectionCardComponent title="Weigh-ins" className="lg:col-span-2">
+          {canEdit && (
           <form onSubmit={handleWeighIn} className="grid grid-cols-[1fr_6rem_auto] items-end gap-2 px-4 pb-3">
             <Input type="date" aria-label="Weigh-in date" max={today} value={weighDay} onChange={(event) => setWeighDay(event.target.value)} />
             <Input aria-label="Weight in kg" placeholder="kg" inputMode="decimal" autoComplete="off" className="tabular-nums" value={weighKg} onChange={(event) => setWeighKg(event.target.value)} />
@@ -141,6 +142,7 @@ export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessVie
               Add
             </Button>
           </form>
+          )}
           <ul aria-label="Recent weigh-ins" className="px-2 pb-2">
             {weights
               .slice(-WEIGH_INS_SHOWN)
@@ -149,9 +151,11 @@ export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessVie
                 <li key={weight.day} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 text-sm">
                   <span className="text-muted-foreground">{formatDate(weight.day)}</span>
                   <span className="ml-auto font-medium tabular-nums">{formatKg(weight.weightG)}</span>
-                  <Button variant="ghost" size="icon" aria-label={`Delete weigh-in of ${formatDate(weight.day)}`} className="size-8 text-muted-foreground" onClick={() => deleteWeightWithUndo(weight)}>
-                    <Trash2 aria-hidden />
-                  </Button>
+                  {canEdit && (
+                    <Button variant="ghost" size="icon" aria-label={`Delete weigh-in of ${formatDate(weight.day)}`} className="size-8 text-muted-foreground" onClick={() => deleteWeightWithUndo(weight)}>
+                      <Trash2 aria-hidden />
+                    </Button>
+                  )}
                 </li>
               ))}
           </ul>
@@ -185,7 +189,7 @@ export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessVie
         )}
       </SectionCardComponent>
 
-      <FitnessReadCardComponent fitness={fitness} days={days.data} today={today} />
+      {canEdit && <FitnessReadCardComponent fitness={fitness} days={days.data} today={today} />}
 
       <SectionCardComponent title="Trained in the last 7 days">
         <Skeleton loading={days.isPending} label="Loading your training">
@@ -195,12 +199,14 @@ export function FitnessProgressComponent({ fitness, today, hrefFor }: FitnessVie
         </Skeleton>
       </SectionCardComponent>
 
-      <ForecastSettingsComponent
-        key={JSON.stringify(profile.forecast)}
-        settings={profile.forecast}
-        canMeasure={measured !== null}
-        onSave={(settings) => saveProfile.mutate({ ...profile, forecast: settings })}
-      />
+      {canEdit && (
+        <ForecastSettingsComponent
+          key={JSON.stringify(profile.forecast)}
+          settings={profile.forecast}
+          canMeasure={measured !== null}
+          onSave={(settings) => saveProfile.mutate({ ...profile, forecast: settings })}
+        />
+      )}
     </div>
   );
 }

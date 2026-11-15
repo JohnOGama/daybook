@@ -34,7 +34,8 @@ type DiagramCanvasProps = {
   selected: string | null;
   onSelect(table: string | null): void;
   onMove(table: string, position: Point): void;
-  onTidy(): void;
+  onTidy?: () => void;
+  readOnly?: boolean;
   // Given only while the code panel is hidden; shows a button at the start of the toolbar to bring it back.
   onShowCode?: () => void;
   ref?: Ref<CanvasHandle>;
@@ -59,7 +60,7 @@ function Control({ label, onClick, children }: { label: string; onClick: () => v
   );
 }
 
-function Controls({ onTidy, onShowCode }: { onTidy: () => void; onShowCode?: () => void }) {
+function Controls({ onTidy, onShowCode }: { onTidy?: () => void; onShowCode?: () => void }) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const { zoom } = useViewport();
   return (
@@ -82,14 +83,16 @@ function Controls({ onTidy, onShowCode }: { onTidy: () => void; onShowCode?: () 
       <Control label="Fit to screen" onClick={() => fitView({ padding: 0.15 })}>
         <Maximize aria-hidden />
       </Control>
-      <Control label="Tidy layout" onClick={onTidy}>
-        <LayoutGrid aria-hidden />
-      </Control>
+      {onTidy && (
+        <Control label="Tidy layout" onClick={onTidy}>
+          <LayoutGrid aria-hidden />
+        </Control>
+      )}
     </Panel>
   );
 }
 
-function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, onShowCode, ref }: DiagramCanvasProps) {
+function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, onShowCode, readOnly = false, ref }: DiagramCanvasProps) {
   const flow = useReactFlow<TableNode, RelationEdge>();
   const wrapper = useRef<HTMLDivElement>(null);
 
@@ -183,6 +186,8 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         minZoom={0.1}
         maxZoom={2}
         nodesConnectable={false}
+        nodesDraggable={!readOnly}
+        deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
         onNodesChange={(changes: NodeChange<TableNode>[]) => setNodes((current) => applyNodeChanges(changes, current))}
         onNodeDragStop={(_, node) => onMove(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) })}

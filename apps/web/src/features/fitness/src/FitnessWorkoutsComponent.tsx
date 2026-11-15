@@ -13,6 +13,7 @@ import { DaySwitcherComponent } from './DaySwitcherComponent';
 import type { FitnessViewProps, Workout, WorkoutTemplate } from './fitness-types';
 import { setsDone, workoutFromTemplate } from './workout-math';
 import { WorkoutEditorComponent } from './WorkoutEditorComponent';
+import { WorkoutReadOnlyComponent } from './WorkoutReadOnlyComponent';
 
 // Far enough back to find "last time" for most exercises and to list recent workouts.
 const HISTORY_DAYS = 90;
@@ -59,7 +60,7 @@ export function StartWorkoutMenuComponent({ templates, day, disabled }: StartWor
   );
 }
 
-export function FitnessWorkoutsComponent({ fitness, today, day, hrefFor }: FitnessViewProps) {
+export function FitnessWorkoutsComponent({ fitness, today, day, hrefFor, canEdit = true }: FitnessViewProps) {
   const { data, isPending, isError } = useFitnessDays(addDays(day, -HISTORY_DAYS), day);
   const history = data?.workouts ?? [];
   const onDay = isPending ? [{ ...SAMPLE_WORKOUT, day }] : history.filter((workout) => workout.day === day);
@@ -71,7 +72,7 @@ export function FitnessWorkoutsComponent({ fitness, today, day, hrefFor }: Fitne
   return (
     <div className="flex flex-col gap-4">
       <DaySwitcherComponent day={day} today={today} hrefFor={hrefFor}>
-        <StartWorkoutMenuComponent templates={fitness.templates} day={day} disabled={isPending} />
+        {canEdit && <StartWorkoutMenuComponent templates={fitness.templates} day={day} disabled={isPending} />}
       </DaySwitcherComponent>
 
       {isError && (
@@ -84,7 +85,7 @@ export function FitnessWorkoutsComponent({ fitness, today, day, hrefFor }: Fitne
         <div className="flex flex-col gap-4">
           {onDay.map((workout) => (
             <SectionCardComponent key={workout.id} title={workout.name}>
-              <WorkoutEditorComponent workout={workout} history={history} />
+              {canEdit ? <WorkoutEditorComponent workout={workout} history={history} /> : <WorkoutReadOnlyComponent workout={workout} />}
             </SectionCardComponent>
           ))}
         </div>
@@ -92,7 +93,7 @@ export function FitnessWorkoutsComponent({ fitness, today, day, hrefFor }: Fitne
 
       {!isPending && !isError && onDay.length === 0 && (
         <p className="rounded-xl border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-          No workout on {relativeDayLabel(day, today).toLowerCase()}. Start one from a template, or an empty one, with “Start workout”.
+          No workout on {relativeDayLabel(day, today).toLowerCase()}.{canEdit && ' Start one from a template, or an empty one, with “Start workout”.'}
         </p>
       )}
 

@@ -37,7 +37,7 @@ function mealForNow(): Meal {
 }
 
 export function FitnessTodayComponent(props: FitnessViewProps) {
-  const { fitness, today, day, hrefFor } = props;
+  const { fitness, today, day, hrefFor, canEdit = true } = props;
   const { data, isPending, isError } = useFitnessDays(addDays(day, -6), day);
   const { updateLog, addLogs, addMealPlan } = useFitnessMutations();
   const [sheet, setSheet] = useState<FoodSheetState>(null);
@@ -50,6 +50,8 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
   return (
     <div className="flex flex-col gap-4">
       <DaySwitcherComponent day={day} today={today} hrefFor={hrefFor}>
+        {canEdit && (
+          <>
         <Button size="sm" disabled={isPending} onClick={() => setSheet({ mode: 'add', day, meal: mealForNow() })}>
           <Plus aria-hidden />
           Log food
@@ -81,6 +83,8 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
           </DropdownMenuContent>
         </DropdownMenu>
         <StartWorkoutMenuComponent templates={fitness.templates} day={day} disabled={isPending} />
+          </>
+        )}
       </DaySwitcherComponent>
 
       {isError ? (
@@ -112,9 +116,11 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
                       action={
                         <span className="flex items-center gap-1">
                           {rows.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{formatKcal(eaten.kcal)}</span>}
-                          <Button variant="ghost" size="icon" className="size-8" aria-label={`Add food to ${MEAL_LABELS[meal]}`} onClick={() => setSheet({ mode: 'add', day, meal })}>
-                            <Plus aria-hidden />
-                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon" className="size-8" aria-label={`Add food to ${MEAL_LABELS[meal]}`} onClick={() => setSheet({ mode: 'add', day, meal })}>
+                              <Plus aria-hidden />
+                            </Button>
+                          )}
                         </span>
                       }
                     >
@@ -124,11 +130,14 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
                             <FoodLogRowComponent
                               key={log.id}
                               log={log}
+                              canEdit={canEdit}
                               onToggle={(isEaten) => updateLog.mutate({ id: log.id, changes: { eaten: isEaten } })}
                               onOpen={() => setSheet({ mode: 'edit', log })}
                             />
                           ))}
                         </ul>
+                      ) : !canEdit ? (
+                        <p className="px-4 pb-4 text-sm text-muted-foreground">Nothing logged</p>
                       ) : (
                         <Button
                           variant="outline"
@@ -169,7 +178,7 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
                     })}
                   </ul>
                 ) : (
-                  <p className="px-4 pb-4 text-sm text-muted-foreground">No workout on this day. Start one from a template above.</p>
+                  <p className="px-4 pb-4 text-sm text-muted-foreground">{canEdit ? 'No workout on this day. Start one from a template above.' : 'No workout on this day.'}</p>
                 )}
               </SectionCardComponent>
             </div>
@@ -183,7 +192,7 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
         </Skeleton>
       )}
 
-      <FoodSearchSheetComponent state={sheet} onClose={() => setSheet(null)} />
+      {canEdit && <FoodSearchSheetComponent state={sheet} onClose={() => setSheet(null)} />}
     </div>
   );
 }
