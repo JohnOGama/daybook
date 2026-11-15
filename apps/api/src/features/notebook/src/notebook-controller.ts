@@ -50,7 +50,8 @@ export class NotebookController {
 
   @Get(':id/versions')
   async versions(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Req() request: Request) {
-    const { ownerId, spaceId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    const { ownerId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    const spaceId = await this.notebook.spaceOf(ownerId, id);
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
     return this.notebook.listVersions(ownerId, id);
   }
@@ -62,7 +63,8 @@ export class NotebookController {
     @Param('versionId', ParseUUIDPipe) versionId: string,
     @Req() request: Request,
   ) {
-    const { ownerId, spaceId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    const { ownerId } = await this.access.resolveRow(userId, notebookPages, id, 'view');
+    const spaceId = await this.notebook.spaceOf(ownerId, id);
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
     return this.notebook.getVersion(ownerId, id, versionId);
   }

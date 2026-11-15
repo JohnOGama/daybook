@@ -96,6 +96,13 @@ describe('notebook API sharing', () => {
     await as('u1', 'get', `/${other}/versions/${versionId}`).expect(404);
   });
 
+  it('hides the history of a trashed page from a viewer', async () => {
+    await insertShare(db, { spaceId, ownerId: 'u1', email: 'u2@example.com', role: 'view' });
+    await db.update(notebookPages).set({ deletedAt: new Date() });
+    await as('u2', 'get', `/${pageId}/versions`).expect(404);
+    await as('u2', 'get', `/${pageId}/versions/${versionId}`).expect(404);
+  });
+
   it.each([
     ['GET list', 'get', '?spaceId=SPACE', undefined],
     ['POST create', 'post', '', { id: newId, spaceId: 'SPACE' }],
