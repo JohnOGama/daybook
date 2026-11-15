@@ -1,16 +1,18 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { tasks } from '../../../shared/db/schema.ts';
-import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
+import { createTestDb, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
-import { SpaceLockService } from '../../spaces/index.ts';
+import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import { unlockCookieName } from '../../spaces/src/space-lock-service.ts';
 import { TasksController } from './tasks-controller.ts';
 import { TasksService } from './tasks-service.ts';
 
+type Ctx = { edit: string; task: string };
 const today = '2026-11-09';
 const fakeAuth = {
   api: {
@@ -41,6 +43,7 @@ describe('tasks API', () => {
       providers: [
         TasksService,
         SpaceLockService,
+        SpaceAccessService,
         AuthGuard,
         { provide: DB, useValue: db },
         { provide: AUTH, useValue: fakeAuth },
@@ -176,5 +179,92 @@ describe('tasks API', () => {
     expect((await listToday()).body[0]).toMatchObject({ finished: true, status: 'on_hold' });
     await http().delete(`/api/tasks/${parentId}?today=${today}`).set('x-test-user', 'u1').expect(200);
     expect((await listToday()).body).toHaveLength(0);
+  });
+
+  describe('shared access', () => {
+    const as = (user: string) => ({
+      get: (url: string) => http().get(url).set('x-test-user', user),
+      post: (url: string, body: object = {}) => http().post(url).set('x-test-user', user).send(body),
+      put: (url: string, body: object = {}) => http().put(url).set('x-test-user', user).send(body),
+      patch: (url: string, body: object = {}) => http().patch(url).set('x-test-user', user).send(body),
+    });
+    let editSpace: string;
+    let viewSpace: string;
+    let privateSpace: string;
+    let editTask: string;
+    let viewTask: string;
+    let privateTask: string;
+
+    const addTask = async (userId: string, sid: string) =>
+      (await db.insert(tasks).values({ userId, spaceId: sid, title: 't', plannedDay: today }).returning())[0].id;
+
+    beforeEach(async () => {
+      await insertUser(db, 'u3');
+      editSpace = spaceId;
+      viewSpace = await insertSpace(db, 'u1');
+      privateSpace = await insertSpace(db, 'u1');
+      await insertShare(db, { spaceId: editSpace, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
+      await insertShare(db, { spaceId: viewSpace, ownerId: 'u1', email: 'u2@example.com', role: 'view' });
+      editTask = await addTask('u1', editSpace);
+      viewTask = await addTask('u1', viewSpace);
+      privateTask = await addTask('u1', privateSpace);
+    });
+
+    it('lets an editor create a task owned by the space owner', async () => {
+      const id = crypto.randomUUID();
+      await as('u2').post('/api/tasks', { id, spaceId: editSpace, title: 'x', day: today }).expect(201);
+      const [row] = await db.select().from(tasks).where(eq(tasks.id, id));
+      expect(row.userId).toBe('u1');
+    });
+
+    it('lets a viewer list but not change', async () => {
+      await as('u2').get(`/api/tasks?spaceId=${viewSpace}&from=${today}&to=${today}&today=${today}`).expect(200);
+      await as('u2').patch(`/api/tasks/${viewTask}`, { title: 'z' }).expect(403);
+    });
+
+    it('answers 404 to a user with no share on a list', async () => {
+      await as('u3').get(`/api/tasks?spaceId=${editSpace}&from=${today}&to=${today}&today=${today}`).expect(404);
+    });
+
+    it.each([
+      ['POST', '/tasks', (c: Ctx) => ({ spaceId: c.edit, title: 'x', day: today })],
+      ['POST', '/tasks/bulk', (c: Ctx) => ({ spaceId: c.edit, day: today, tasks: [{ id: crypto.randomUUID(), title: 'x', subtasks: [] }] })],
+      ['POST', '/tasks/bulk-delete', (c: Ctx) => ({ ids: [c.task] })],
+      ['POST', '/tasks/:id/subtasks', () => ({ title: 'x' })],
+      ['POST', '/tasks/:id/subtasks/bulk', () => ({ subtasks: [{ id: crypto.randomUUID(), title: 'x', subtasks: [] }] })],
+      ['PATCH', '/tasks/:id', () => ({ title: 'x' })],
+      ['PUT', '/tasks/:id/finished', () => ({ finished: true, today })],
+      ['POST', '/tasks/:id/copy', () => ({ today })],
+      ['PUT', '/tasks/order', (c: Ctx) => ({ ids: [c.task] })],
+      ['DELETE', `/tasks/:id?today=${today}`, () => ({})],
+    ])('answers 404 to a user with no share: %s %s', async (method, path, makeBody) => {
+      const url = `/api${path.replace(':id', editTask)}`;
+      const req = http()[method.toLowerCase() as 'post'](url).set('x-test-user', 'u3');
+      await (method === 'DELETE' ? req : req.send(makeBody({ edit: editSpace, task: editTask }))).expect(404);
+      const rows = await db.select().from(tasks);
+      expect(rows).toHaveLength(3);
+      expect(rows.every((r) => r.deletedAt === null && r.title === 't')).toBe(true);
+    });
+
+    it('answers 404 for a bulk delete mixing a shared and a private task, deleting neither', async () => {
+      await as('u2').post('/api/tasks/bulk-delete', { ids: [editTask, privateTask] }).expect(404);
+      const rows = await db.select().from(tasks);
+      expect(rows.every((r) => r.deletedAt === null)).toBe(true);
+    });
+
+    it('answers 404 for a reorder mixing a shared and a private task', async () => {
+      await as('u2').put('/api/tasks/order', { ids: [editTask, privateTask] }).expect(404);
+    });
+
+    it("answers 400 copying from a shared space into the editor's own space", async () => {
+      const own = await insertSpace(db, 'u2');
+      await as('u2').post(`/api/tasks/${editTask}/copy`, { today, spaceId: own }).expect(400);
+      expect(await db.select().from(tasks)).toHaveLength(3);
+    });
+
+    it("answers 404 copying into the owner's private space", async () => {
+      await as('u2').post(`/api/tasks/${editTask}/copy`, { today, spaceId: privateSpace }).expect(404);
+      expect(await db.select().from(tasks)).toHaveLength(3);
+    });
   });
 });
