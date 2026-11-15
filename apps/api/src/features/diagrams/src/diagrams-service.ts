@@ -37,6 +37,25 @@ export class DiagramsService {
     return saved;
   }
 
+  // For the live room: no owner check here, the realtime connection has already resolved access.
+  async loadDoc(spaceId: string): Promise<{ ownerId: string; dbml: string; positions: Positions; ydoc: Uint8Array | null } | null> {
+    const [space] = await this.db
+      .select({ ownerId: spaces.userId })
+      .from(spaces)
+      .where(and(eq(spaces.id, spaceId), eq(spaces.tool, 'diagram'), isNull(spaces.deletedAt)));
+    if (!space) return null;
+    const [row] = await this.db.select().from(diagrams).where(eq(diagrams.spaceId, spaceId));
+    return { ownerId: space.ownerId, dbml: row?.dbml ?? '', positions: row?.positions ?? {}, ydoc: row?.ydoc ?? null };
+  }
+
+  async saveDoc(ownerId: string, spaceId: string, doc: { dbml: string; positions: Positions; ydoc: Uint8Array }): Promise<void> {
+    const updatedAt = new Date().toISOString();
+    await this.db
+      .insert(diagrams)
+      .values({ spaceId, userId: ownerId, ...doc, updatedAt, version: 1 })
+      .onConflictDoUpdate({ target: diagrams.spaceId, set: { ...doc, updatedAt, version: sql`${diagrams.version} + 1` } });
+  }
+
   async assertSpace(userId: string, spaceId: string): Promise<void> {
     const [space] = await this.db
       .select({ id: spaces.id })

@@ -4,6 +4,7 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
@@ -18,6 +19,8 @@ import {
 import { user } from './auth-schema.ts';
 
 export * from './auth-schema.ts';
+
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => 'bytea', toDriver: (value) => Buffer.from(value) });
 
 export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold']);
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
@@ -564,6 +567,8 @@ export const diagrams = pgTable('diagrams', {
   positions: jsonb('positions').$type<Record<string, { x: number; y: number }>>().notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   version: integer('version').notNull().default(0),
+  // The live Yjs document; kept so a reconnecting browser's copy merges instead of doubling the text.
+  ydoc: bytea('ydoc'),
 });
 
 // A space or folder shared with an email address (stored trimmed and lowercased).
