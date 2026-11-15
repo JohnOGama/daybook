@@ -24,6 +24,27 @@ describe('SpaceAccessService', () => {
     access = new SpaceAccessService(db);
   });
 
+  describe('viewerIds', () => {
+    it('lists the owner and share recipients through folders, and nobody for a deleted ancestor', async () => {
+      await insertUser(db, 'u3');
+      const folder = await insertFolder(db, 'u1');
+      const space = await insertSpace(db, 'u1', { tool: 'pipelines', parentId: folder });
+      await share(folder, 'view');
+      await share(space, 'edit', 'U3@Example.com'.toLowerCase());
+      // An email nobody has signed up with yet adds no one.
+      await share(space, 'view', 'nobody@example.com');
+      expect((await access.viewerIds(space)).sort()).toEqual(['u1', 'u2', 'u3']);
+      await db.update(spaces).set({ deletedAt: new Date() }).where(eq(spaces.id, folder));
+      expect(await access.viewerIds(space)).toEqual([]);
+    });
+
+    it('ignores a share someone else made on the same space id', async () => {
+      const space = await insertSpace(db, 'u1', { tool: 'pipelines' });
+      await insertShare(db, { spaceId: space, ownerId: 'u2', email: 'u2@example.com', role: 'view' });
+      expect(await access.viewerIds(space)).toEqual(['u1']);
+    });
+  });
+
   describe('resolve', () => {
     it('gives the owner their own space', async () => {
       const space = await insertSpace(db, 'u1');

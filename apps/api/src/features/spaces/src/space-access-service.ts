@@ -66,6 +66,21 @@ export class SpaceAccessService {
     return resolved[0];
   }
 
+  // Everyone who may see the space right now: its owner and the signed-up people it, or a folder above it, is shared with.
+  // The reverse of `resolve`, with the same rules: a deleted ancestor or a Vault on the way hides it from everyone.
+  async viewerIds(spaceId: string): Promise<string[]> {
+    const [space] = await this.db.select().from(spaces).where(and(eq(spaces.id, spaceId), isNull(spaces.deletedAt)));
+    if (!space) return [];
+    const chain = await this.chain(space).catch(() => null);
+    if (!chain) return [];
+    const recipients = await this.db
+      .selectDistinct({ id: user.id })
+      .from(spaceShares)
+      .innerJoin(user, eq(spaceShares.email, sql`lower(${user.email})`))
+      .where(and(inArray(spaceShares.spaceId, chain.map((s) => s.id)), eq(spaceShares.ownerId, space.userId)));
+    return [...new Set([space.userId, ...recipients.map((r) => r.id)])];
+  }
+
   async sharedWith(userId: string): Promise<SharedSpace[]> {
     const shares = await this.db
       .select({ spaceId: spaceShares.spaceId, ownerId: spaceShares.ownerId, role: spaceShares.role, ownerName: owner.name })

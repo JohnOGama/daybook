@@ -13,6 +13,8 @@ import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import { type Peer, Room } from './realtime-room.ts';
 
 const PATH = /^\/api\/realtime\/([^/?#]+)$/;
+// /api/realtime/me: one socket per signed-in tab for updates about any space you can see (pipeline status today).
+const USER_CHANNEL = 'me';
 const MAX_MESSAGE_BYTES = 2 * 1024 * 1024;
 
 class Refused extends Error {
@@ -33,6 +35,8 @@ export class RealtimeService implements OnModuleDestroy {
   recheckMs = 60_000;
   private readonly server = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
   private readonly rooms = new Map<string, Promise<Room>>();
+  // ponytail: user sockets live in this process's memory like the rooms; a shared relay if the API runs as several.
+  private readonly users = new Map<string, Set<WebSocket>>();
 
   constructor(
     @Inject(AUTH) private readonly auth: Pick<Auth, 'api'>,
@@ -46,7 +50,8 @@ export class RealtimeService implements OnModuleDestroy {
     http.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
       const spaceId = PATH.exec(new URL(request.url ?? '', 'http://localhost').pathname)?.[1];
       if (!spaceId) return;
-      this.upgrade(request, socket, head, spaceId).catch((error) => {
+      const opening = spaceId === USER_CHANNEL ? this.upgradeUser(request, socket, head) : this.upgrade(request, socket, head, spaceId);
+      opening.catch((error) => {
         if (!(error instanceof Refused)) console.error('Realtime connection failed', error);
         refuse(socket, error instanceof Refused ? error.status : 404);
       });
@@ -92,6 +97,41 @@ export class RealtimeService implements OnModuleDestroy {
         close: () => ws.close(),
       };
       this.accept(ws, room, peer, headers);
+    });
+  }
+
+  // Sends a JSON message to every open user socket of these people. Callers decide who may hear it.
+  sendToUsers(userIds: string[], message: object): void {
+    const data = JSON.stringify(message);
+    for (const userId of new Set(userIds)) {
+      for (const ws of this.users.get(userId) ?? []) if (ws.readyState === ws.OPEN) ws.send(data);
+    }
+  }
+
+  // Checked on the way in like a space socket, minus the space: Origin, then the session, which is rechecked while open.
+  private async upgradeUser(request: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
+    if (!this.trustedOrigin(request.headers.origin)) throw new Refused(403);
+    const headers = fromNodeHeaders(request.headers);
+    const session = await this.auth.api.getSession({ headers });
+    if (!session) throw new Refused(404);
+    const userId = session.user.id;
+    this.server.handleUpgrade(request, socket, head, (ws) => {
+      const sockets = this.users.get(userId) ?? new Set<WebSocket>();
+      sockets.add(ws);
+      this.users.set(userId, sockets);
+      const recheck = setInterval(async () => {
+        try {
+          const current = await this.auth.api.getSession({ headers });
+          if (current?.user.id !== userId) ws.close(4403, 'Signed out');
+        } catch (error) {
+          console.error('Could not recheck a live connection', error);
+        }
+      }, this.recheckMs);
+      ws.on('close', () => {
+        clearInterval(recheck);
+        sockets.delete(ws);
+        if (sockets.size === 0) this.users.delete(userId);
+      });
     });
   }
 

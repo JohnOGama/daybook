@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { diagrams, notebookPages, type ShareRole, spaceShares, spaces, tasks, user } from '../../../shared/db/schema.ts';
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
+import { type DotStatus, dotStatuses } from '../../../shared/utils/pipeline-status.ts';
 import { type Access, SpaceAccessService, type SpaceRow } from './space-access-service.ts';
 import type { CreateSpaceInput, ShareInput } from './space-schemas.ts';
 
@@ -23,13 +24,15 @@ export type SpaceDto = {
   shared: boolean;
   ownerId: string;
   ownerName: string | null;
+  // The sidebar dot of a Pipelines space; null for other tools and for a Pipelines space with no runs.
+  pipelines: DotStatus;
 };
 
 type Sharing = Pick<SpaceDto, 'access' | 'shared' | 'ownerName'>;
 const ownSpace: Sharing = { access: 'owner', shared: false, ownerName: null };
 const shareColumns = { id: spaceShares.id, email: spaceShares.email, role: spaceShares.role };
 
-function toDto(row: SpaceRow, openToday: number, sharing: Sharing = ownSpace): SpaceDto {
+function toDto(row: SpaceRow, openToday: number, sharing: Sharing = ownSpace, pipelines: DotStatus = null): SpaceDto {
   return {
     id: row.id,
     parentId: row.parentId,
@@ -42,6 +45,7 @@ function toDto(row: SpaceRow, openToday: number, sharing: Sharing = ownSpace): S
     openToday,
     ...sharing,
     ownerId: row.userId,
+    pipelines,
   };
 }
 
@@ -78,14 +82,17 @@ export class SpacesService {
       }
     }
 
+    const pipelineIds = [...rows, ...sharedWithMe.map((shared) => shared.row)].filter((row) => row.tool === 'pipelines').map((row) => row.id);
+    const dots = await dotStatuses(this.db, pipelineIds);
+
     const visibleIds = new Set(rows.map((row) => row.id));
     const shared = new Set(myShares.map((share) => share.spaceId));
     const own = rows
       .filter((row) => row.parentId === null || visibleIds.has(row.parentId))
-      .map((row) => toDto(row, counts.get(row.id) ?? 0, { ...ownSpace, shared: shared.has(row.id) }));
+      .map((row) => toDto(row, counts.get(row.id) ?? 0, { ...ownSpace, shared: shared.has(row.id) }, dots.get(row.id) ?? null));
     const theirs = sharedWithMe
       .sort((a, b) => inSpaceOrder(a.row, b.row))
-      .map(({ row, access, ownerName }) => toDto(row, counts.get(row.id) ?? 0, { access, shared: false, ownerName }));
+      .map(({ row, access, ownerName }) => toDto(row, counts.get(row.id) ?? 0, { access, shared: false, ownerName }, dots.get(row.id) ?? null));
     return [...own, ...theirs];
   }
 
@@ -227,7 +234,7 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
-      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs') {
+      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs' || source.tool === 'pipelines') {
         throw new BadRequestException(`A ${source.tool} space cannot be duplicated`);
       }
 

@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { spaces, spaceShares, tasks } from '../../../shared/db/schema.ts';
+import { pipelineRuns, spaces, spaceShares, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertFolder, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
 import { SpaceAccessService } from './space-access-service.ts';
@@ -63,6 +63,22 @@ describe('spaces API', () => {
       .set('x-test-user', 'u1')
       .expect(200);
     expect(listed.body.map((s: { id: string }) => s.id)).toEqual([body.id]);
+  });
+
+  it('lists the pipelines status for a pipelines space and null for others', async () => {
+    const list = (await post({ kind: 'space', title: 'Home', tool: 'list' }).expect(201)).body;
+    const ci = (await post({ kind: 'space', title: 'Backend', tool: 'pipelines' }).expect(201)).body;
+    expect(ci.pipelines).toBeNull();
+    await db.insert(pipelineRuns).values({ spaceId: ci.id, userId: 'u1', job: 'api', number: 1, status: 'running' });
+    const listed = (await request(app.getHttpServer()).get('/api/spaces?today=2026-11-09').set('x-test-user', 'u1').expect(200)).body;
+    const byId = new Map(listed.map((s: { id: string; pipelines: unknown }) => [s.id, s.pipelines]));
+    expect(byId.get(ci.id)).toBe('running');
+    expect(byId.get(list.id)).toBeNull();
+  });
+
+  it('refuses to duplicate a pipelines space', async () => {
+    const ci = (await post({ kind: 'space', title: 'Backend', tool: 'pipelines' }).expect(201)).body;
+    await request(app.getHttpServer()).post(`/api/spaces/${ci.id}/duplicate`).set('x-test-user', 'u1').send({}).expect(400);
   });
 
   it.each([

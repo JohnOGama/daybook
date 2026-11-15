@@ -103,6 +103,43 @@ describe('realtime endpoint', () => {
     expect(await refusal(connect(diagram, { 'x-test-user': 'u1', origin: 'https://evil.example' }))).toBe(403);
   });
 
+  describe('the per-user socket, /api/realtime/me', () => {
+    const textOf = (socket: WebSocket) => new Promise<unknown>((resolve) => socket.once('message', (data: Buffer) => resolve(JSON.parse(data.toString()))));
+
+    it('refuses no session (404) and a wrong origin (403)', async () => {
+      expect(await refusal(connect('me', {}))).toBe(404);
+      expect(await refusal(connect('me', { 'x-test-user': 'u1', origin: 'https://evil.example' }))).toBe(403);
+    });
+
+    it("delivers sendToUsers to that user's sockets only", async () => {
+      const mine = connect('me', { 'x-test-user': 'u1' });
+      const theirs = connect('me', { 'x-test-user': 'u2' });
+      await Promise.all([opened(mine), opened(theirs)]);
+      let theirsGot = false;
+      theirs.on('message', () => {
+        theirsGot = true;
+      });
+      const received = textOf(mine);
+      realtime.sendToUsers(['u1'], { type: 'pipeline', spaceId: 's1', status: 'running' });
+      expect(await received).toEqual({ type: 'pipeline', spaceId: 's1', status: 'running' });
+      await new Promise((r) => setTimeout(r, 100));
+      expect(theirsGot).toBe(false);
+    });
+
+    it('closes a user socket whose session was signed out', async () => {
+      realtime.recheckMs = 50;
+      const mine = connect('me', { 'x-test-user': 'u1' });
+      await opened(mine);
+      const closed = new Promise<number>((resolve) => mine.on('close', (code) => resolve(code)));
+      revoked.add('u1');
+      try {
+        await expect(Promise.race([closed, new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe(4403);
+      } finally {
+        revoked.delete('u1');
+      }
+    });
+  });
+
   it('refuses a locked space without the unlock cookie and accepts it with one', async () => {
     const token = await app.get(SpaceLockService).setPassword('u1', diagram, 'hunter22');
     expect(await refusal(connect(diagram, { 'x-test-user': 'u1' }))).toBe(403);
