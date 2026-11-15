@@ -26,7 +26,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines']);
 
 export const shareRole = pgEnum('share_role', ['edit', 'view']);
 export type ShareRole = (typeof shareRole.enumValues)[number];
@@ -590,4 +590,54 @@ export const spaceShares = pgTable(
     uniqueIndex('space_shares_space_email_idx').on(t.spaceId, t.email),
     index('space_shares_email_idx').on(t.email),
   ],
+);
+
+// One report key per Pipelines space, kept only as a SHA-256 hash; the plain key is shown once.
+export const pipelineKeys = pgTable('pipeline_keys', {
+  spaceId: uuid('space_id')
+    .primaryKey()
+    .references(() => spaces.id, { onDelete: 'cascade' }),
+  keyHash: text('key_hash').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'string' }),
+});
+
+// One CI run of one job, as Jenkins reports it. `status` is running | passed | failed, worked out from the stages and
+// `finishStatus`, the run-level finish report (passed | failed | aborted, null until it arrives).
+export const pipelineRuns = pgTable(
+  'pipeline_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ...ownedBySpace(),
+    job: text('job').notNull(),
+    number: integer('number').notNull(),
+    status: text('status').notNull(),
+    finishStatus: text('finish_status'),
+    url: text('url'),
+    branch: text('branch'),
+    commit: text('commit'),
+    startedAt: timestamp('started_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'string' }),
+  },
+  (t) => [uniqueIndex('pipeline_runs_space_job_number_idx').on(t.spaceId, t.job, t.number), index('pipeline_runs_space_idx').on(t.spaceId)],
+);
+
+// One stage of a run. `status` is running | passed | failed | skipped; `position` is the order stages first reported.
+export const pipelineStages = pgTable(
+  'pipeline_stages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => pipelineRuns.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+    status: text('status').notNull(),
+    message: text('message'),
+    error: text('error'),
+    startedAt: timestamp('started_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'string' }),
+  },
+  (t) => [uniqueIndex('pipeline_stages_run_name_idx').on(t.runId, t.name)],
 );

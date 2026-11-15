@@ -162,6 +162,13 @@
       "when": 1794770043075,
       "tag": "0022_bright_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794777962188,
+      "tag": "0023_oval_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }
