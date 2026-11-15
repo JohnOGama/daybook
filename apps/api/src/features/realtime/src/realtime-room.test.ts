@@ -218,6 +218,41 @@ describe('Room', () => {
     expect(saves.map((s) => s.dbml)).toEqual(['Table c {}']);
   });
 
+  it('flush waits for a save already running, and saves never overlap', async () => {
+    const { store, saves } = memoryStore({ dbml: '', positions: {}, ydoc: null });
+    const room = await Room.open('s1', true, store);
+    saves.length = 0;
+    const save = store.save;
+    let running = 0;
+    let most = 0;
+    const releases: (() => void)[] = [];
+    store.save = async (doc) => {
+      running++;
+      most = Math.max(most, running);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      await save(doc);
+      running--;
+    };
+    const client = connect(room, { userId: 'u1', access: 'owner' });
+    client.doc.getText('dbml').insert(0, 'one');
+    await vi.advanceTimersByTimeAsync(SAVE_PAUSE_MS);
+    expect(releases).toHaveLength(1);
+    client.doc.getText('dbml').insert(3, ' two');
+    let flushed = false;
+    const flushing = room.flush().then(() => {
+      flushed = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(false);
+    expect(most).toBe(1);
+    releases[0]();
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(most).toBe(1);
+    releases[1]();
+    await flushing;
+    expect(saves.map((s) => s.dbml)).toEqual(['one', 'one two']);
+  });
+
   it('flush saves pending rooms', async () => {
     const { store, saves } = memoryStore({ dbml: '', positions: {}, ydoc: null });
     const room = await Room.open('s1', true, store);

@@ -65,7 +65,7 @@ function tableLines(text: string, names: Set<string>): LineRange[] {
 function samplePresence(): SpacePresence {
   const doc = new Y.Doc();
   doc.getText('dbml').insert(0, SAMPLE_DBML);
-  return { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true };
+  return { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true, denied: false };
 }
 
 function Workspace({ diagram, presence, title }: { diagram: Diagram; presence: SpacePresence; title: string }) {
@@ -324,10 +324,10 @@ export function DiagramPageComponent() {
   const title = space?.title ?? 'Database diagram';
   const [sample] = useState(samplePresence);
 
-  if (isError) {
+  if (isError || presence?.denied) {
     return (
       <p role="alert" className="px-6 py-8 text-sm text-destructive">
-        Could not load this diagram. Please try again.
+        {presence?.denied ? 'You no longer have access to this diagram.' : 'Could not load this diagram. Please try again.'}
       </p>
     );
   }

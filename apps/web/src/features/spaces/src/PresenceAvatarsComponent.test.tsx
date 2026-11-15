@@ -22,7 +22,7 @@ function renderWith(members: PresenceMember[]) {
   useSession.mockReturnValue({ data: { user: { id: 'me' } } });
   const doc = new Y.Doc();
   return render(
-    <SpacePresenceContext.Provider value={{ doc, awareness: new Awareness(doc), members, connected: true, synced: true }}>
+    <SpacePresenceContext.Provider value={{ doc, awareness: new Awareness(doc), members, connected: true, synced: true, denied: false }}>
       <PresenceAvatarsComponent />
     </SpacePresenceContext.Provider>,
   );

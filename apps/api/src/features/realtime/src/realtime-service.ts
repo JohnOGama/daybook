@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from 'node:http';
 import { STATUS_CODES } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException, type OnModuleDestroy } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import { eq } from 'drizzle-orm';
 import { type WebSocket, WebSocketServer } from 'ws';
@@ -79,6 +79,7 @@ export class RealtimeService implements OnModuleDestroy {
     const [person] = await this.db.select({ name: user.name, image: user.image }).from(user).where(eq(user.id, userId));
     const room = await this.room(spaceId, space.tool === 'diagram', ownerId);
 
+    const headers = fromNodeHeaders(request.headers);
     this.server.handleUpgrade(request, socket, head, (ws) => {
       const peer: Peer = {
         userId,
@@ -90,22 +91,29 @@ export class RealtimeService implements OnModuleDestroy {
         },
         close: () => ws.close(),
       };
-      this.accept(ws, room, peer, cookie);
+      this.accept(ws, room, peer, headers);
     });
   }
 
-  private accept(ws: WebSocket, room: Room, peer: Peer, cookie: string | undefined): void {
+  private accept(ws: WebSocket, room: Room, peer: Peer, headers: Headers): void {
     ws.on('message', (data: Buffer) => room.receive(peer, new Uint8Array(data)));
     room.join(peer);
-    // Unshared, deleted, re-locked or changed to view-only while open: closed or downgraded here.
+    // Signed out elsewhere, unshared, deleted, re-locked or changed to view-only while open: closed or downgraded here.
     const recheck = setInterval(async () => {
       try {
+        const session = await this.auth.api.getSession({ headers });
+        if (session?.user.id !== peer.userId) throw new Refused(404);
         const { access } = await this.access.resolve(peer.userId, room.spaceId, 'view');
-        if (!(await this.lock.isOpen(peer.userId, room.spaceId, cookie))) throw new Refused(403);
+        if (!(await this.lock.isOpen(peer.userId, room.spaceId, headers.get('cookie') ?? undefined))) throw new Refused(403);
         if (access !== peer.access) room.setAccess(peer, access);
-      } catch {
-        // 4403: the browser's y-websocket treats 4400-4499 as final and stops reconnecting.
-        ws.close(4403, 'No access');
+      } catch (error) {
+        if (error instanceof Refused || error instanceof NotFoundException || error instanceof ForbiddenException) {
+          // 4403: the browser's y-websocket treats 4400-4499 as final and stops reconnecting.
+          ws.close(4403, 'No access');
+        } else {
+          // A passing database or network error: keep the connection and check again next time.
+          console.error('Could not recheck a live connection', error);
+        }
       }
     }, this.recheckMs);
     ws.on('close', () => {
@@ -133,10 +141,11 @@ export class RealtimeService implements OnModuleDestroy {
     if (!room.empty) return;
     await room.flush().catch((error) => console.error('Could not save a live diagram', error));
     const current = this.rooms.get(room.spaceId);
-    if (room.empty && current && (await current) === room) {
-      this.rooms.delete(room.spaceId);
-      room.close();
-    }
+    if (!current || (await current) !== room) return;
+    // Checked after every await: someone may have joined while the room saved.
+    if (!room.empty) return;
+    this.rooms.delete(room.spaceId);
+    room.close();
   }
 
   private trustedOrigin(origin: string | undefined): boolean {

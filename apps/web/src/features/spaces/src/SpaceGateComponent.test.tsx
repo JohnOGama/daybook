@@ -10,6 +10,8 @@ const { useSpaces, replace, pathname } = vi.hoisted(() => ({
 
 vi.mock('../hooks/useSpaces', () => ({ useSpaces }));
 vi.mock('../hooks/useCreateSpace', () => ({ useCreateSpace: () => ({ mutateAsync: vi.fn() }) }));
+// The live connection has its own tests; here it only wraps the screen.
+vi.mock('./SpacePresenceProviderComponent', () => ({ SpacePresenceProviderComponent: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace }),
   usePathname: () => pathname.current,

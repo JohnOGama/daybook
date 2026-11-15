@@ -39,6 +39,7 @@ export class Room {
   private readonly owners = new Map<number, Peer>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private dirty = false;
+  private saving: Promise<void> = Promise.resolve();
 
   private constructor(
     readonly spaceId: string,
@@ -122,8 +123,16 @@ export class Room {
     }
   }
 
-  async flush(): Promise<void> {
+  // Saves run one after another, and a flush waits for any save already running, so a later write can't land first
+  // and nobody closes the room while its last change is still on its way to the database.
+  flush(): Promise<void> {
     clearTimeout(this.timer);
+    const next = this.saving.catch(() => undefined).then(() => this.saveNow());
+    this.saving = next;
+    return next;
+  }
+
+  private async saveNow(): Promise<void> {
     if (!this.live || !this.dirty) return;
     this.dirty = false;
     try {

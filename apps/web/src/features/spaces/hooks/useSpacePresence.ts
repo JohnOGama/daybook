@@ -8,7 +8,8 @@ import type { SpaceAccess } from '../src/space-types';
 // One person in the open space, as the server knows them. `clientIds` are their tabs' Yjs awareness ids.
 export type PresenceMember = { userId: string; name: string; image: string | null; access: SpaceAccess; clientIds: number[] };
 
-export type SpacePresence = { doc: Y.Doc; awareness: Awareness; members: PresenceMember[]; connected: boolean; synced: boolean };
+// `synced`: has synced with the server at least once. `denied`: the server ended the connection because you lost access.
+export type SpacePresence = { doc: Y.Doc; awareness: Awareness; members: PresenceMember[]; connected: boolean; synced: boolean; denied: boolean };
 
 export const SpacePresenceContext = createContext<SpacePresence | null>(null);
 

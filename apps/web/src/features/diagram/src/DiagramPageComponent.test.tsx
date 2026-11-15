@@ -91,7 +91,7 @@ function connect({ dbml = SHOP, positions = {} as Positions } = {}, status: Part
   const doc = new Y.Doc();
   doc.getText('dbml').insert(0, dbml);
   for (const [name, point] of Object.entries(positions)) doc.getMap('positions').set(name, point);
-  state.presence = { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true, ...status };
+  state.presence = { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true, denied: false, ...status };
   return doc;
 }
 const show = (diagram: Partial<Diagram> = {}) => {
@@ -124,6 +124,13 @@ it('redraws when someone else changes the text', async () => {
   act(() => doc.getText('dbml').insert(doc.getText('dbml').length, '\n\nTable tags {\n  id int [pk]\n}'));
   await waitFor(() => expect(canvas()).toHaveAttribute('data-tables', 'users,orders,order_items,tags'));
   expect(screen.getByRole('textbox', { name: 'DBML' })).toHaveValue(`${SHOP}\n\nTable tags {\n  id int [pk]\n}`);
+});
+
+it('says so when the connection ended because you lost access, instead of loading forever', () => {
+  connect({}, { synced: false, denied: true });
+  useDiagram.mockReturnValue({ data: { dbml: '', positions: {}, updatedAt: null, aiEnabled: true, version: 1 }, isPending: false, isError: false });
+  render(<DiagramPageComponent />);
+  expect(screen.getByRole('alert')).toHaveTextContent('You no longer have access to this diagram.');
 });
 
 it('shows the skeleton until the shared document has synced', () => {

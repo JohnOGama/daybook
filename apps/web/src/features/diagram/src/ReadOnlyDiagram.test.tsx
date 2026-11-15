@@ -44,7 +44,7 @@ it('gives a viewer the diagram and exports but no way to change it, and never wr
   const doc = new Y.Doc();
   doc.getText('dbml').insert(0, SHOP);
   doc.getMap('positions').set('users', { x: 0, y: 0 });
-  state.presence = { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true };
+  state.presence = { doc, awareness: new Awareness(doc), members: [], connected: true, synced: true, denied: false };
   let writes = 0;
   doc.on('update', () => writes++);
 

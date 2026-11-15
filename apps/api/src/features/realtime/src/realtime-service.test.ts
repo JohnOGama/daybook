@@ -18,11 +18,13 @@ import { MESSAGE_MEMBERS, MESSAGE_SYNC, type Member } from './realtime-room.ts';
 import { RealtimeService } from './realtime-service.ts';
 
 const ORIGIN = 'http://localhost:3000';
+// Users whose sessions were signed out elsewhere.
+const revoked = new Set<string>();
 const fakeAuth = {
   api: {
     getSession: async ({ headers }: { headers: Headers }) => {
       const id = headers.get('x-test-user');
-      return id ? { user: { id } } : null;
+      return id && !revoked.has(id) ? { user: { id } } : null;
     },
   },
 };
@@ -128,6 +130,39 @@ describe('realtime endpoint', () => {
     await db.delete(spaceShares).where(and(eq(spaceShares.spaceId, diagram), eq(spaceShares.email, 'u2@example.com')));
     // 4403 tells y-websocket not to keep reconnecting.
     await expect(Promise.race([closed, new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe(4403);
+  });
+
+  it('closes a connection whose session was signed out elsewhere', async () => {
+    realtime.recheckMs = 50;
+    const owner = connect(diagram, { 'x-test-user': 'u1' });
+    await opened(owner);
+    const closed = new Promise<number>((resolve) => owner.on('close', (code) => resolve(code)));
+    revoked.add('u1');
+    try {
+      await expect(Promise.race([closed, new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe(4403);
+    } finally {
+      revoked.delete('u1');
+    }
+  });
+
+  it('keeps a connection open through a passing database error in the recheck', async () => {
+    realtime.recheckMs = 50;
+    const owner = connect(diagram, { 'x-test-user': 'u1' });
+    await opened(owner);
+    let closedWith: number | undefined;
+    owner.on('close', (code) => {
+      closedWith = code;
+    });
+    const access = app.get(SpaceAccessService);
+    const resolve = access.resolve.bind(access);
+    let failures = 0;
+    access.resolve = async (...args) => {
+      if (failures++ < 2) throw new Error('connection reset');
+      return resolve(...args);
+    };
+    await new Promise((r) => setTimeout(r, 300));
+    expect(closedWith).toBeUndefined();
+    expect(owner.readyState).toBe(WebSocket.OPEN);
   });
 
   it('two real y-websocket browsers share the text, and each hears the other in the member list', async () => {

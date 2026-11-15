@@ -12,10 +12,11 @@ function cursorsOf(awareness: Awareness, members: PresenceMember[]): Cursor[] {
   const nameOf = new Map(members.flatMap((member) => member.clientIds.map((id): [number, string] => [id, member.name])));
   const cursors: Cursor[] = [];
   awareness.getStates().forEach((state, clientId) => {
-    const at = (state as { cursor?: Point | null }).cursor;
+    // `pointer`, not `cursor`: y-codemirror keeps the code editor's text selection in `cursor`.
+    const at = (state as { pointer?: Partial<Point> | null }).pointer;
     // The name comes only from the server's member list; a tab it doesn't know is not drawn.
     const name = nameOf.get(clientId);
-    if (clientId !== awareness.clientID && at && name) cursors.push({ clientId, name, at });
+    if (clientId !== awareness.clientID && name && Number.isFinite(at?.x) && Number.isFinite(at?.y)) cursors.push({ clientId, name, at: at as Point });
   });
   return cursors;
 }

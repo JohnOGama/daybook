@@ -193,9 +193,9 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
       onPointerMove={(event) => {
         if (!presence || Date.now() - cursorSent.current < 50) return;
         cursorSent.current = Date.now();
-        presence.awareness.setLocalStateField('cursor', flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+        presence.awareness.setLocalStateField('pointer', flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
       }}
-      onPointerLeave={() => presence?.awareness.setLocalStateField('cursor', null)}
+      onPointerLeave={() => presence?.awareness.setLocalStateField('pointer', null)}
     >
       <ReactFlow<TableNode, RelationEdge>
         nodes={nodes}
