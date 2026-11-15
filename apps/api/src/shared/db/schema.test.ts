@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { tasks } from './schema.ts';
-import { createTestDb, insertSpace, insertUser } from './test-db.ts';
+import { createTestDb, insertShare, insertSpace, insertUser } from './test-db.ts';
 import type { Db } from './create-db.ts';
 
 describe('tasks table', () => {
@@ -43,5 +43,16 @@ describe('tasks table', () => {
     await db.insert(tasks).values({ userId: 'u1', spaceId, title: 's', parentId: parent.id });
     await db.delete(tasks).where(eq(tasks.id, parent.id));
     expect(await db.select().from(tasks)).toHaveLength(0);
+  });
+});
+
+describe('space shares', () => {
+  it('rejects a second share of a space to the same email', async () => {
+    const db = await createTestDb();
+    await insertUser(db, 'u1');
+    const spaceId = await insertSpace(db, 'u1');
+    const share = { spaceId, ownerId: 'u1', email: 'a@b.com', role: 'view' as const };
+    await insertShare(db, share);
+    await expect(insertShare(db, { ...share, role: 'edit' })).rejects.toThrow();
   });
 });

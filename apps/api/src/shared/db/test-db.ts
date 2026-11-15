@@ -11,12 +11,28 @@ export async function createTestDb(): Promise<Db> {
   return db as unknown as Db;
 }
 
-export async function insertSpace(db: Db, userId: string): Promise<string> {
+export async function insertSpace(
+  db: Db,
+  userId: string,
+  values: Partial<typeof schema.spaces.$inferInsert> = {},
+): Promise<string> {
   const [space] = await db
     .insert(schema.spaces)
-    .values({ userId, kind: 'space', title: 'Space', tool: 'list' })
+    .values({ userId, kind: 'space', title: 'Space', tool: 'list', ...values })
     .returning();
   return space.id;
+}
+
+export async function insertFolder(db: Db, userId: string): Promise<string> {
+  return insertSpace(db, userId, { kind: 'folder', title: 'Folder', tool: null });
+}
+
+export async function insertShare(
+  db: Db,
+  values: { spaceId: string; ownerId: string; email: string; role: schema.ShareRole },
+): Promise<string> {
+  const [share] = await db.insert(schema.spaceShares).values(values).returning();
+  return share.id;
 }
 
 export async function insertUser(db: Db, id: string): Promise<void> {

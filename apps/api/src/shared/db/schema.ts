@@ -25,6 +25,9 @@ export type TaskStatus = (typeof taskStatus.enumValues)[number];
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
 export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram']);
 
+export const shareRole = pgEnum('share_role', ['edit', 'view']);
+export type ShareRole = (typeof shareRole.enumValues)[number];
+
 export const spaces = pgTable(
   'spaces',
   {
@@ -65,6 +68,7 @@ export const notebookPages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    version: integer('version').notNull().default(0),
   },
   (t) => [index('notebook_pages_space_idx').on(t.spaceId)],
 );
@@ -443,6 +447,7 @@ export const fitnessMealPlans = pgTable(
     name: text('name').notNull(),
     items: jsonb('items').$type<unknown[]>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    version: integer('version').notNull().default(0),
   },
   (t) => [index('fitness_meal_plans_space_idx').on(t.spaceId)],
 );
@@ -483,6 +488,7 @@ export const fitnessWorkoutTemplates = pgTable(
     name: text('name').notNull(),
     items: jsonb('items').$type<unknown[]>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    version: integer('version').notNull().default(0),
   },
   (t) => [index('fitness_workout_templates_space_idx').on(t.spaceId)],
 );
@@ -496,6 +502,7 @@ export const fitnessWorkouts = pgTable(
     name: text('name').notNull(),
     items: jsonb('items').$type<unknown[]>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    version: integer('version').notNull().default(0),
   },
   (t) => [index('fitness_workouts_day_idx').on(t.spaceId, t.day)],
 );
@@ -556,4 +563,26 @@ export const diagrams = pgTable('diagrams', {
   dbml: text('dbml').notNull().default(''),
   positions: jsonb('positions').$type<Record<string, { x: number; y: number }>>().notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+  version: integer('version').notNull().default(0),
 });
+
+// A space or folder shared with an email address (stored trimmed and lowercased).
+export const spaceShares = pgTable(
+  'space_shares',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: shareRole('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('space_shares_space_email_idx').on(t.spaceId, t.email),
+    index('space_shares_email_idx').on(t.email),
+  ],
+);
