@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, LogOut, Settings } from 'lucide-react';
+import { Check, LogOut, Settings, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { SpacesNavComponent } from '@/features/spaces';
@@ -16,6 +16,7 @@ export function SidebarComponent() {
   const queryClient = useQueryClient();
   const isTrash = pathname === '/trash';
   const isSettings = pathname === '/preferences';
+  const isAssistant = pathname === '/assistant';
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -35,6 +36,17 @@ export function SidebarComponent() {
       <SpacesNavComponent renderSpaceSummary={(space) => <SpaceSummaryComponent spaceId={space.id} />} />
 
       <div className="mt-auto pt-8">
+        <Link
+          href="/assistant"
+          aria-current={isAssistant ? 'page' : undefined}
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent',
+            isAssistant && 'bg-muted font-medium text-foreground',
+          )}
+        >
+          <Sparkles className="size-[18px]" aria-hidden />
+          Assistant
+        </Link>
         <Link
           href="/preferences"
           aria-current={isSettings ? 'page' : undefined}

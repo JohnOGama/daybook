@@ -29,7 +29,7 @@ export function AppShellComponent({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [activeSpaceParam, pathname]);
 
   if (!session) return <AppSkeletonComponent />;
-  const outsideSpaces = pathname === '/trash' || pathname === '/preferences';
+  const outsideSpaces = pathname === '/trash' || pathname === '/preferences' || pathname === '/assistant';
 
   return (
     <LiveUpdatesProviderComponent>
