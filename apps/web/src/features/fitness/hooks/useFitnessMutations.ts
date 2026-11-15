@@ -2,6 +2,7 @@
 
 import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { ConflictError } from '@/shared/utils/conflict-error';
 import * as api from '../src/fitness-api';
 import type { Day, Exercise, Fitness, FoodLog, MealPlan, Profile, Weight, Workout, WorkoutTemplate } from '../src/fitness-types';
 import { useFitnessSpaceId } from './useFitness';
@@ -10,6 +11,11 @@ import { useFitnessSpaceId } from './useFitness';
 const scope = { id: 'fitness' };
 
 type LogChanges = Partial<Omit<FoodLog, 'id' | 'day'>>;
+type Versioned = { id: string; version?: number };
+
+// An edit replaces the cached row but keeps its version, which only the server's answer moves on.
+const replaceRow = <R extends Versioned>(rows: R[], next: R) => rows.map((row) => (row.id === next.id ? { ...next, version: row.version } : row));
+const setVersion = <R extends Versioned>(rows: R[], id: string, version: number) => rows.map((row) => (row.id === id ? { ...row, version } : row));
 
 export function useFitnessMutations() {
   const queryClient = useQueryClient();
@@ -18,10 +24,17 @@ export function useFitnessMutations() {
   const daysKey = ['fitness-days', spaceId];
 
   // Patches every cached query under `key` straight away, and puts them all back if the request fails.
-  function useChange<T, D>(key: QueryKey, request: (input: T) => Promise<void>, apply: (data: D, input: T, queryKey: QueryKey) => D) {
+  // `saved` writes the server's answer (a whole-document save's new version) into the cache.
+  function useChange<T, D, R = void>(
+    key: QueryKey,
+    request: (input: T) => Promise<R>,
+    apply: (data: D, input: T, queryKey: QueryKey) => D,
+    saved?: (data: D, input: T, result: R) => D,
+  ) {
     return useMutation({
       scope,
       mutationFn: request,
+      onSuccess: saved && ((result: R, input: T) => queryClient.setQueriesData<D>({ queryKey: key }, (data) => data && saved(data, input, result))),
       onMutate: async (input: T) => {
         await queryClient.cancelQueries({ queryKey: key });
         const previous = queryClient.getQueriesData<D>({ queryKey: key });
@@ -32,10 +45,22 @@ export function useFitnessMutations() {
       },
       onError: (error: Error, _input, previous) => {
         for (const [queryKey, data] of previous ?? []) queryClient.setQueryData(queryKey, data);
-        toast.error(error.message);
+        if (error instanceof ConflictError) {
+          const reload = () => void queryClient.invalidateQueries({ queryKey: key });
+          toast.error(error.message, { id: 'fitness-conflict', action: { label: 'Reload', onClick: reload } });
+        } else toast.error(error.message);
       },
     });
   }
+
+  // Read when the request starts, so a save queued behind another sends the version that one returned.
+  const libraryVersion = (list: 'mealPlans' | 'templates', id: string) =>
+    queryClient.getQueryData<Fitness>(fitnessKey)?.[list].find((row) => row.id === id)?.version ?? 0;
+  const workoutVersion = (id: string) =>
+    queryClient
+      .getQueriesData<Day>({ queryKey: daysKey })
+      .map(([, day]) => day?.workouts.find((workout) => workout.id === id)?.version)
+      .find((version) => version !== undefined) ?? 0;
 
   // A days query is keyed [..., from, to]; a row belongs in it when its day falls inside.
   const inRange = (day: string, queryKey: QueryKey) => day >= (queryKey[2] as string) && day <= (queryKey[3] as string);
@@ -87,12 +112,14 @@ export function useFitnessMutations() {
   const addMealPlan = useChange<MealPlan, Fitness>(
     fitnessKey,
     (plan) => api.createMealPlan({ ...plan, spaceId }),
-    (fitness, plan) => ({ ...fitness, mealPlans: [...fitness.mealPlans, plan] }),
+    (fitness, plan) => ({ ...fitness, mealPlans: [...fitness.mealPlans, { ...plan, version: 0 }] }),
   );
-  const saveMealPlan = useChange<MealPlan, Fitness>(fitnessKey, api.saveMealPlan, (fitness, plan) => ({
-    ...fitness,
-    mealPlans: fitness.mealPlans.map((existing) => (existing.id === plan.id ? plan : existing)),
-  }));
+  const saveMealPlan = useChange<MealPlan, Fitness, { version: number }>(
+    fitnessKey,
+    (plan) => api.saveMealPlan({ ...plan, version: libraryVersion('mealPlans', plan.id) }),
+    (fitness, plan) => ({ ...fitness, mealPlans: replaceRow(fitness.mealPlans, plan) }),
+    (fitness, plan, { version }) => ({ ...fitness, mealPlans: setVersion(fitness.mealPlans, plan.id, version) }),
+  );
   const removeMealPlan = useChange<string, Fitness>(fitnessKey, api.deleteMealPlan, (fitness, id) => ({
     ...fitness,
     mealPlans: fitness.mealPlans.filter((plan) => plan.id !== id),
@@ -106,12 +133,14 @@ export function useFitnessMutations() {
   const addTemplate = useChange<WorkoutTemplate, Fitness>(
     fitnessKey,
     (template) => api.createTemplate({ ...template, spaceId }),
-    (fitness, template) => ({ ...fitness, templates: [...fitness.templates, template] }),
+    (fitness, template) => ({ ...fitness, templates: [...fitness.templates, { ...template, version: 0 }] }),
   );
-  const saveTemplate = useChange<WorkoutTemplate, Fitness>(fitnessKey, api.saveTemplate, (fitness, template) => ({
-    ...fitness,
-    templates: fitness.templates.map((existing) => (existing.id === template.id ? template : existing)),
-  }));
+  const saveTemplate = useChange<WorkoutTemplate, Fitness, { version: number }>(
+    fitnessKey,
+    (template) => api.saveTemplate({ ...template, version: libraryVersion('templates', template.id) }),
+    (fitness, template) => ({ ...fitness, templates: replaceRow(fitness.templates, template) }),
+    (fitness, template, { version }) => ({ ...fitness, templates: setVersion(fitness.templates, template.id, version) }),
+  );
   const removeTemplate = useChange<string, Fitness>(fitnessKey, api.deleteTemplate, (fitness, id) => ({
     ...fitness,
     templates: fitness.templates.filter((template) => template.id !== id),
@@ -125,12 +154,14 @@ export function useFitnessMutations() {
   const addWorkout = useChange<Workout, Day>(
     daysKey,
     (workout) => api.createWorkout({ ...workout, spaceId }),
-    (day, workout, queryKey) => (inRange(workout.day, queryKey) ? { ...day, workouts: [...day.workouts, workout] } : day),
+    (day, workout, queryKey) => (inRange(workout.day, queryKey) ? { ...day, workouts: [...day.workouts, { ...workout, version: 0 }] } : day),
   );
-  const saveWorkout = useChange<Workout, Day>(daysKey, api.saveWorkout, (day, workout) => ({
-    ...day,
-    workouts: day.workouts.map((existing) => (existing.id === workout.id ? workout : existing)),
-  }));
+  const saveWorkout = useChange<Workout, Day, { version: number }>(
+    daysKey,
+    (workout) => api.saveWorkout({ ...workout, version: workoutVersion(workout.id) }),
+    (day, workout) => ({ ...day, workouts: replaceRow(day.workouts, workout) }),
+    (day, workout, { version }) => ({ ...day, workouts: setVersion(day.workouts, workout.id, version) }),
+  );
   const removeWorkout = useChange<string, Day>(daysKey, api.deleteWorkout, (day, id) => ({ ...day, workouts: day.workouts.filter((workout) => workout.id !== id) }));
 
   function deleteWorkoutWithUndo(workout: Workout) {

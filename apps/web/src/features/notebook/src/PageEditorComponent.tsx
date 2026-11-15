@@ -14,7 +14,7 @@ import type { NotebookPage } from './page-types';
 import { PageHistoryComponent } from './PageHistoryComponent';
 import { SelectionToolbarComponent } from './SelectionToolbarComponent';
 
-const STATUS_LABELS: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving', failed: 'Not saved' };
+const STATUS_LABELS: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving', failed: 'Not saved', conflict: 'Changed by someone else' };
 
 type PageEditorProps = {
   page: NotebookPage;
@@ -25,7 +25,7 @@ type PageEditorProps = {
 };
 
 export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer, improveWithAi }: PageEditorProps) {
-  const { schedule, status } = usePageAutosave(page.id);
+  const { schedule, status, reload } = usePageAutosave(page.id, page.version);
   const [title, setTitle] = useState(page.title);
   const [historyOpen, setHistoryOpen] = useState(false);
   const editor = useEditor({
@@ -35,6 +35,13 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
     editorProps: { attributes: { class: 'page-content', 'aria-label': 'Page content' } },
     onUpdate: ({ editor: current }) => schedule({ content: current.getJSON() }),
   });
+
+  async function handleReload() {
+    const fresh = await reload();
+    if (!fresh) return;
+    setTitle(fresh.title);
+    editor?.commands.setContent(fresh.content ?? '', { emitUpdate: false });
+  }
 
   return (
     <article className={cn('mx-auto max-w-2xl px-4 py-6 pb-24 md:px-8 md:py-8', improveWithAi && 'md:pl-16')}>
@@ -55,9 +62,14 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
           }}
           className="h-auto min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0 md:text-[28px] dark:bg-transparent"
         />
-        <span role="status" className={cn('shrink-0 text-[13px] text-muted-foreground', status === 'failed' && 'text-destructive')}>
+        <span role="status" className={cn('shrink-0 text-[13px] text-muted-foreground', (status === 'failed' || status === 'conflict') && 'text-destructive')}>
           {STATUS_LABELS[status]}
         </span>
+        {status === 'conflict' && (
+          <Button type="button" variant="outline" size="sm" className="shrink-0 self-center" onClick={handleReload}>
+            Reload
+          </Button>
+        )}
         <Button
           type="button"
           variant="ghost"

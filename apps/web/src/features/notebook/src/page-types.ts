@@ -5,6 +5,7 @@ export type NotebookPage = {
   title: string;
   content: JSONContent | null;
   createdAt: string;
+  version: number;
 };
 
 export type PageVersion = { id: string; createdAt: string };

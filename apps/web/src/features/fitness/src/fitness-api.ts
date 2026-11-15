@@ -1,13 +1,25 @@
+import { throwIfConflict } from '@/shared/utils/conflict-error';
 import type { Day, Exercise, Fitness, Food, FoodLog, MealPlan, Profile, Weight, Workout, WorkoutTemplate } from './fitness-types';
 
-async function send(method: string, path: string, body: unknown, failure: string): Promise<void> {
+async function request(method: string, path: string, body: unknown, failure: string): Promise<Response> {
   const response = await fetch(`/api/fitness${path}`, {
     method,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  throwIfConflict(response);
   if (!response.ok) throw new Error(failure);
+  return response;
 }
+
+async function send(method: string, path: string, body: unknown, failure: string): Promise<void> {
+  await request(method, path, body, failure);
+}
+
+// Whole-document saves name the version they were edited from and get the new one back.
+type Saved = { version: number };
+const saveDocument = async (path: string, body: { version: number }, failure: string): Promise<Saved> =>
+  (await request('PUT', path, body, failure)).json();
 
 async function load<T>(path: string, query: Record<string, string>, failure: string): Promise<T> {
   const response = await fetch(`/api/fitness${path}?${new URLSearchParams(query)}`);
@@ -45,7 +57,7 @@ export const deleteLog = (id: string) => send('DELETE', `/logs/${id}`, undefined
 export const fetchMyFoods = (spaceId: string) => load<Food[]>('/foods/mine', { spaceId }, 'Could not load your foods');
 
 export const createMealPlan = (input: MealPlan & { spaceId: string }) => send('POST', '/meal-plans', input, 'That meal plan could not be saved. Please try again.');
-export const saveMealPlan = ({ id, ...plan }: MealPlan) => send('PUT', `/meal-plans/${id}`, plan, 'That meal plan could not be saved. Please try again.');
+export const saveMealPlan = ({ id, ...plan }: MealPlan & Saved) => saveDocument(`/meal-plans/${id}`, plan, 'That meal plan could not be saved. Please try again.');
 export const deleteMealPlan = (id: string) => send('DELETE', `/meal-plans/${id}`, undefined, 'That meal plan could not be deleted. Please try again.');
 
 export const saveWeight = (input: Weight & { spaceId: string }) => send('PUT', '/weights', input, 'That weigh-in could not be saved. Please try again.');
@@ -58,11 +70,11 @@ export const createExercise = ({ custom: _custom, ...exercise }: Exercise & { sp
 export const deleteExercise = (id: string) => send('DELETE', `/exercises/${id}`, undefined, 'That exercise could not be deleted. Please try again.');
 
 export const createTemplate = (input: WorkoutTemplate & { spaceId: string }) => send('POST', '/templates', input, 'That template could not be saved. Please try again.');
-export const saveTemplate = ({ id, ...template }: WorkoutTemplate) => send('PUT', `/templates/${id}`, template, 'That template could not be saved. Please try again.');
+export const saveTemplate = ({ id, ...template }: WorkoutTemplate & Saved) => saveDocument(`/templates/${id}`, template, 'That template could not be saved. Please try again.');
 export const deleteTemplate = (id: string) => send('DELETE', `/templates/${id}`, undefined, 'That template could not be deleted. Please try again.');
 
 export const createWorkout = (input: Workout & { spaceId: string }) => send('POST', '/workouts', input, 'That workout could not be saved. Please try again.');
-export const saveWorkout = ({ id, ...workout }: Workout) => send('PUT', `/workouts/${id}`, workout, 'Your workout could not be saved. Please try again.');
+export const saveWorkout = ({ id, ...workout }: Workout & Saved) => saveDocument(`/workouts/${id}`, workout, 'Your workout could not be saved. Please try again.');
 export const deleteWorkout = (id: string) => send('DELETE', `/workouts/${id}`, undefined, 'That workout could not be deleted. Please try again.');
 
 export type FitnessRead = { headline: string; points: string[] };

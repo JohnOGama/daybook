@@ -59,14 +59,15 @@ export type FoodItem = Targets & {
   fiberMg: number;
 };
 export type FoodLog = FoodItem & { id: string; day: string; meal: Meal; eaten: boolean };
-export type MealPlan = { id: string; name: string; items: (FoodItem & { meal: Meal })[] };
+// `version` comes from the server; a row made in this browser has none until it is saved (it starts at 0).
+export type MealPlan = { id: string; name: string; items: (FoodItem & { meal: Meal })[]; version?: number };
 
 export type ExerciseKind = 'weight' | 'reps' | 'time';
 export type Exercise = { id: string; name: string; kind: ExerciseKind; equipment: string | null; primary: Muscle[]; secondary: Muscle[]; custom: boolean };
 export type WorkoutSet = { reps: number | null; weightG: number | null; seconds: number | null; meters: number | null; done: boolean };
 export type WorkoutItem = { exerciseId: string | null; name: string; kind: ExerciseKind; primary: Muscle[]; secondary: Muscle[]; sets: WorkoutSet[] };
-export type WorkoutTemplate = { id: string; name: string; items: WorkoutItem[] };
-export type Workout = { id: string; day: string; name: string; items: WorkoutItem[] };
+export type WorkoutTemplate = { id: string; name: string; items: WorkoutItem[]; version?: number };
+export type Workout = { id: string; day: string; name: string; items: WorkoutItem[]; version?: number };
 
 export type Day = { logs: FoodLog[]; workouts: Workout[] };
 export type Fitness = { profile: Profile; weights: Weight[]; mealPlans: MealPlan[]; templates: WorkoutTemplate[]; aiEnabled: boolean };

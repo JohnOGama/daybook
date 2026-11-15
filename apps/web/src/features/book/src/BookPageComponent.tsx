@@ -19,6 +19,7 @@ const SAMPLE_CHAPTERS: NotebookPage[] = ['The beginning', 'A long way home', 'Wh
   title,
   content: null,
   createdAt: '',
+  version: 0,
 }));
 
 export function BookPageComponent() {

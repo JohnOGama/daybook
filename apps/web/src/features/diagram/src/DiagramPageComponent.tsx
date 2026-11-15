@@ -31,7 +31,7 @@ const EXAMPLES = [
   'A blog with authors, posts, comments and tags',
   'A school with students, teachers, classes and grades',
 ];
-const STATUS_LABEL: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving…', error: 'Not saved' };
+const STATUS_LABEL: Record<SaveStatus, string> = { saved: 'Saved', saving: 'Saving…', error: 'Not saved', conflict: 'Changed by someone else' };
 
 type Snapshot = { dbml: string; positions: Positions };
 type Fresh = { tables: Set<string>; lines: LineRange[] };
@@ -59,9 +59,9 @@ function tableLines(text: string, names: Set<string>): LineRange[] {
   return ranges;
 }
 
-function Workspace({ diagram, title }: { diagram: Diagram; title: string }) {
+function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: string; onReloaded?: () => void }) {
   const spaceId = useDiagramSpaceId() as string;
-  const { status, queue } = useDiagramAutosave(spaceId);
+  const { status, queue, reload } = useDiagramAutosave(spaceId, diagram.version);
   const canvas = useRef<CanvasHandle>(null);
 
   // Read once; afterwards the text lives here and the cache only follows it.
@@ -205,7 +205,12 @@ function Workspace({ diagram, title }: { diagram: Diagram; title: string }) {
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3 md:px-5">
         <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
-        <span className={cn('text-xs', status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_LABEL[status]}</span>
+        <span className={cn('text-xs', status === 'error' || status === 'conflict' ? 'text-destructive' : 'text-muted-foreground')}>{STATUS_LABEL[status]}</span>
+        {status === 'conflict' && (
+          <Button variant="outline" size="sm" onClick={() => void reload().then(onReloaded)}>
+            Reload
+          </Button>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setImporting(true)}>
             <FileUp aria-hidden />
@@ -304,6 +309,8 @@ export function DiagramPageComponent() {
   const spaceId = useDiagramSpaceId();
   const { data, isPending, isError } = useDiagram();
   const title = space?.title ?? 'Database diagram';
+  // The workspace reads the diagram once, so a reload opens a fresh one on the saved text.
+  const [reloads, setReloads] = useState(0);
 
   if (isError) {
     return (
@@ -318,7 +325,7 @@ export function DiagramPageComponent() {
   if (data && !isPending) {
     return (
       <div className="h-full min-h-[480px]">
-        <Workspace key={spaceId} diagram={data} title={title} />
+        <Workspace key={`${spaceId}-${reloads}`} diagram={data} title={title} onReloaded={() => setReloads((count) => count + 1)} />
       </div>
     );
   }
@@ -327,7 +334,7 @@ export function DiagramPageComponent() {
   return (
     <div className="h-full min-h-[480px] [&>div]:h-full [&>div>div]:h-full">
       <Skeleton loading label="Loading the diagram">
-        <Workspace key="sample" diagram={{ dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true }} title={title} />
+        <Workspace key="sample" diagram={{ dbml: SAMPLE_DBML, positions: {}, updatedAt: null, aiEnabled: true, version: 0 }} title={title} />
       </Skeleton>
     </div>
   );

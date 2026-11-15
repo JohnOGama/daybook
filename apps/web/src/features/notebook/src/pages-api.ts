@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/react';
+import { throwIfConflict } from '@/shared/utils/conflict-error';
 import type { NotebookPage, PageChanges, PageVersion } from './page-types';
 
 const KEEPALIVE_BODY_LIMIT = 60_000;
@@ -18,7 +19,8 @@ export async function createPage({ id, spaceId }: { id: string; spaceId: string 
   if (!response.ok) throw new Error('That page could not be added. Please try again.');
 }
 
-export async function updatePage({ id, changes }: { id: string; changes: PageChanges }): Promise<void> {
+// Content must name the version it was edited from; a title-only save returns the current version, which may be stale.
+export async function updatePage({ id, changes }: { id: string; changes: PageChanges & { version?: number } }): Promise<{ version: number }> {
   const body = JSON.stringify(changes);
   const response = await fetch(`/api/notebook-pages/${id}`, {
     method: 'PATCH',
@@ -26,7 +28,9 @@ export async function updatePage({ id, changes }: { id: string; changes: PageCha
     body,
     keepalive: body.length < KEEPALIVE_BODY_LIMIT,
   });
+  throwIfConflict(response);
   if (!response.ok) throw new Error('Your latest changes could not be saved.');
+  return response.json();
 }
 
 export async function reorderPages({ spaceId, ids }: { spaceId: string; ids: string[] }): Promise<void> {

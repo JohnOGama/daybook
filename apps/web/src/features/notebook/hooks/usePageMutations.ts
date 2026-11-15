@@ -3,11 +3,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useActiveSpace } from '@/features/spaces';
+import { ConflictError } from '@/shared/utils/conflict-error';
 import type { NotebookPage, PageChanges } from '../src/page-types';
 import { createPage, deletePage, reorderPages, updatePage } from '../src/pages-api';
 
 // Runs page requests one at a time, so typing in a new page can't reach the server before the page exists.
 const scope = { id: 'notebook-pages' };
+
+// `base` is the version the editor's content was edited from. It is read when the request actually starts,
+// so a save queued behind another sends the version that one returned.
+type Save = { id: string; changes: PageChanges; base: { current: number } };
 
 export function usePageMutations() {
   const queryClient = useQueryClient();
@@ -19,7 +24,7 @@ export function usePageMutations() {
   const writePages = (change: (pages: NotebookPage[]) => NotebookPage[]) =>
     queryClient.setQueryData<NotebookPage[]>(key, (pages) => pages && change(pages));
 
-  const patchPage = (id: string, changes: PageChanges) =>
+  const patchPage = (id: string, changes: Partial<Omit<NotebookPage, 'id'>>) =>
     writePages((pages) => pages.map((page) => (page.id === id ? { ...page, ...changes } : page)));
 
   const addPage = useMutation({
@@ -36,13 +41,25 @@ export function usePageMutations() {
 
   const save = useMutation({
     scope,
-    mutationFn: updatePage,
-    retry: 2,
+    mutationFn: ({ id, changes, base }: Save) =>
+      updatePage({ id, changes: changes.content === undefined ? changes : { ...changes, version: base.current } }),
+    retry: (failures, error) => !(error instanceof ConflictError) && failures < 2,
     onMutate: () => queryClient.cancelQueries({ queryKey: ['pages'] }),
+    // A title-only save returns whatever version is current, which may be newer than this editor's content.
+    onSuccess: ({ version }, { id, changes, base }) => {
+      if (changes.content === undefined) return;
+      base.current = version;
+      patchPage(id, { version });
+    },
     onError: (error: Error) => {
-      toast.error(error.message);
+      if (!(error instanceof ConflictError)) toast.error(error.message);
     },
   });
+
+  async function reloadPage(id: string) {
+    await queryClient.invalidateQueries({ queryKey: key });
+    return queryClient.getQueryData<NotebookPage[]>(key)?.find((page) => page.id === id);
+  }
 
   const remove = useMutation({
     scope,
@@ -74,10 +91,10 @@ export function usePageMutations() {
   });
 
   function create() {
-    const page: NotebookPage = { id: crypto.randomUUID(), title: '', content: null, createdAt: new Date().toISOString() };
+    const page: NotebookPage = { id: crypto.randomUUID(), title: '', content: null, createdAt: new Date().toISOString(), version: 0 };
     addPage.mutate({ page });
     return page.id;
   }
 
-  return { create, save, remove, reorder, patchPage };
+  return { create, save, remove, reorder, patchPage, reloadPage };
 }

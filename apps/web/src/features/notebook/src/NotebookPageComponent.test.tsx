@@ -27,6 +27,7 @@ const page = (id: string, title: string, text?: string): NotebookPage => ({
   title,
   content: text ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] } : null,
   createdAt: '',
+  version: 0,
 });
 
 const showPages = (pages: NotebookPage[]) => {

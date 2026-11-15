@@ -18,6 +18,7 @@ const SAMPLE_PAGES: NotebookPage[] = ['Launch notes', 'Meeting notes', 'Handover
   title,
   content: null,
   createdAt: '',
+  version: 0,
 }));
 
 export function NotebookPageComponent() {
