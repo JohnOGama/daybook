@@ -9,6 +9,7 @@ import { useSpaces } from '../hooks/useSpaces';
 import { canLock } from '../hooks/useSpaceLock';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
 import { SpaceLockGateComponent } from './SpaceLockGateComponent';
+import { SpacePresenceProviderComponent } from './SpacePresenceProviderComponent';
 import { isOnWrongScreen, spaceHref } from './space-tree';
 
 export function SpaceGateComponent({ children }: { children: ReactNode }) {
@@ -30,8 +31,18 @@ export function SpaceGateComponent({ children }: { children: ReactNode }) {
       </p>
     );
   }
-  if (active?.locked && canLock(active)) return <SpaceLockGateComponent space={active}>{children}</SpaceLockGateComponent>;
-  if (spaces.some((space) => space.kind === 'space')) return children;
+  // Nobody else can be in a Vault, and a folder has nothing open; everywhere else, open the live connection.
+  const content =
+    active?.kind === 'space' && active.tool !== 'vault' ? (
+      <SpacePresenceProviderComponent key={active.id} space={active}>
+        {children}
+      </SpacePresenceProviderComponent>
+    ) : (
+      children
+    );
+  // A locked space only renders (and so only connects) once it is unlocked.
+  if (active?.locked && canLock(active)) return <SpaceLockGateComponent space={active}>{content}</SpaceLockGateComponent>;
+  if (spaces.some((space) => space.kind === 'space')) return content;
 
   return (
     <div className="flex min-h-[80dvh] flex-col items-center justify-center p-8 text-center">

@@ -52,6 +52,7 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Shop database', tool: 'diagram' }),
   useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => null,
 }));
 

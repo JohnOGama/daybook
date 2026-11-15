@@ -49,6 +49,7 @@ vi.mock('./fitness-api', async (original) => ({ ...(await original<typeof import
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Body', tool: 'fitness' }),
   useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => null,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-13' }));

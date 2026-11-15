@@ -9,7 +9,7 @@ import { PageHistoryComponent } from './PageHistoryComponent';
 import { PageListComponent } from './PageListComponent';
 import type { NotebookPage } from './page-types';
 
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => undefined, ViewOnlyBadgeComponent: () => null }));
+vi.mock('@/features/spaces', () => ({ useActiveSpace: () => undefined, ViewOnlyBadgeComponent: () => null, PresenceAvatarsComponent: () => null }));
 const schedule = vi.fn();
 vi.mock('../hooks/usePageAutosave', () => ({ usePageAutosave: () => ({ schedule, status: 'saved', reload: vi.fn() }) }));
 vi.mock('../hooks/usePageMutations', () => ({

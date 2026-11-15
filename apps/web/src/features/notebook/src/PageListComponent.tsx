@@ -33,7 +33,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/shared/components/ui/context-menu';
-import { ViewOnlyBadgeComponent } from '@/features/spaces';
+import { PresenceAvatarsComponent, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { usePageMutations } from '../hooks/usePageMutations';
 import { type NotebookPage, pageSnippet, pageTitle } from './page-types';
@@ -140,6 +140,7 @@ export function PageListComponent({ title, pages, activeId, isPending, hrefOf, o
       <div className="flex items-baseline justify-between gap-2 px-2.5 pt-2">
         <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
         <ViewOnlyBadgeComponent />
+        <PresenceAvatarsComponent />
         <span className="shrink-0 text-[13px] text-muted-foreground">
           {pages.length} {pages.length === 1 ? 'page' : 'pages'}
         </span>

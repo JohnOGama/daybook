@@ -17,6 +17,7 @@ vi.mock('../hooks/useOfflineQueue', () => ({ useOfflineQueue: () => ({ online: t
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Money' }),
   useSpaceAccess: () => ({ access: 'view', canEdit: false, isOwner: false }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => <span>View only</span>,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-12' }));

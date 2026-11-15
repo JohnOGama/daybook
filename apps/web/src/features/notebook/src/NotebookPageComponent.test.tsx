@@ -16,6 +16,7 @@ vi.mock('../hooks/usePageMutations', () => ({ usePageMutations: () => ({ create,
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Work notes' }),
   useSpaceAccess: () => ({ canEdit: true }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => null,
 }));
 vi.mock('next/navigation', () => ({

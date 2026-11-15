@@ -21,6 +21,7 @@ vi.mock('../hooks/useFitnessMutations', () => ({ useFitnessMutations: () => muta
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Body', tool: 'fitness' }),
   useSpaceAccess: () => ({ access: 'view', canEdit: false, isOwner: false }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => <span>View only</span>,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-13' }));

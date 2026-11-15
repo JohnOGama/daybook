@@ -4,7 +4,7 @@ import { ArrowUp, FileUp, PanelLeftClose, Sparkles } from 'lucide-react';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { toast } from 'sonner';
-import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
+import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { cn } from '@/shared/utils/cn';
@@ -216,6 +216,7 @@ function Workspace({ diagram, title, onReloaded }: { diagram: Diagram; title: st
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">
+          <PresenceAvatarsComponent />
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setImporting(true)}>
               <FileUp aria-hidden />

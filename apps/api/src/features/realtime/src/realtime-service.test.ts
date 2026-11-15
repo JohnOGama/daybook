@@ -123,9 +123,10 @@ describe('realtime endpoint', () => {
     await insertShare(db, { spaceId: diagram, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
     const editor = connect(diagram, { 'x-test-user': 'u2' });
     await opened(editor);
-    const closed = new Promise<void>((resolve) => editor.on('close', () => resolve()));
+    const closed = new Promise<number>((resolve) => editor.on('close', (code) => resolve(code)));
     await db.delete(spaceShares).where(and(eq(spaceShares.spaceId, diagram), eq(spaceShares.email, 'u2@example.com')));
-    await expect(Promise.race([closed.then(() => 'closed'), new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe('closed');
+    // 4403 tells y-websocket not to keep reconnecting.
+    await expect(Promise.race([closed, new Promise((r) => setTimeout(() => r('open'), 500))])).resolves.toBe(4403);
   });
 
   it("an editor's change is saved to the diagrams row", async () => {

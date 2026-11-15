@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { Skeleton } from 'skullet/react';
-import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
+import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { useToday } from '@/shared/hooks/useToday';
 import { cn } from '@/shared/utils/cn';
 import { useFitness } from '../hooks/useFitness';
@@ -75,6 +75,7 @@ export function FitnessPageComponent() {
         <div className="flex items-center gap-2 px-4 pt-5 md:px-6">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{space?.title ?? 'Fitness'}</h1>
           <ViewOnlyBadgeComponent />
+          <PresenceAvatarsComponent />
         </div>
         <nav aria-label="Fitness views" className="mt-3 flex gap-1.5 overflow-x-auto border-b px-2 md:px-4">
           {TABS.map(({ view: tab, label, Icon }) => (

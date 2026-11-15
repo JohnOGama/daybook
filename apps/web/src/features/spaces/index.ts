@@ -1,6 +1,8 @@
 export { useActiveSpace } from './hooks/useActiveSpace';
 export { useSpaceAccess } from './hooks/useSpaceAccess';
 export { useSpaces } from './hooks/useSpaces';
+export { type PresenceMember, type SpacePresence, SpacePresenceContext, useSpacePresence } from './hooks/useSpacePresence';
+export { PresenceAvatarsComponent } from './src/PresenceAvatarsComponent';
 export { SpaceGateComponent } from './src/SpaceGateComponent';
 export { SpacePasswordsComponent } from './src/SpacePasswordsComponent';
 export { SpaceSettingsComponent } from './src/SpaceSettingsComponent';

@@ -104,7 +104,8 @@ export class RealtimeService implements OnModuleDestroy {
         if (!(await this.lock.isOpen(peer.userId, room.spaceId, cookie))) throw new Refused(403);
         if (access !== peer.access) room.setAccess(peer, access);
       } catch {
-        ws.close();
+        // 4403: the browser's y-websocket treats 4400-4499 as final and stops reconnecting.
+        ws.close(4403, 'No access');
       }
     }, this.recheckMs);
     ws.on('close', () => {

@@ -26,7 +26,7 @@ import {
 import { ReorderHandleComponent } from '@/shared/components/ReorderHandleComponent';
 import { Button } from '@/shared/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/shared/components/ui/context-menu';
-import { ViewOnlyBadgeComponent } from '@/features/spaces';
+import { PresenceAvatarsComponent, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { cn } from '@/shared/utils/cn';
 import { chapterTitle, formatWords, readingTime, wordCount } from './book-stats';
 
@@ -124,8 +124,11 @@ export function ChapterOutlineComponent({
   return (
     <section aria-label="Chapters" className="flex flex-col gap-2 p-3">
       <div className="px-2.5 pt-2">
-        <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
-        <ViewOnlyBadgeComponent />
+        <div className="flex items-center gap-2">
+          <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
+          <ViewOnlyBadgeComponent />
+          <PresenceAvatarsComponent />
+        </div>
         <p className="text-[13px] text-muted-foreground">
           {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'} · {formatWords(words)}
           {words > 0 && ` · ${readingTime(words)}`}

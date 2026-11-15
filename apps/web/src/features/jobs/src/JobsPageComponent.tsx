@@ -3,7 +3,7 @@
 import { FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Skeleton } from 'skullet/react';
-import { useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
+import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -58,18 +58,21 @@ export function JobsPageComponent() {
           <h1 className="truncate text-2xl font-semibold tracking-tight">{space?.title ?? 'Job hunt'}</h1>
           <ViewOnlyBadgeComponent />
         </div>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={isPending} onClick={() => setCvOpen(true)}>
-              <FileText aria-hidden />
-              {profile.cvText ? 'Your CV' : 'Add your CV'}
-            </Button>
-            <Button size="sm" disabled={isPending} onClick={() => setForm({})}>
-              <Plus aria-hidden />
-              Add manually
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <PresenceAvatarsComponent />
+          {canEdit && (
+            <>
+              <Button variant="outline" size="sm" disabled={isPending} onClick={() => setCvOpen(true)}>
+                <FileText aria-hidden />
+                {profile.cvText ? 'Your CV' : 'Add your CV'}
+              </Button>
+              <Button size="sm" disabled={isPending} onClick={() => setForm({})}>
+                <Plus aria-hidden />
+                Add manually
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       <div className="mx-auto mt-4 flex max-w-6xl flex-col gap-4 px-4 md:px-6">

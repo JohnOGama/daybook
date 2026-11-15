@@ -21,6 +21,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "skullet/react";
 import {
+  PresenceAvatarsComponent,
   useActiveSpace,
   useSpaceAccess,
   ViewOnlyBadgeComponent,
@@ -204,17 +205,20 @@ export function BudgetPageComponent() {
               </p>
             </Skeleton>
           </div>
-          {canEdit && (
-            <Button
-              onClick={addEntry}
-              disabled={isPending}
-              aria-label="Add entry"
-              className="shrink-0"
-            >
-              <Plus aria-hidden />
-              <span className="hidden sm:inline">Add entry</span>
-            </Button>
-          )}
+          <div className="flex shrink-0 items-center gap-3">
+            <PresenceAvatarsComponent />
+            {canEdit && (
+              <Button
+                onClick={addEntry}
+                disabled={isPending}
+                aria-label="Add entry"
+                className="shrink-0"
+              >
+                <Plus aria-hidden />
+                <span className="hidden sm:inline">Add entry</span>
+              </Button>
+            )}
+          </div>
         </div>
         <nav
           aria-label="Budget views"

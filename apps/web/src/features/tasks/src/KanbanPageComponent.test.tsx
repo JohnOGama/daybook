@@ -13,6 +13,7 @@ vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => active.space,
   useSpaceAccess: () => ({ isOwner: active.isOwner }),
   SpaceSettingsComponent: () => <p>settings content</p>,
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => (active.space.access === 'view' ? <span>View only</span> : null),
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-09' }));

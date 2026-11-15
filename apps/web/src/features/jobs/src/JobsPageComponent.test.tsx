@@ -22,6 +22,7 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Job hunt', tool: 'jobs' }),
   useSpaceAccess: () => ({ access: 'edit', canEdit: true, isOwner: true }),
+  PresenceAvatarsComponent: () => null,
   ViewOnlyBadgeComponent: () => null,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-14' }));

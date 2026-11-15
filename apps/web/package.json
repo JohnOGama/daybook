@@ -31,6 +31,7 @@
     "clsx": "^2.1.1",
     "codemirror": "6.0.2",
     "html-to-image": "1.11.13",
+    "lib0": "0.2.119",
     "lucide-react": "^1.70.0",
     "next": "16.4.5",
     "next-themes": "^0.4.6",
@@ -41,7 +42,11 @@
     "skullet": "^0.0.3",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
-    "vaul": "^1.1.2"
+    "vaul": "^1.1.2",
+    "y-codemirror.next": "0.3.6",
+    "y-protocols": "1.0.7",
+    "y-websocket": "3.1.0",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
