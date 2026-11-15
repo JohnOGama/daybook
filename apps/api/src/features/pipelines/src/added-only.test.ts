@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+import { addedOnly } from './added-only.ts';
+
+const ORIGINAL = `pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'pnpm test'
+      }
+    }
+  }
+}`;
+const WITH_REPORTING = `def daybook(String stage, String status, String message = '') { }
+pipeline {
+  agent any
+  environment {
+    DAYBOOK_KEY = credentials('DAYBOOK_KEY')
+  }
+  stages {
+    stage('Test') {
+      steps {
+        daybook('Test', 'started')
+        sh 'pnpm test'
+      }
+      post { success { daybook('Test', 'passed') } }
+    }
+  }
+}`;
+
+describe('addedOnly', () => {
+  it('accepts pure additions', () => {
+    expect(addedOnly(ORIGINAL, WITH_REPORTING)).toBeNull();
+  });
+
+  it('refuses a changed line and a removed line, naming the line', () => {
+    expect(addedOnly(ORIGINAL, WITH_REPORTING.replace("sh 'pnpm test'", "sh 'pnpm test --bail'"))).toContain("sh 'pnpm test'");
+    expect(addedOnly(ORIGINAL, WITH_REPORTING.replace("        sh 'pnpm test'\n", ''))).toContain("sh 'pnpm test'");
+  });
+
+  it('refuses lines that moved out of order', () => {
+    const swapped = WITH_REPORTING.replace('  agent any\n', '').replace('  stages {', '  stages {\n  agent any');
+    expect(addedOnly(ORIGINAL, swapped)).not.toBeNull();
+  });
+
+  it('ignores CRLF and trailing spaces', () => {
+    expect(addedOnly(ORIGINAL.replaceAll('\n', '\r\n').replace('agent any', 'agent any   '), WITH_REPORTING)).toBeNull();
+    expect(addedOnly(ORIGINAL, WITH_REPORTING.replaceAll('\n', '\r\n'))).toBeNull();
+  });
+
+  it("refuses an answer without credentials('DAYBOOK_KEY')", () => {
+    expect(addedOnly(ORIGINAL, WITH_REPORTING.replace("credentials('DAYBOOK_KEY')", "'dbk_hardcoded'"))).toMatch(/credentials/);
+  });
+});

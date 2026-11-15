@@ -46,3 +46,5 @@ export const reportSchema = z
 export type Report = z.infer<typeof reportSchema>;
 
 export const spaceQuerySchema = z.object({ spaceId: z.uuid() });
+
+export const instrumentSchema = z.object({ spaceId: z.uuid(), jenkinsfile: z.string().min(1).max(100_000) });

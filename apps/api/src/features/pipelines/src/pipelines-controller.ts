@@ -1,13 +1,15 @@
-import { Controller, Get, Inject, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { Request } from 'express';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
 import { pipelineRuns, spaces } from '../../../shared/db/schema.ts';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
+import { BudgetAiService } from '../../budget/index.ts';
 import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
+import { addedOnly } from './added-only.ts';
 import { PipelineKeysService } from './pipeline-keys-service.ts';
-import { spaceQuerySchema } from './pipelines-schemas.ts';
+import { instrumentSchema, spaceQuerySchema } from './pipelines-schemas.ts';
 import { PipelinesService } from './pipelines-service.ts';
 
 @UseGuards(AuthGuard)
@@ -18,6 +20,7 @@ export class PipelinesController {
     @Inject(PipelineKeysService) private readonly keys: PipelineKeysService,
     @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
+    @Inject(BudgetAiService) private readonly ai: BudgetAiService,
     @Inject(DB) private readonly db: Db,
   ) {}
 
@@ -47,6 +50,18 @@ export class PipelinesController {
   async newKey(@UserId() userId: string, @Param('spaceId', ParseUUIDPipe) spaceId: string) {
     await this.ownerOnly(userId, spaceId);
     return { key: await this.keys.create(spaceId) };
+  }
+
+  // Returns the Jenkinsfile with reporting added; nothing is saved. Only the pasted text and Daybook's address go to the AI.
+  @Post('ai/instrument')
+  async instrument(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
+    const { spaceId, jenkinsfile } = parseOrThrow(instrumentSchema, body);
+    await this.access.resolve(userId, spaceId, 'edit');
+    await this.assertPipelinesSpace(spaceId);
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
+    // Reports go to the web origin, whose /api rewrite reaches this API.
+    const daybookUrl = process.env.BETTER_AUTH_URL ?? '';
+    return this.ai.instrumentJenkinsfile(jenkinsfile, daybookUrl, (text) => addedOnly(jenkinsfile, text));
   }
 
   // The key writes into the owner's space, so only the owner sees or replaces it; anyone else gets the usual 404.
