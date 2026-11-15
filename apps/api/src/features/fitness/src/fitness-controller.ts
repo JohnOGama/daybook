@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { fitnessExercises, fitnessFoodLogs, fitnessFoodServings, fitnessFoods, fitnessMealPlans, fitnessWorkoutTemplates, fitnessWorkouts } from '../../../shared/db/schema.ts';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
 import { BudgetAiService } from '../../budget/index.ts';
-import { SpaceLockService } from '../../spaces/index.ts';
+import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
 import { FitnessFoodService } from './fitness-food-service.ts';
 import {
   addLogsSchema,
@@ -39,175 +40,218 @@ export class FitnessController {
     @Inject(FitnessWorkoutService) private readonly training: FitnessWorkoutService,
     @Inject(SpaceLockService) private readonly lock: SpaceLockService,
     @Inject(BudgetAiService) private readonly ai: BudgetAiService,
+    @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
   ) {}
 
   @Get()
   async load(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(spaceQuerySchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return { ...(await this.fitness.load(userId, spaceId)), aiEnabled: this.ai.enabled };
+    return { ...(await this.fitness.load(ownerId, spaceId)), aiEnabled: this.ai.enabled };
   }
 
   @Put('profile')
-  saveProfile(@UserId() userId: string, @Body() body: unknown) {
+  async saveProfile(@UserId() userId: string, @Body() body: unknown) {
     const { spaceId, ...profile } = parseOrThrow(saveProfileSchema, body);
-    return this.fitness.saveProfile(userId, spaceId, profile);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.fitness.saveProfile(ownerId, spaceId, profile);
   }
 
   @Get('foods')
   async searchFoods(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId, q } = parseOrThrow(searchFoodsSchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.foods.searchFoods(userId, spaceId, q);
+    return this.foods.searchFoods(ownerId, spaceId, q);
   }
 
   @Get('foods/mine')
   async customFoods(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(spaceQuerySchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.foods.customFoods(userId, spaceId);
+    return this.foods.customFoods(ownerId, spaceId);
   }
 
   @Get('foods/recent')
   async recentFoods(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(spaceQuerySchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.foods.recentFoods(userId, spaceId);
+    return this.foods.recentFoods(ownerId, spaceId);
   }
 
   @Post('foods')
-  createFood(@UserId() userId: string, @Body() body: unknown) {
-    return this.foods.createFood(userId, parseOrThrow(newFoodSchema, body));
+  async createFood(@UserId() userId: string, @Body() body: unknown) {
+    const food = parseOrThrow(newFoodSchema, body);
+    const { ownerId } = await this.access.resolve(userId, food.spaceId, 'edit');
+    return this.foods.createFood(ownerId, food);
   }
 
   @Patch('foods/:id')
-  updateFood(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.foods.updateFood(userId, id, parseOrThrow(foodSchema, body));
+  async updateFood(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const changes = parseOrThrow(foodSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessFoods, id, 'edit');
+    return this.foods.updateFood(ownerId, id, changes);
   }
 
   @Delete('foods/:id')
-  removeFood(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.foods.removeFood(userId, id);
+  async removeFood(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessFoods, id, 'edit');
+    return this.foods.removeFood(ownerId, id);
   }
 
   @Post('foods/:id/servings')
-  addServing(@UserId() userId: string, @Param('id', ParseUUIDPipe) foodId: string, @Body() body: unknown) {
-    return this.foods.addServing(userId, { ...parseOrThrow(newServingSchema, body), foodId });
+  async addServing(@UserId() userId: string, @Param('id', ParseUUIDPipe) foodId: string, @Body() body: unknown) {
+    const serving = parseOrThrow(newServingSchema, body);
+    const { ownerId } = await this.access.resolve(userId, serving.spaceId, 'edit');
+    return this.foods.addServing(ownerId, { ...serving, foodId });
   }
 
   @Delete('servings/:id')
-  removeServing(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.foods.removeServing(userId, id);
+  async removeServing(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessFoodServings, id, 'edit');
+    return this.foods.removeServing(ownerId, id);
   }
 
   @Get('days')
   async days(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId, from, to } = parseOrThrow(daysSchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    const [logs, workouts] = await Promise.all([this.foods.logs(userId, spaceId, from, to), this.training.workouts(userId, spaceId, from, to)]);
+    const [logs, workouts] = await Promise.all([this.foods.logs(ownerId, spaceId, from, to), this.training.workouts(ownerId, spaceId, from, to)]);
     return { logs, workouts };
   }
 
   @Post('logs')
-  addLogs(@UserId() userId: string, @Body() body: unknown) {
+  async addLogs(@UserId() userId: string, @Body() body: unknown) {
     const { spaceId, logs } = parseOrThrow(addLogsSchema, body);
-    return this.foods.addLogs(userId, spaceId, logs);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.foods.addLogs(ownerId, spaceId, logs);
   }
 
   @Patch('logs/:id')
-  updateLog(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.foods.updateLog(userId, id, parseOrThrow(updateLogSchema, body));
+  async updateLog(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const changes = parseOrThrow(updateLogSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessFoodLogs, id, 'edit');
+    return this.foods.updateLog(ownerId, id, changes);
   }
 
   @Delete('logs/:id')
-  removeLog(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.foods.removeLog(userId, id);
+  async removeLog(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessFoodLogs, id, 'edit');
+    return this.foods.removeLog(ownerId, id);
   }
 
   @Put('weights')
-  saveWeight(@UserId() userId: string, @Body() body: unknown) {
+  async saveWeight(@UserId() userId: string, @Body() body: unknown) {
     const { spaceId, day, weightG } = parseOrThrow(weightSchema, body);
-    return this.fitness.saveWeight(userId, spaceId, day, weightG);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.fitness.saveWeight(ownerId, spaceId, day, weightG);
   }
 
   @Delete('weights')
-  removeWeight(@UserId() userId: string, @Query() query: unknown) {
+  async removeWeight(@UserId() userId: string, @Query() query: unknown) {
     const { spaceId, day } = parseOrThrow(weightQuerySchema, query);
-    return this.fitness.removeWeight(userId, spaceId, day);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.fitness.removeWeight(ownerId, spaceId, day);
   }
 
   @Post('meal-plans')
-  createMealPlan(@UserId() userId: string, @Body() body: unknown) {
-    return this.fitness.createMealPlan(userId, parseOrThrow(newMealPlanSchema, body));
+  async createMealPlan(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(newMealPlanSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.fitness.createMealPlan(ownerId, input);
   }
 
   @Put('meal-plans/:id')
-  saveMealPlan(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.fitness.saveMealPlan(userId, id, parseOrThrow(mealPlanSchema, body));
+  async saveMealPlan(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(mealPlanSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessMealPlans, id, 'edit');
+    return this.fitness.saveMealPlan(ownerId, id, input);
   }
 
   @Delete('meal-plans/:id')
-  removeMealPlan(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.fitness.removeMealPlan(userId, id);
+  async removeMealPlan(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessMealPlans, id, 'edit');
+    return this.fitness.removeMealPlan(ownerId, id);
   }
 
   @Get('exercises')
   async exercises(@UserId() userId: string, @Query() query: unknown, @Req() request: Request) {
     const { spaceId } = parseOrThrow(spaceQuerySchema, query);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    return this.training.listExercises(userId, spaceId);
+    return this.training.listExercises(ownerId, spaceId);
   }
 
   @Post('exercises')
-  createExercise(@UserId() userId: string, @Body() body: unknown) {
-    return this.training.createExercise(userId, parseOrThrow(newExerciseSchema, body));
+  async createExercise(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(newExerciseSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.training.createExercise(ownerId, input);
   }
 
   @Patch('exercises/:id')
-  updateExercise(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.training.updateExercise(userId, id, parseOrThrow(exerciseSchema, body));
+  async updateExercise(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(exerciseSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessExercises, id, 'edit');
+    return this.training.updateExercise(ownerId, id, input);
   }
 
   @Delete('exercises/:id')
-  removeExercise(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.training.removeExercise(userId, id);
+  async removeExercise(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessExercises, id, 'edit');
+    return this.training.removeExercise(ownerId, id);
   }
 
   @Post('templates')
-  createTemplate(@UserId() userId: string, @Body() body: unknown) {
-    return this.training.createTemplate(userId, parseOrThrow(newTemplateSchema, body));
+  async createTemplate(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(newTemplateSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.training.createTemplate(ownerId, input);
   }
 
   @Put('templates/:id')
-  saveTemplate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.training.saveTemplate(userId, id, parseOrThrow(templateSchema, body));
+  async saveTemplate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(templateSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessWorkoutTemplates, id, 'edit');
+    return this.training.saveTemplate(ownerId, id, input);
   }
 
   @Delete('templates/:id')
-  removeTemplate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.training.removeTemplate(userId, id);
+  async removeTemplate(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessWorkoutTemplates, id, 'edit');
+    return this.training.removeTemplate(ownerId, id);
   }
 
   @Post('workouts')
-  createWorkout(@UserId() userId: string, @Body() body: unknown) {
-    return this.training.createWorkout(userId, parseOrThrow(newWorkoutSchema, body));
+  async createWorkout(@UserId() userId: string, @Body() body: unknown) {
+    const input = parseOrThrow(newWorkoutSchema, body);
+    const { ownerId } = await this.access.resolve(userId, input.spaceId, 'edit');
+    return this.training.createWorkout(ownerId, input);
   }
 
   @Put('workouts/:id')
-  saveWorkout(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
-    return this.training.saveWorkout(userId, id, parseOrThrow(workoutSchema, body));
+  async saveWorkout(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const input = parseOrThrow(workoutSchema, body);
+    const { ownerId } = await this.access.resolveRow(userId, fitnessWorkouts, id, 'edit');
+    return this.training.saveWorkout(ownerId, id, input);
   }
 
   @Delete('workouts/:id')
-  removeWorkout(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.training.removeWorkout(userId, id);
+  async removeWorkout(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    const { ownerId } = await this.access.resolveRow(userId, fitnessWorkouts, id, 'edit');
+    return this.training.removeWorkout(ownerId, id);
   }
 
   @Post('ai/read')
   async read(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
     const { spaceId, summary } = parseOrThrow(fitnessReadSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    await this.fitness.assertSpace(userId, spaceId);
+    await this.fitness.assertSpace(ownerId, spaceId);
     return this.ai.fitnessRead(summary);
   }
 }
