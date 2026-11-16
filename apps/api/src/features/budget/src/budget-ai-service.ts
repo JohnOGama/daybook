@@ -185,7 +185,8 @@ export class BudgetAiService {
       problem = check(next);
       if (problem === null) return { jenkinsfile: next, summary: result.summary.trim().slice(0, 200) };
     }
-    throw new BadGatewayException('The AI changed your existing steps, so nothing was added. Try again, or add the lines by hand.');
+    // The last problem goes in the message, so a refusal says which line it was about.
+    throw new BadGatewayException(`The AI changed your existing steps, so nothing was added. Try again, or add the lines by hand. (${problem})`);
   }
 
   // Asks for JSON in the schema's shape, then checks it again here: a reply that doesn't fit is an error, never used.

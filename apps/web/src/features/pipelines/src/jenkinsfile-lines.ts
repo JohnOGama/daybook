@@ -2,10 +2,14 @@ const split = (text: string) => text.replace(/\r\n?/g, '\n').split('\n');
 
 // The result's lines, each marked when the AI added it. The server already checked that every pasted line is still
 // there in order, so walking both in step is enough (line endings and trailing spaces don't count as changes).
+// Blank lines are skipped on both sides, as the server's check does: they never count as added.
 export function markAdded(original: string, result: string): { text: string; added: boolean }[] {
-  const before = split(original).map((line) => line.trimEnd());
+  const before = split(original)
+    .map((line) => line.trimEnd())
+    .filter((line) => line !== '');
   let next = 0;
   return split(result).map((text) => {
+    if (text.trim() === '') return { text, added: false };
     if (next < before.length && text.trimEnd() === before[next]) {
       next++;
       return { text, added: false };

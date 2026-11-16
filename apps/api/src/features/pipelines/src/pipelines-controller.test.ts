@@ -226,7 +226,9 @@ describe('pipelines API', () => {
     it("refuses after two answers that change existing steps, with the spec's message", async () => {
       replies.push(instrumented(JENKINSFILE.replace('pnpm test', 'pnpm test --bail')), instrumented(JENKINSFILE.replace('pnpm test', 'rm -rf /')));
       const res = await instrument('u1').expect(502);
-      expect(res.body.message).toBe('The AI changed your existing steps, so nothing was added. Try again, or add the lines by hand.');
+      expect(res.body.message).toBe(
+        "The AI changed your existing steps, so nothing was added. Try again, or add the lines by hand. (It changed or removed this line: sh 'pnpm test')",
+      );
       expect(generateContent).toHaveBeenCalledTimes(2);
       expect(JSON.stringify(generateContent.mock.calls[1])).toContain('changed or removed this line');
     });

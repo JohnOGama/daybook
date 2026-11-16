@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { JENKINS_HELPER } from '../../budget/src/jenkins-helper.ts';
 import { addedOnly } from './added-only.ts';
 
 const ORIGINAL = `pipeline {
@@ -43,6 +44,12 @@ describe('addedOnly', () => {
     expect(addedOnly(ORIGINAL, swapped)).not.toBeNull();
   });
 
+  it('ignores blank lines and the newline at the end of a pasted file', () => {
+    expect(addedOnly(`${ORIGINAL}\n`, WITH_REPORTING)).toBeNull();
+    expect(addedOnly(`\n${ORIGINAL.replace('  stages {', '\n  stages {')}\n\n`, WITH_REPORTING)).toBeNull();
+    expect(addedOnly(ORIGINAL, WITH_REPORTING.replace('  stages {', '\n\n  stages {'))).toBeNull();
+  });
+
   it('ignores CRLF and trailing spaces', () => {
     expect(addedOnly(ORIGINAL.replaceAll('\n', '\r\n').replace('agent any', 'agent any   '), WITH_REPORTING)).toBeNull();
     expect(addedOnly(ORIGINAL, WITH_REPORTING.replaceAll('\n', '\r\n'))).toBeNull();
@@ -53,6 +60,10 @@ describe('addedOnly', () => {
     expect(addedOnly(ORIGINAL, add("        sh 'rm -rf /'"))).toContain("sh 'rm -rf /'");
     expect(addedOnly(ORIGINAL, add('      when { expression { false } }'))).toContain('when');
     expect(addedOnly(ORIGINAL, add('/*'))).toContain('/*');
+  });
+
+  it('accepts every line of the real helper, as the AI adds it', () => {
+    expect(addedOnly(ORIGINAL, `${JENKINS_HELPER}\n${WITH_REPORTING}`)).toBeNull();
   });
 
   it("accepts the helper's own lines and the post blocks", () => {

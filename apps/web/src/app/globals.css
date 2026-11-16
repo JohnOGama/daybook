@@ -379,39 +379,66 @@
   }
 }
 
-/* The assistant's field of dots: idle breathes as one, thinking ripples out from the centre (delay set per dot). */
-@keyframes assistant-breathe {
+/* The assistant's field of dots (ThinkingDotsComponent).
+   Both animations run all the time; --amp (0 idle, 1 thinking) scales the thinking breath in and out over 0.7 s, so
+   switching state never restarts anything and every dot glides from where it is.
+   .assistant-dot (outer): breathes out from the centre along --dx/--dy, stronger with --amp; dots farther out follow
+   later (--breath-delay), so the breath swells outwards. It also takes the hover push (--hx/--hy/--grow) on the
+   separate translate and scale properties, which add to the keyframe transform and glide via the transition.
+   .assistant-dot-core (inner): floats to --fx/--fy and twinkles at its own time (--twinkle-delay), calmer and brighter
+   while thinking. Delays are used negatively, so the pattern is already running on the first frame.
+   The animations are !important: the owner asked for the movement, so they beat the app-wide reduced-motion rule
+   above, which would otherwise cut them to a single 0.01 ms frame. */
+@property --amp {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes assistant-breath {
   0%,
   100% {
-    transform: scale(0.55);
-    opacity: 0.22;
+    transform: translate(0, 0) scale(calc(1 - var(--amp) * 0.25));
   }
   50% {
-    transform: scale(0.75);
-    opacity: 0.6;
+    transform: translate(calc(var(--dx) * 7px * var(--amp)), calc(var(--dy) * 7px * var(--amp))) scale(calc(1 + var(--amp) * 0.45));
   }
 }
-@keyframes assistant-ripple {
+@keyframes assistant-float {
   0%,
   100% {
-    transform: scale(0.45);
-    opacity: 0.18;
+    transform: translate(0, 0) scale(0.5);
+    opacity: calc(0.16 + var(--amp) * 0.24);
   }
-  45% {
-    transform: scale(1);
-    opacity: 1;
+  50% {
+    transform: translate(calc(var(--fx) * (1 - var(--amp) * 0.7)), calc(var(--fy) * (1 - var(--amp) * 0.7))) scale(0.85);
+    opacity: calc(0.7 + var(--amp) * 0.3);
   }
 }
-.assistant-dot-idle {
-  animation: assistant-breathe 5s ease-in-out infinite;
-}
-.assistant-dot-thinking {
-  animation: assistant-ripple 1.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .assistant-dot-idle,
-  .assistant-dot-thinking {
-    animation: none;
-    opacity: 0.6;
+@keyframes assistant-field-breathe {
+  0%,
+  100% {
+    transform: scale(0.97);
   }
+  50% {
+    transform: scale(1.02);
+  }
+}
+.assistant-field {
+  --amp: 0;
+  transition: --amp 700ms cubic-bezier(0.45, 0, 0.25, 1) !important;
+  animation: assistant-field-breathe 6s ease-in-out infinite !important;
+}
+.assistant-field-thinking {
+  --amp: 1;
+}
+.assistant-dot {
+  translate: var(--hx, 0px) var(--hy, 0px);
+  scale: var(--grow, 1);
+  animation: assistant-breath 1.6s ease-in-out calc(-1 * var(--breath-delay, 0s)) infinite !important;
+  transition:
+    translate 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    scale 450ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.assistant-dot-core {
+  animation: assistant-float 5s ease-in-out calc(-1 * var(--twinkle-delay, 0s)) infinite !important;
 }

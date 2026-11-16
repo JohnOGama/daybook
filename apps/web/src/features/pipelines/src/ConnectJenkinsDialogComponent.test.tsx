@@ -115,6 +115,15 @@ describe('helperSnippet', () => {
   });
 });
 
+describe('markAdded with blank lines', () => {
+  it('does not mark the rest of the file when the answer drops or adds a blank line', () => {
+    const pasted = `${PASTED.replace('  stages {', '\n  stages {')}\n`;
+    const added = markAdded(pasted, RESULT).filter((line) => line.added).map((line) => line.text.trim());
+    expect(added).toEqual(["environment { DAYBOOK_KEY = credentials('DAYBOOK_KEY') }", "daybook('Test', 'started')"]);
+    expect(markAdded(PASTED, RESULT.replace('  stages {', '\n  stages {')).filter((line) => line.added)).toHaveLength(2);
+  });
+});
+
 describe('markAdded', () => {
   it('marks only the lines the result added, ignoring CRLF and trailing spaces', () => {
     const marked = markAdded(PASTED.replaceAll('\n', '\r\n'), RESULT);
