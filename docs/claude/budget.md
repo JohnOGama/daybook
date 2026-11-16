@@ -1,0 +1,15 @@
+# Budget rules
+
+## Budget rules
+
+- Money is whole cents in `bigint` columns (`mode: 'number'`), never floats. The web parses and formats it with `budget-money.ts`.
+- Totals are computed in the browser by `features/budget/src/budget-math.ts` from the full entry list; the API only stores and checks ownership. Entries dated after today (`useToday`) are planned: they never change a balance or a month total.
+- Transfers move money between two accounts and are never income or spending. Deleting an account deletes its entries; deleting a category leaves its entries uncategorised.
+- Budget rows are hard-deleted (the space itself still goes to Trash), so entry delete offers Undo by re-creating the entry with the same id.
+- Recurring schedules (`budget_schedules`) never move money themselves. An occurrence counts only once it is recorded as an entry linked by `scheduleId` and `occurrenceDay`, and a unique index on that pair stops it being recorded twice (the API answers 409). Occurrence dates are worked out in the browser by `schedule-math.ts`; there is no server job, so schedules set to record automatically are caught up by `BudgetPageComponent` whenever the budget is open.
+- Each account can have its own currency (`null` means the budget's). Anything that adds amounts across accounts must go through `budget-currency.ts` (`baseEntries`, `totalInBase`, `toBase`), which converts with the hand-set `rates` on the budget; a transfer between currencies stores what arrived as `toAmount`. Per-account figures are shown in the account's own currency.
+- Goal contributions only track progress towards a goal; they never move money between accounts. Credit cards and loans are accounts whose balance runs below zero, with optional interest, due day and minimum payment.
+- The AI features (receipt scanning, category suggestions, the monthly check-in) call Gemini through `@google/genai` in `BudgetAiService`, and are off unless `GEMINI_API_KEY` is set (`GEMINI_MODEL` overrides the model). Only the note and amount being categorised, the receipt photo, or the month's summary figures are sent, never notes or account names in bulk, and every reply is checked against a zod schema before use. Category suggestions try the user's own past entries first and only ask Gemini when nothing matches.
+- Book reuses the same service for "rewrite this block" (the sparkle beside each block's drag grip, and "Improve with AI" in the selection toolbar) (`BudgetAiService.rewrite`, through `POST /notebook-pages/ai/improve`): only that block's or selection's text and the instruction are sent, and the reply replaces it as plain text.
+- Receipt photos are shrunk in the browser (`receipt-image.ts`) and stored as base64 in `budget_receipts`, one per entry; the receipt and scan routes get an 8 MB body limit in `main.ts`.
+- Changes made offline wait in React Query's paused-mutation queue and go out when the browser is back online; `useOfflineQueue` shows that state and warns before closing the tab. The queue lives in the tab only.

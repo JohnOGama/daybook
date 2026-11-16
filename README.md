@@ -1,6 +1,6 @@
 # Daybook
 
-A personal, day-based task manager. Next.js web app and NestJS API in a pnpm workspace.
+A personal workspace organised into spaces, each running one tool: a day-based task list (with Calendar and Kanban), Notebook, Book, an encrypted Vault, Budget, Fitness, Job hunt, Database diagram and Pipelines (CI/CD tracking from Jenkins), plus an Assistant page. Spaces can be shared with other people, who see each other live. Next.js web app and NestJS API in a pnpm workspace.
 
 ## Set up
 
@@ -21,6 +21,8 @@ Fill in `apps/api/.env`:
 | `RESEND_API_KEY` | Resend API key |
 | `EMAIL_FROM` | Sender address, such as `Daybook <codes@yourdomain.com>` |
 | `PORT` | API port, `4000` by default |
+| `GEMINI_API_KEY` | Optional. Turns on the AI features (receipt scanning, categories, check-ins, Book rewrites, job matching, the diagram AI, adding Pipelines reporting to a Jenkinsfile). Leave empty to keep them off. |
+| `GEMINI_MODEL` | Optional. Overrides the Gemini model. |
 
 Resend only delivers to other people once your sending domain is verified. Until then, `onboarding@resend.dev` can send only to your own Resend account's email.
 
@@ -63,6 +65,10 @@ Open http://localhost:3000.
 Sign-in and code requests are not rate limited yet. Better Auth only enables its limiter when `NODE_ENV=production`, and behind the Next.js rewrite it can't see the visitor's IP, so everyone would share one limit. Before the app is public, have your host or proxy set a trusted client IP header, then set `rateLimit: { enabled: true }` and `advanced.ipAddress` in `apps/api/src/features/auth/src/create-auth.ts`.
 
 The Vault only works over HTTPS or on localhost, because browsers limit Web Crypto to secure connections. Serve the app over HTTPS and add a Content-Security-Policy so injected scripts can't read an unlocked vault.
+
+Run the API as a single instance. Live editing and presence (`/api/realtime/*`), the per-user live socket and the Pipelines report limiter all keep their state in that process's memory. Several API servers would need a shared relay first. Your host or proxy must also pass WebSocket upgrades through to the API.
+
+`POST /api/pipelines/report` is public: Jenkins calls it with a space's key, with no sign-in. Each key is limited to 120 reports a minute, but requests with a wrong key are not limited yet, so put the same IP rate limiting in front of it as for sign-in.
 
 ## Test
 

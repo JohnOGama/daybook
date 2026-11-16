@@ -4,11 +4,33 @@ Date: 2026-11-09
 
 Items marked **(my call)** were chosen by Claude, not the owner, and can be overruled.
 
-## What it is
+## What it is now (updated 2026-11-16)
+
+Daybook started as the task manager this document describes, and has grown into a personal workspace. Everything lives in **spaces**, grouped in folders, and each space runs one tool. Each tool has its own design document in this folder:
+
+| Tool | What it does | Design |
+|---|---|---|
+| List | Day-based tasks with subtasks, a Calendar and a Kanban board | this document |
+| Notebook, Book | Rich-text pages and book chapters, with page history and AI rewrites | (in the codebase rules) |
+| Vault | Cards, IDs and keys, encrypted in the browser | 2026-11-10-vault-design.md |
+| Budget | Accounts, entries, schedules, goals, receipts and AI check-ins | (in the codebase rules) |
+| Fitness | Food, workouts, weight and targets | 2026-11-13-fitness-design.md |
+| Job hunt | Applications, statuses and CV matching | 2026-11-14-job-hunt-design.md |
+| Database diagram | DBML diagrams, edited live together, with AI edits | 2026-11-14-database-diagram-design.md |
+| Pipelines | CI/CD runs reported by Jenkins, live in the sidebar | 2026-11-16-pipelines-design.md |
+
+Alongside the tools:
+- **Sharing:** a space or folder can be shared by email as "Can edit" or "Can view" (2026-11-15-sharing-design.md).
+- **Live presence:** everyone in a space sees who else is there, and diagrams are edited live (2026-11-16-live-presence-design.md).
+- **Assistant:** a page with a thinking field of dots; it has no AI behind it yet (2026-11-16-assistant-page-design.md).
+
+Anyone can sign up. Each person sees only their own spaces and the ones shared with them.
+
+The sections below are the original design of the task list, and still describe that tool.
+
+## What it was (the task list)
 
 Daybook is a personal task manager organised around days. You open it, see what is on today, and work through it. Anything you don't finish comes with you to the next day, so nothing has to be re-planned or re-typed.
-
-Anyone can sign up. Each person sees only their own tasks.
 
 ## Goals
 
@@ -24,7 +46,7 @@ Anyone can sign up. Each person sees only their own tasks.
 - Backlog. The owner removed it: no sidebar item, no tab. Every task lives on a day.
 - Reminder or digest emails. Email is only for one-time codes.
 - Teams or assigning tasks to other people. (Sharing spaces is in 2026-11-15-sharing-design.md.)
-- Recurring tasks, task notes or descriptions, attachments **(my call)**.
+- Recurring tasks, task notes or descriptions, attachments on tasks **(my call)**. (Budget entries can carry a receipt photo; tasks still can't.)
 - Drag and drop on the calendar **(my call)**.
 - Changing email or password while signed in, deleting an account, dark mode, a marketing page **(my call)**.
 
@@ -33,7 +55,7 @@ Anyone can sign up. Each person sees only their own tasks.
 These would make it a failure even if everything else worked:
 
 - An unfinished task disappears, or appears twice.
-- One person can see or change another person's tasks.
+- One person can see or change another person's tasks without the owner sharing them.
 
 ## Tech stack
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Daybook is a personal, day-based task manager: a Next.js app (`apps/web`) and a NestJS API (`apps/api`) in a pnpm workspace, using Postgres (Neon), Drizzle and Better Auth. Intended product behaviour is specified in `docs/superpowers/specs/2026-11-09-daybook-design.md`.
+Daybook is a personal workspace: a Next.js app (`apps/web`) and a NestJS API (`apps/api`) in a pnpm workspace, using Postgres (Neon), Drizzle and Better Auth. Everything lives in spaces, each running one tool: List (day-based tasks, Calendar, Kanban), Notebook, Book, Vault, Budget, Fitness, Job hunt, Database diagram and Pipelines. There is also an Assistant page, and spaces can be shared and edited live. `docs/superpowers/specs/2026-11-09-daybook-design.md` has the overview and the task list's design, and each tool or feature has its own spec in the same folder. The rule sections below are the working summary of how each one behaves.
 
 The structure and naming rules below apply inside each app, so `src/features` means `apps/web/src/features` or `apps/api/src/features`.
 
@@ -33,295 +33,25 @@ No linter or formatter is configured. API tests run the real migrations in `apps
 
 ---
 
-## How the System Fits Together
+## Rules by area
 
-### Next.js
+The rules live in one file per area, imported below. Keep each file current: a behaviour change in a feature updates its file.
 
-`apps/web` uses a Next.js version with breaking changes from common knowledge. Read the relevant guide in `apps/web/node_modules/next/dist/docs/` before writing Next.js code.
-
-### Request path and auth
-
-- The browser only calls same-origin `/api/*`. `next.config.ts` rewrites that to the API (`API_ORIGIN`, default `http://localhost:4000`), which keeps session cookies first-party.
-- `apps/api/src/main.ts` mounts Better Auth directly on Express at `/api/auth/*splat` with Nest's body parser off, then adds `express.json()`. Better Auth needs the unparsed body, so keep that order.
-- Controllers use `@UseGuards(AuthGuard)` and `@UserId()`, and validate input with `parseOrThrow(zodSchema, body)`. Every service query must be scoped to `userId`.
-- A space can have a password (any tool but Vault). `SpaceLockService` enforces it on the server: any endpoint that returns a space's contents must call `assertUnlocked` (or mask them, as Trash does), and unlocking sets a signed, httpOnly `daybook_unlock_<spaceId>` cookie. The web `SpaceLockGateComponent` only decides what to show.
-- The web app's sign-in gate is client-side, in `AppShellComponent`. Auth rate limiting is off until the steps in the README's "Before deploying" section are done.
-
-### API conventions
-
-- The API runs through `tsx`, with no `emitDecoratorMetadata`, so every constructor dependency needs an explicit `@Inject(Token)`.
-- Relative imports in `apps/api` include the `.ts` extension. `apps/web` uses the `@/` alias.
-
-### Task rules
-
-- A task's visible day is computed on read by `appearsOn` in `task-rules.ts`, with no nightly job: finished tasks show on `completedOn`, unfinished future tasks on `plannedDay`, and overdue tasks on today, or on `plannedDay` when the space has `carryOver` off.
-- "Today" is the user's local date, sent by the browser (`useToday`) on each relevant request. Don't use the server's clock for it.
-- Subtasks nest to any depth and appear with their top-level task. Only top-level tasks have `plannedDay`, enforced by a DB check. Finishing or reopening walks the whole tree: down through descendants and up through ancestors.
-- Changes that affect a parent and its subtasks run in one transaction using `lockFamily`, so auto-tick and reopen can't half-apply.
-- Tasks and spaces are soft-deleted with `deletedAt`, so queries must filter on `isNull(deletedAt)`. Deleting a parent task marks only the parent; its subtasks are hidden because they load through it. `TrashService` restores missing parents, spaces and folders.
-
-### Page history
-
-- Saving new content to a Notebook page or Book chapter first copies the old content into `notebook_page_versions`, at most once every ten minutes per page and 50 copies per page (`keepVersion` in `notebook-service.ts`). `POST /notebook-pages/:id/versions` forces a copy, which restore does first so it can be undone.
-- The history panel (`PageHistoryComponent`) compares a version with the editor's current content line by line in the browser (`page-diff.ts`); restoring replaces the editor content and lets autosave store it. Titles are not versioned.
-
-### Budget rules
-
-- Money is whole cents in `bigint` columns (`mode: 'number'`), never floats. The web parses and formats it with `budget-money.ts`.
-- Totals are computed in the browser by `features/budget/src/budget-math.ts` from the full entry list; the API only stores and checks ownership. Entries dated after today (`useToday`) are planned: they never change a balance or a month total.
-- Transfers move money between two accounts and are never income or spending. Deleting an account deletes its entries; deleting a category leaves its entries uncategorised.
-- Budget rows are hard-deleted (the space itself still goes to Trash), so entry delete offers Undo by re-creating the entry with the same id.
-- Recurring schedules (`budget_schedules`) never move money themselves. An occurrence counts only once it is recorded as an entry linked by `scheduleId` and `occurrenceDay`, and a unique index on that pair stops it being recorded twice (the API answers 409). Occurrence dates are worked out in the browser by `schedule-math.ts`; there is no server job, so schedules set to record automatically are caught up by `BudgetPageComponent` whenever the budget is open.
-- Each account can have its own currency (`null` means the budget's). Anything that adds amounts across accounts must go through `budget-currency.ts` (`baseEntries`, `totalInBase`, `toBase`), which converts with the hand-set `rates` on the budget; a transfer between currencies stores what arrived as `toAmount`. Per-account figures are shown in the account's own currency.
-- Goal contributions only track progress towards a goal; they never move money between accounts. Credit cards and loans are accounts whose balance runs below zero, with optional interest, due day and minimum payment.
-- The AI features (receipt scanning, category suggestions, the monthly check-in) call Gemini through `@google/genai` in `BudgetAiService`, and are off unless `GEMINI_API_KEY` is set (`GEMINI_MODEL` overrides the model). Only the note and amount being categorised, the receipt photo, or the month's summary figures are sent, never notes or account names in bulk, and every reply is checked against a zod schema before use. Category suggestions try the user's own past entries first and only ask Gemini when nothing matches.
-- Book reuses the same service for "rewrite this block" (the sparkle beside each block's drag grip, and "Improve with AI" in the selection toolbar) (`BudgetAiService.rewrite`, through `POST /notebook-pages/ai/improve`): only that block's or selection's text and the instruction are sent, and the reply replaces it as plain text.
-- Receipt photos are shrunk in the browser (`receipt-image.ts`) and stored as base64 in `budget_receipts`, one per entry; the receipt and scan routes get an 8 MB body limit in `main.ts`.
-- Changes made offline wait in React Query's paused-mutation queue and go out when the browser is back online; `useOfflineQueue` shows that state and warns before closing the tab. The queue lives in the tab only.
-
-### Fitness rules
-
-- Whole numbers, no floats: food weight and macros in milligrams (`...Mg`), energy in whole kcal, body weight in grams (`weightG`), height in millimetres, a serving count in thousandths (`quantityMilli`). Food nutrition is stored per 100 g.
-- Built-in foods (USDA SR Legacy) and exercises (free-exercise-db) are shared rows with no `spaceId` or `userId`, loaded by `fitness:import-foods` and `fitness:import-exercises`; they are read-only through the API. Custom foods, servings and exercises carry the space and owner. A serving can be added to a built-in food and belongs to the space that added it.
-- A logged food (`fitness_food_logs`) stores its own name, amount and numbers, so editing or deleting a food never changes a past day. Workouts and templates store each exercise's name and muscles the same way.
-- Meal plans, workout templates and workouts each keep their items as one JSON document, checked by zod on the way in and replaced whole on save.
-- Nothing is logged automatically and nothing recurs. Applying a meal plan or starting a workout from a template copies it onto the day as planned rows (`eaten: false`, `done: false`); planned rows never count towards totals, averages, muscle load or the forecast until they are ticked.
-- Targets, BMI, day totals, the forecast and muscle load are computed in the browser (`targets-math.ts`, `food-math.ts`, `forecast-math.ts`, `workout-math.ts`); the API only stores and checks ownership. Days with nothing eaten are left out of averages, never counted as zero.
-- The body diagram's shapes (`body-shapes.ts`) are from react-body-highlighter (MIT, notice in the file). Its one upper-back region stands for both lats and middle back.
-- The AI read reuses `BudgetAiService.fitnessRead` through `POST /fitness/ai/read`. It is sent only what `fitness-summary.ts` builds: figures, never food, exercise or workout names.
-- There is no offline queue and a Fitness space cannot be duplicated.
-
-### Job hunt rules
-
-- A job's status is `saved`, `applied`, `interviewing`, `offer` or `rejected` (shown as "Not accepted"). The current status is a column; every change also appends `{ kind: 'status', status, day }` to the job's `events` JSON, and a follow-up appends `{ kind: 'followUp', day }`. "Applied" is the earliest `applied` day, always read from days, never from array order.
-- Waiting days, the "no reply" nudge (7 days; "close it?" from 30), the tiles, tab counts, search and sort are computed in the browser by `features/jobs/src/jobs-math.ts`. Nothing ever changes a status by itself.
-- Adding from a link: the browser calls `POST /jobs/ai/read-posting`, and only creates the job once the details come back; a login wall, an unreadable page or a non-posting opens the manual form with the reason instead. Pasting a link already in the list (compared with `normalizeLink`) selects that job.
-- The server fetches posting pages itself in `posting-page.ts`: http(s) only, no cookies, at most 3 redirects, 10 s, 2 MB, and every connection's resolved address must pass `isPublicAddress` (checked in the socket `lookup`, so redirects and DNS rebinding can't reach private addresses).
-- The AI goes through `BudgetAiService` (`readPosting`, `matchJob`). `readPosting` is sent only that page's text and JobPosting JSON-LD; `matchJob` only the CV and one job's role, company and description. Notes, statuses and other jobs are never sent. The match runs when a job is added (if there is a CV and a description) and on Recheck; editing the CV marks matches stale instead of re-running them.
-- The CV is plain text in `job_profiles`, one per space. Jobs are hard-deleted with Undo (re-created with the same id, events and match). A Job hunt space cannot be duplicated and has no offline queue.
-
-### Database diagram rules
-
-- A diagram is DBML text, one `diagrams` row per space with the text and `positions` (`{ [tableName]: { x, y } }`). The text is the source of truth: the canvas, the AI and every export work from it.
-- The browser parses the text with `@dbml/core` into our own model (`features/diagram/src/dbml-model.ts`) 300 ms after typing stops. While the text has errors the canvas keeps the last model that parsed, the problems are listed by line, and exports are disabled.
-- Positions are kept by table name. `placeTables` keeps where the owner put each table, forgets tables that are gone (so a rename is placed afresh) and lays out new ones with dagre to the right of the rest; "Tidy layout" (`tidyLayout`) lays out everything again.
-- The AI edit (`POST /diagrams/ai/edit`, `BudgetAiService.editDiagram`) is sent only the current DBML and the prompt and returns the whole new text plus one sentence. Gemini answers with the DBML as a list of lines (joined on the server), because asked for one string it runs the DBML onto a single line, which DBML rejects. The server parses the reply (`dbmlProblem`), retries once with the problem, then refuses; nothing is saved by that route, so AI changes, imports and tidies are undone in the browser from their toast.
-- Import (DBML, PostgreSQL, MySQL, SQL Server) and export (DBML, SQL, Mermaid, PNG, SVG) happen in the browser: SQL through `@dbml/core`, Mermaid through `mermaid-export.ts`, images through `html-to-image` from the React Flow viewport (the whole diagram, not just the visible part).
-- Typing is parsed in a Web Worker (`dbml-worker.ts` through `dbml-parse-client.ts`, falling back to the page when workers are unavailable), and an unchanged model (`sameModel`) is kept so the canvas does not redraw. The canvas is memoised and reuses each card's node object until that card changes. After loading, the workspace is rendered outside Skullet's `<Skeleton>`, because Skullet re-measures everything inside it after each DOM change.
-- React Flow, CodeMirror and html-to-image load only on this page, through `diagram-parts.tsx` (`next/dynamic`, no SSR); tests mock that file. The DBML editor's syntax colours come from the approved mockup and are the one place code colours appear.
-- A Database diagram is edited live: the text and positions are a shared Yjs document (`Y.Text` `dbml`, `Y.Map` `positions`) read through `useLiveDiagram`. CodeMirror is bound to it with `yCollab`, so other people's edits and text cursors show as they happen. There is no autosave hook and no save route: the server's room saves `dbml`, `positions` and the Yjs state (`ydoc`) 800 ms after the last change and when the last person leaves.
-- Every browser lays out tables nobody has placed yet for display, but only editors write positions back. AI, import and tidy go through `change()`, whose Undo reverses only that change and keeps other people's edits since. Ctrl+Z in the editor undoes only your own typing. A dragged table is sent every 50 ms so others watch it move.
-- A diagram space can be duplicated (its text and positions are copied; the copy builds its own `ydoc`). There is no version history and no offline queue beyond what Yjs keeps in the open tab.
-
-### Live presence
-
-- Every open space except a Vault or a folder has one WebSocket, `/api/realtime/<spaceId>` (`features/realtime`), opened by `SpacePresenceProviderComponent` in `SpaceGateComponent`, only after a locked space is unlocked. The upgrade is checked like a load: `Origin` must match `BETTER_AUTH_URL`, then the session, `SpaceAccessService.resolve(…, 'view')` and `SpaceLockService.isOpen`. Failures are a plain 404 (403 for origin or lock).
-- Access, and the session itself, are checked again every 60 s (`RealtimeService.recheckMs`). Signing out elsewhere, a lost share, a deleted space or a new password closes with 4403, which y-websocket treats as final, and the page then says you no longer have access. A passing database error keeps the connection. A role change is applied in place; the browser sees its new access in the member list and refreshes `['spaces']`.
-- The provider's `synced` means "synced at least once", so a dropped connection keeps the diagram open ("Offline, changes will sync") and Yjs merges on reconnect. A room's saves run one after another, and `flush` waits for a save already running.
-- `Room` (`realtime-room.ts`) speaks the Yjs sync and awareness protocol plus message type 100, the member list. Only Database diagram rooms accept document changes, and only from people who can edit. Viewers' and other rooms' updates are dropped. Names in awareness and the member list come from the server; a connection can't speak for a client id another connection owns.
-- `PresenceAvatarsComponent` sits in every tool's header and shows the other people here (you never), four avatars then "+N", with name and access on hover. `RemoteCursorsComponent` draws other pointers on the diagram canvas from the awareness field `pointer`. `cursor` belongs to y-codemirror's text selection, so don't reuse it.
-- Rooms live in one API process's memory, so the API must run as a single instance. Shutdown hooks save open diagrams.
-- There is also one per-user socket per signed-in tab, `/api/realtime/me`, opened by `LiveUpdatesProviderComponent` in `AppShellComponent`. It is checked for Origin and session, and the session is rechecked every 60 s. `RealtimeService.sendToUsers` sends it JSON messages; today the only one is `{ type: 'pipeline', spaceId, status }`. It reconnects with backoff, refetches `['spaces']` after a reconnect, and stops after 4403.
-
-### Pipelines rules
-
-- **Reports.** Jenkins reports to `POST /api/pipelines/report` with `Authorization: Bearer <key>`. There is no session, Origin or space-password check: the key is the credential, and locks guard reading, not reporting.
-  - A bad, replaced or trashed key, or a non-Pipelines space, all answer the same bare 401.
-  - The order of checks is key, then the limit (120 a minute per space, in memory), then the body (`reportSchema`, 64 KB, `reportBodyParser` in `main.ts`). Replies are 202, 401, 429 or 400.
-- **Report shape.** With `stage`, status is `started|passed|failed|skipped`. Without it, the run finishes as `passed|failed|aborted`, sent by the helper's `daybookFinish`. A long `message` is cut to 500 characters and a long `error` keeps its last 8,000, so a report is never refused over length.
-- **Status rules** (`PipelinesService.report`):
-  - A finished stage never goes back to running, so late or repeated reports converge.
-  - A run is failed if any stage failed or its finish status was failed or aborted; passed only on a passed finish; otherwise running, even between stages.
-  - Each job keeps its 50 newest runs, a space its 500 newest across jobs (a job per branch is never pruned otherwise), and a run has at most 50 stages.
-  - The run row is locked (`FOR UPDATE`) for the rest of each report, so parallel stages reporting at once apply one after the other.
-  - Fields Jenkins sends as `null` (BUILD_URL before a Jenkins URL is set) count as not given.
-  - Expected stages (the grey "still to come" steps, and "4 of 5") come from the job's last finished run.
-- **The sidebar dot** (`shared/utils/pipeline-status.ts`, used by `GET /spaces` and the notifier, so there is no module cycle): failed beats running beats passed, from each job's newest run. A running run with no report for 30 minutes counts as failed, shown as "Stopped reporting"; the browser works out the same rule in `pipeline-math.ts`.
-- **Keys.** There is one per space, `dbk_` plus 32 base64url characters, stored only as SHA-256 hex in `pipeline_keys` and shown once.
-  - Only the owner can make or replace one (`/pipelines/:spaceId/key`); everyone else gets 404.
-  - The web keeps the plain key in component state only, never in the query cache.
-- **Pushes.** After each stored report, `RealtimePipelinesNotifier` works out `SpaceAccessService.viewerIds` at that moment and pushes only `{ type, spaceId, status }`.
-  - The browser patches `space.pipelines` in `['spaces']` and invalidates `['pipelines', spaceId]` and `['pipeline-run']`.
-  - Run content always comes through the checked read routes, so a locked space's details still need its unlock cookie.
-- **The AI** (`POST /pipelines/ai/instrument`, `BudgetAiService.instrumentJenkinsfile`, edit access needed) is sent only the pasted Jenkinsfile and `BETTER_AUTH_URL`, never a key.
-  - `addedOnly` refuses any answer that changes, removes or reorders a pasted line (line endings and trailing spaces ignored), or doesn't read `credentials('DAYBOOK_KEY')`. It retries once, then answers 502. The web then offers `helperSnippet` to add by hand, and marks added lines with `markAdded`. Nothing is saved.
-  - Every added line must also be Daybook reporting (it mentions Daybook, or is a bare `post`/`success`/`try`/brace line), so the AI can't slip in a step.
-  - The helpers (`JENKINS_HELPER` in the API, `helperSnippet` in the web, kept word for word in step) build JSON with `writeFile` and `groovy.json.JsonOutput`, so no Jenkins plugin is needed beyond core. They write one file per stage, so parallel stages can't swap reports, and catch every error, so reporting can never fail a build.
-- **Space rules.** A Pipelines space can't be duplicated. Rows are hard-deleted with the space. Trashing it, or a folder above it, makes its key answer 401 (`spaceFor` uses `viewerIds`' ancestor rules), and restoring brings the key back.
-
-### Sharing rules
-
-- `space_shares` rows are keyed by lowercased email, so an invite works before the person signs up. A share on a folder or space covers everything under it, the best role wins, and a deleted ancestor hides the share. Vault is never shared.
-- Every space-content route calls `SpaceAccessService` (`resolve`, `resolveRow`, `resolveRows`) first and passes the returned `ownerId` to the unchanged services. No access is 404; view-only on a write is 403; AI routes need edit. Trash, Vault and the owner-only space routes (rename, delete, move, duplicate) answer 404 to recipients. `resolveRow` does not check `deletedAt`, so keep the live-row check.
-- `SpaceLockService` looks up by space id only, so callers resolve access first. The unlock cookie is signed with the viewer's own user id, recipients need the password, and only the owner can reset or remove it.
-- Whole-document saves (notebook page content, meal plans, workout templates, workouts) carry a `version` integer. A stale one answers 409 "Changed by someone else", and editors send the version they opened with; the web offers Reload.
-- Share routes are on `SpacesController` (`/spaces/:id/shares`, plus `/shares/me` to leave). The web `Space` has `access`, `shared`, `ownerId` and `ownerName`; read access through `useSpaceAccess()` (`access`, `canEdit`, `isOwner`). Every tool hides edit controls and automatic writes (budget schedule catch-up, diagram table placement) for viewers.
-
-### Web data flow
-
-- The active space comes from the `?space=` param through `useActiveSpace`. Task queries are keyed `['tasks', spaceId, from, to, today]`; the other roots are `['spaces']`, `['trash']`, `['pages', spaceId]` (Notebook pages and Book chapters, which autosave through `usePageAutosave` instead of rolling back), `['page-versions', pageId]` (a page's history, read only while its panel is open), `['vault']`, `['vault-items', spaceId]`, `['budget', spaceId]` (a Budget's accounts, categories and entries in one object), `['fitness', spaceId]` (profile, weigh-ins, meal plans and workout templates), `['fitness-days', spaceId, from, to]` (food logs and workouts for a range of days), `['fitness-foods', spaceId, …]` (food search, recent and own foods), `['fitness-exercises', spaceId]`, `['jobs', spaceId]` (the CV and every job in one object), `['diagram', spaceId]` (whether the diagram AI is on; the text and positions come from the live document), `['space-lock', spaceId]` (whether a locked space is unlocked in this browser), `['space-shares', spaceId]` (who a space is shared with, read only while the Share dialog is open), `['pipelines', spaceId]` (each job's newest run with its expected stages, plus the 30 newest runs), `['pipeline-run', runId]` (one run for the drawer, read only while it is open) and `['pipeline-key', spaceId]` (when the key was made and last used, owner only).
-- The Vault encrypts in the browser (`features/vault/src/vault-crypto.ts`). Its query cache holds ciphertext only. The key and decrypted items stay in component state, never in the cache, storage, the URL, toasts or logs.
-- Mutations are optimistic: the client generates IDs with `crypto.randomUUID()`, patches the cache, and on error restores the snapshot and shows a toast. A successful change does not refetch.
-- Task mutations are created once by `TaskMutationsProviderComponent`; rows read them with `useTaskMutations`, and memoised rows rely on `task-cache.ts` keeping unchanged tasks the same object.
-- Because of that, server rules are mirrored in `features/tasks/src/task-cache.ts` and `features/spaces/src/space-cache.ts`. A behaviour change in a service usually needs the matching cache change.
-
-### UI
-
-shadcn/ui (new-york style) on Radix with Tailwind CSS v4, with generated components in `apps/web/src/shared/components/ui`. Also `lucide-react` icons, `sonner` toasts and `@dnd-kit` for reordering.
-
-The app is dark only and monochrome. Use the theme tokens in `globals.css` rather than Tailwind palette classes, and keep colour for `destructive` (errors and delete actions), the dark yellow `signal` accent (high priority and progress), the `status-*` accents (task status, and job status in Job hunt) and `money-in` / `money-out` (signed amounts in Budget, through `moneyTone`). The one other exception is brand logos (`features/budget/src/brand-icons.ts`), which keep their brand colours; their shapes come from Simple Icons (CC0), a few presets use logo images saved in `apps/web/public/brands`, and the rest are brand-coloured initials. Floating surfaces get their translucent border and shadow from the `data-slot` rules in `globals.css`.
-
-### Skeleton loading
-
-Use Skullet (`skullet/react`) for every loading state, with no spinners, "Loading…" text or blank screens. Disabled submit buttons during a form action are not loading states.
-
-- **Data views:** render the real component from sample data inside `<Skeleton loading={isPending} label="…">`, so the skeleton matches the final layout. See `ListPageComponent` and `sample-tasks.ts`.
-- **Before any content exists** (session checks, Suspense fallbacks): use the `SkeletonBox` layouts `AppSkeletonComponent`, `PageSkeletonComponent` or `AuthCardSkeletonComponent`.
-- **Tests:** sample text stays in the DOM but hidden, so query by role rather than text.
-- **Large live views:** Skullet keeps measuring the content inside `<Skeleton>` after loading; for big, constantly changing views (the database diagram) render the loaded content outside it.
-- **Debugging:** add `?skullet-debug` to a URL to outline each skeleton and show layout shifts.
-- **The `id` prop:** it remembers shapes across visits. If you start using it, call `forgetShapes()` on sign-out.
+- How the system fits together: Next.js, the request path and auth, and API conventions. @docs/claude/architecture.md
+- Task rules: The List tool: days, carry-over, subtasks. @docs/claude/tasks.md
+- Page history: Notebook and Book page versions. @docs/claude/notebook.md
+- Budget rules: Money, totals, transfers, schedules, currencies, the budget AI. @docs/claude/budget.md
+- Fitness rules: Units, built-in foods and exercises, plans, targets. @docs/claude/fitness.md
+- Job hunt rules: Statuses, posting fetches, CV matching. @docs/claude/jobs.md
+- Database diagram rules: DBML, layout, AI edits, live editing. @docs/claude/diagram.md
+- Live presence: The realtime WebSockets, rooms and presence. @docs/claude/realtime.md
+- Pipelines rules: The Jenkins report endpoint, keys, pushes, the AI helper. @docs/claude/pipelines.md
+- Assistant page: The /assistant page and its dots. @docs/claude/assistant.md
+- Sharing rules: Shares, access checks, versions. @docs/claude/sharing.md
+- Web data flow, UI and loading: Query keys, the Vault cache rule, optimistic mutations, theme, Skullet. @docs/claude/web.md
+- Code conventions: Folder layout, naming, components, pages, React Query, style, shadcn/ui. @docs/claude/conventions.md
 
 ---
-
-## Architecture
-
-- Every root module must contain:
-  - `src/` – implementation files
-  - `index.ts` – barrel exports
-- Keep files grouped by feature whenever possible.
-- Place shared code inside `src/shared`.
-
-Example:
-
-```
-src/
-├── features/
-│   └── users/
-│       ├── src/
-│       └── index.ts
-│
-└── shared/
-    ├── utils/
-    ├── hooks/
-    ├── services/
-    └── components/
-```
-
----
-
-## Naming Conventions
-
-### Components
-
-- Use **PascalCase**.
-- Component filenames should end with `Component`.
-
-Example:
-
-```
-UserTableComponent.tsx
-DashboardComponent.tsx
-```
-
-### Hooks
-
-- Use **camelCase**.
-- Prefix every hook with `use`.
-
-Example:
-
-```
-useAuth.ts
-usePagination.ts
-useUsers.ts
-```
-
-### Utilities, Helpers & Services Or Js functions
-
-- Use **kebab-case**.
-
-Example:
-
-```
-date-formatter.ts
-calculate-total.ts
-auth-service.ts
-```
-
-Store them under:
-
-```
-src/shared/utils
-src/shared/helpers
-src/shared/services
-```
-
----
-
-## Component Guidelines
-
-- Keep components focused on a single responsibility.
-- Split a component into smaller components only when:
-  - it becomes too large,
-  - the UI is reusable,
-  - or it improves readability.
-- Avoid creating unnecessary wrapper components.
-
----
-
-## Page Structure
-
-- **Do not place the main implementation inside `page.tsx`.**
-- `page.tsx` should only compose and render the page component.
-
-Example:
-
-```
-page.tsx
-    ↓
-UsersPageComponent.tsx
-```
-
-This keeps routing files clean and makes components easier to test and reuse.
-
----
-
-## React Query
-
-- Use **React Query** for all server state.
-- Keep hooks close to the feature they belong to.
-
-Example:
-
-```
-src/features/users/hooks/useUsers.ts
-src/features/dashboard/hooks/useDashboard.ts
-```
-
-Only place hooks inside `src/shared/hooks` if they are reusable across multiple features.
-
----
-
-## Code Style
-
-- Write self-explanatory code before relying on comments.
-- Keep comments minimal and only add them when they provide context that isn't obvious from the code.
-- Prefer descriptive variable and function names over excessive comments.
-- Keep functions and components small and easy to understand.
-- Follow consistent formatting throughout the project.
-
-## UI Components
-
-### shadcn/ui
-
-- Use **shadcn/ui** as the default UI component library throughout the application.
-- Reuse existing shadcn/ui components whenever possible before creating custom components.
-- Customize shadcn/ui components through composition and styling instead of modifying their source unless necessary.
-- Keep feature-specific UI components within their respective feature folders.
-- Place reusable UI components under `src/shared/components`.
-- Maintain consistent styling, spacing, and behavior across the application by following the established shadcn/ui patterns.
-- Ensure all custom components are compatible with the project's design system and theme.
 
 ## graphify
 
