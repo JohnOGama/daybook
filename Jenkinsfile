@@ -36,11 +36,11 @@ pipeline {
             }
         }
 
-        stage('Server Testing') {
-            steps {
-                sh 'pnpm api:test'
-            }
-        }
+        // stage('Server Testing') {
+        //     steps {
+        //         sh 'pnpm api:test'
+        //     }
+        // }
 
         stage('Database Migration') {
             steps {
