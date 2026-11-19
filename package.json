@@ -4,7 +4,11 @@
   "packageManager": "pnpm@10.5.2",
   "scripts": {
     "dev": "pnpm --parallel --filter api --filter web dev",
-    "db:migrate": "pnpm --filter api db:migrate"
+    "db:migrate": "pnpm --filter api db:migrate",
+    "api:install": "pnpm install --frozen-lockfile --filter api...",
+    "api:build": "pnpm --filter api build",
+    "api:test": "pnpm --filter api test",
+    "api:migrate": "pnpm --filter api db:migrate"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild", "sharp", "unrs-resolver", "@tailwindcss/oxide"]
