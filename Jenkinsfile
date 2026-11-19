@@ -29,6 +29,7 @@ pipeline {
         stage('Install Dependencies + Build') {
             steps {
                 // Node 22.1.0's bundled corepack can't verify npm's new signing keys, so skip it.
+                sh 'node -v && uname -m'
                 sh 'npm install -g pnpm@10.5.2'
                 sh 'pnpm api:install'
                 sh 'pnpm api:build'
