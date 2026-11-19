@@ -10,10 +10,11 @@ pipeline {
         IMAGE_NAME   = 'johnogama19/daybook-backend'
         IMAGE_TAG    = "${BUILD_NUMBER}"
         PROJECT_PATH = '/home/jogama/projects/daybook'
+        // Node 22.1.0's bundled corepack has npm's old signing keys and rejects pnpm.
+        COREPACK_INTEGRITY_KEYS = '0'
     }
 
     stages {
-
         stage('Github Clone') {
             steps {
                 checkout scmGit(
