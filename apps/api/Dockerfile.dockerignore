@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.next
+.git
+.claude
+.superpowers
+graphify-out
+docs
+usda-food
+apps/web
+**/.env
+**/.env.*
+apps/api/server

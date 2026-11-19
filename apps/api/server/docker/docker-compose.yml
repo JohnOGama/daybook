@@ -1,0 +1,22 @@
+name: daybook-backend
+
+# One container per environment, same image. Ports bind to 127.0.0.1 so only
+# nginx on the host can reach them. IMAGE_TAG is passed in by deploy-docker.sh.
+services:
+  daybook-backend-production:
+    image: johnogama19/daybook-backend:${IMAGE_TAG}
+    container_name: daybook-backend-production
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:4000"
+    env_file:
+      - .env.production
+
+  daybook-backend-staging:
+    image: johnogama19/daybook-backend:${IMAGE_TAG}
+    container_name: daybook-backend-staging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:4000"
+    env_file:
+      - .env.staging
