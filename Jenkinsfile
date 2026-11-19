@@ -10,8 +10,6 @@ pipeline {
         IMAGE_NAME   = 'johnogama19/daybook-backend'
         IMAGE_TAG    = "${BUILD_NUMBER}"
         PROJECT_PATH = '/home/jogama/projects/daybook'
-        // Node 22.1.0's bundled corepack has npm's old signing keys and rejects pnpm.
-        COREPACK_INTEGRITY_KEYS = '0'
     }
 
     stages {
@@ -30,22 +28,24 @@ pipeline {
 
         stage('Install Dependencies + Build') {
             steps {
-                sh 'corepack pnpm install --frozen-lockfile --filter api...'
-                sh 'corepack pnpm --filter api build'
+                // Node 22.1.0's bundled corepack can't verify npm's new signing keys, so skip it.
+                sh 'npm install -g pnpm@10.5.2'
+                sh 'pnpm install --frozen-lockfile --filter api...'
+                sh 'pnpm --filter api build'
             }
         }
 
         stage('Database Migration') {
             steps {
                 withCredentials([string(credentialsId: 'DAYBOOK_DATABASE_URL', variable: 'DATABASE_URL')]) {
-                    sh 'corepack pnpm --filter api db:migrate'
+                    sh 'pnpm --filter api db:migrate'
                 }
             }
         }
 
         stage('Server Testing') {
             steps {
-                sh 'corepack pnpm --filter api test'
+                sh 'pnpm --filter api test'
             }
         }
 
