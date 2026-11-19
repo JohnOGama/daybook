@@ -30,22 +30,22 @@ pipeline {
             steps {
                 // Node 22.1.0's bundled corepack can't verify npm's new signing keys, so skip it.
                 sh 'npm install -g pnpm@10.5.2'
-                sh 'pnpm install --frozen-lockfile --filter api...'
-                sh 'pnpm --filter api build'
+                sh 'pnpm api:install'
+                sh 'pnpm api:build'
+            }
+        }
+
+        stage('Server Testing') {
+            steps {
+                sh 'pnpm api:test'
             }
         }
 
         stage('Database Migration') {
             steps {
                 withCredentials([string(credentialsId: 'DAYBOOK_DATABASE_URL', variable: 'DATABASE_URL')]) {
-                    sh 'pnpm --filter api db:migrate'
+                    sh 'pnpm api:migrate'
                 }
-            }
-        }
-
-        stage('Server Testing') {
-            steps {
-                sh 'pnpm --filter api test'
             }
         }
 
