@@ -39,7 +39,7 @@ pnpm run db:migrate
 A Fitness space works without these, but its food search and exercise list start empty until they are loaded. Each command is safe to run again.
 
 Exercises come with the repository (876 of them, from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db)):
-
+ 
 ```bash
 pnpm --filter api fitness:import-exercises
 ```
