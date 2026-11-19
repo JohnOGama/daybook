@@ -13,7 +13,6 @@ pipeline {
     }
 
     stages {
-
         stage('Github Clone') {
             steps {
                 checkout scmGit(
