@@ -4,6 +4,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
 import type { Space } from './space-types';
 
+const groups = { current: [{ id: 'g1', title: 'Spaces' }] as { id: string; title: string }[] };
+const moveToGroup = vi.fn();
 const { remove, duplicate, move, leave, spaces } = vi.hoisted(() => ({
   remove: vi.fn(),
   duplicate: vi.fn(),
@@ -17,6 +19,10 @@ vi.mock('../hooks/useDuplicateSpace', () => ({ useDuplicateSpace: () => ({ mutat
 vi.mock('../hooks/useMoveSpace', () => ({ useMoveSpace: () => ({ mutate: move }) }));
 vi.mock('../hooks/useShares', () => ({ useLeaveShare: () => ({ mutate: leave }) }));
 vi.mock('../hooks/useSpaces', () => ({ useSpaces: () => ({ data: spaces.current }) }));
+vi.mock('../hooks/useSpaceGroups', () => ({
+  useSpaceGroups: () => ({ data: groups.current }),
+  useMoveToGroup: () => ({ mutate: moveToGroup }),
+}));
 vi.mock('./ShareDialogComponent', () => ({
   ShareDialogComponent: ({ open, space }: { open: boolean; space: Space }) =>
     open ? <p>sharing {space.title}</p> : null,
@@ -58,6 +64,7 @@ async function askToDelete(target: Space) {
 }
 
 beforeEach(() => {
+  groups.current = [{ id: 'g1', title: 'Spaces' }];
   vi.clearAllMocks();
   spaces.current = [];
 });
@@ -74,6 +81,28 @@ it('moves a space into another folder, and does not offer the folder it is alrea
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Home' }));
   expect(screen.queryByRole('menuitem', { name: 'Team' })).not.toBeInTheDocument();
   expect(move).toHaveBeenCalledWith({ id: 's1', parentId: 'f2' });
+});
+
+it('moves a top-level space or folder to another group, never the one it is in', async () => {
+  groups.current = [{ id: 'g1', title: 'Spaces' }, { id: 'g2', title: 'Work' }];
+  const top = { ...space, groupId: 'g1' };
+  spaces.current = [top];
+  expect(await rightClick(top)).toContain('Move to');
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Move to' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Work (group)' }));
+  expect(screen.queryByRole('menuitem', { name: 'Spaces (group)' })).not.toBeInTheDocument();
+  expect(moveToGroup).toHaveBeenCalledWith({ id: 's1', groupId: 'g2' });
+});
+
+it('a space in a folder can move straight to any group, leaving the folder', async () => {
+  groups.current = [{ id: 'g1', title: 'Spaces' }, { id: 'g2', title: 'Work' }];
+  const inside = { ...space, parentId: 'f1' };
+  spaces.current = [{ ...folder, id: 'f1', title: 'Team' }, inside];
+  await rightClick(inside);
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Move to' }));
+  expect(await screen.findByRole('menuitem', { name: 'Spaces (group)' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Work (group)' }));
+  expect(moveToGroup).toHaveBeenCalledWith({ id: 's1', groupId: 'g2' });
 });
 
 it('a folder offers Edit, Share… and Delete', async () => {

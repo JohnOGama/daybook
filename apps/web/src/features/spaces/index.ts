@@ -6,6 +6,7 @@ export { PresenceAvatarsComponent } from './src/PresenceAvatarsComponent';
 export { SpaceGateComponent } from './src/SpaceGateComponent';
 export { SpacePasswordsComponent } from './src/SpacePasswordsComponent';
 export { SpaceSettingsComponent } from './src/SpaceSettingsComponent';
+export { SpaceGroupsManagerComponent } from './src/SpaceGroupsManagerComponent';
 export { SpacesNavComponent } from './src/SpacesNavComponent';
 export { ViewOnlyBadgeComponent } from './src/ViewOnlyBadgeComponent';
 export type { PipelineStatus, Share, Space, SpaceAccess } from './src/space-types';

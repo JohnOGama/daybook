@@ -4,15 +4,19 @@ const title = z.string().trim().min(1).max(200);
 const id = z.uuid().optional();
 
 export const createSpaceSchema = z.discriminatedUnion('kind', [
-  z.object({ id, kind: z.literal('folder'), title, parentId: z.never().optional() }),
+  z.object({ id, kind: z.literal('folder'), title, parentId: z.never().optional(), groupId: z.uuid().optional() }),
   z.object({
     id,
     kind: z.literal('space'),
     title,
     tool: z.enum(['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines']),
     parentId: z.uuid().optional(),
+    groupId: z.uuid().optional(),
   }),
 ]);
+
+export const createGroupSchema = z.object({ id, title });
+export const moveToGroupSchema = z.object({ groupId: z.uuid(), order: z.array(z.uuid()).min(1).max(1000).optional() });
 
 export const listSpacesSchema = z.object({ today: z.iso.date() });
 export const renameSpaceSchema = z.object({ title });

@@ -29,6 +29,7 @@ const ownSpaces = [
 let data = ownSpaces;
 
 vi.mock('../hooks/useSpaces', () => ({ useSpaces: () => ({ data }) }));
+vi.mock('../hooks/useSpaceGroups', () => ({ useSpaceGroups: () => ({ data: [{ id: 'g1', title: 'Spaces' }] }), useMoveToGroup: () => ({ mutate: vi.fn() }) }));
 vi.mock('../hooks/useActiveSpace', () => ({ useActiveSpace: () => data[2] }));
 vi.mock('../hooks/useCreateSpace', () => ({ useCreateSpace: () => ({ mutateAsync: vi.fn() }) }));
 const { rename } = vi.hoisted(() => ({ rename: vi.fn() }));
@@ -75,7 +76,7 @@ it('puts a shared folder with its spaces in Shared with me, with no new space bu
     space('their-folder', 'Their Folder', { ...fromSam, kind: 'folder', tool: null }),
     space('inside', 'Inside Theirs', { ...fromSam, parentId: 'their-folder' }),
   ]);
-  expect(screen.getByRole('button', { name: /Their Folder/ })).toHaveTextContent('Sam');
+  expect(screen.getByRole('button', { name: /^Their Folder/ })).toHaveTextContent('Sam');
   expect(screen.getByRole('link', { name: /Inside Theirs/ })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'New space in Their Folder' })).not.toBeInTheDocument();
 });
@@ -133,8 +134,9 @@ it('offers a drag handle only where there is something to swap with', () => {
   expect(screen.queryByRole('button', { name: 'Reorder Design Requests' })).not.toBeInTheDocument();
 });
 
-it('has no three-dot buttons', () => {
-  expect(screen.queryByRole('button', { name: /^Actions for/ })).not.toBeInTheDocument();
+it('the ⋯ button on a row opens the same menu as right-click', async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'More for Design Team' }));
+  expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeInTheDocument();
 });
 
 it.each([
@@ -161,7 +163,7 @@ it('clicking a folder closes and reopens its group', async () => {
 });
 
 it('the Spaces plus opens the dialog with the Space and Folder switch', async () => {
-  await userEvent.click(screen.getByRole('button', { name: 'New space' }));
+  await userEvent.click(screen.getByRole('button', { name: 'New space in Spaces' }));
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Folder' })).toBeInTheDocument();
 });

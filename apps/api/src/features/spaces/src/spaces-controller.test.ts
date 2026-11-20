@@ -7,6 +7,7 @@ import { pipelineRuns, spaces, spaceShares, tasks } from '../../../shared/db/sch
 import { createTestDb, insertFolder, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
 import { SpaceAccessService } from './space-access-service.ts';
+import { SpaceGroupsService } from './space-groups-service.ts';
 import { SpacesController } from './spaces-controller.ts';
 import { SpacesService } from './spaces-service.ts';
 
@@ -35,6 +36,7 @@ describe('spaces API', () => {
       providers: [
         SpacesService,
         SpaceAccessService,
+        SpaceGroupsService,
         AuthGuard,
         { provide: DB, useValue: db },
         { provide: AUTH, useValue: fakeAuth },

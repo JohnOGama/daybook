@@ -10,6 +10,8 @@ export type Share = { id: string; email: string; role: ShareRole };
 export type Space = {
   id: string;
   parentId: string | null;
+  // The sidebar group of your own top-level folder or space; null inside a folder and on spaces shared with you.
+  groupId?: string | null;
   kind: 'folder' | 'space';
   title: string;
   tool: SpaceTool | null;
@@ -26,8 +28,11 @@ export type Space = {
 };
 
 export type CreateSpaceInput =
-  | { kind: 'folder'; title: string }
-  | { kind: 'space'; title: string; tool: SpaceTool; parentId?: string };
+  | { kind: 'folder'; title: string; groupId?: string }
+  | { kind: 'space'; title: string; tool: SpaceTool; parentId?: string; groupId?: string };
+
+// A heading in the sidebar ("Spaces", "Work"...) holding your top-level folders and spaces.
+export type SpaceGroup = { id: string; title: string };
 
 export type NewSpaceInput = CreateSpaceInput & { id: string };
 

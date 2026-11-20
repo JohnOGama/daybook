@@ -15,6 +15,8 @@ import { type Space, type SpaceTool, TOOLS } from './space-types';
 type CreateSpaceFormProps = {
   allowFolder?: boolean;
   parentFolder?: Space;
+  // The sidebar group a top-level folder or space goes into; the first one when not given.
+  groupId?: string;
   onDone?: () => void;
   onCancel?: () => void;
 };
@@ -31,7 +33,7 @@ const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   pipelines: <Workflow className="size-[18px]" aria-hidden />,
 };
 
-export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, onCancel }: CreateSpaceFormProps) {
+export function CreateSpaceFormComponent({ allowFolder, parentFolder, groupId, onDone, onCancel }: CreateSpaceFormProps) {
   const router = useRouter();
   const createSpace = useCreateSpace();
   const [kind, setKind] = useState<Space['kind']>('space');
@@ -46,8 +48,8 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, onDone, on
     try {
       const created = await createSpace.mutateAsync(
         isFolder
-          ? { kind, title }
-          : { kind, title, tool, ...(parentFolder ? { parentId: parentFolder.id } : {}) },
+          ? { kind, title, ...(groupId ? { groupId } : {}) }
+          : { kind, title, tool, ...(parentFolder ? { parentId: parentFolder.id } : groupId ? { groupId } : {}) },
       );
       if (!isFolder) router.push(spaceHref({ id: created.id, tool }));
       onDone?.();

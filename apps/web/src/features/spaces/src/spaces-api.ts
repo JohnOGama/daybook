@@ -1,4 +1,4 @@
-import type { NewSpaceInput, Share, ShareRole, Space } from './space-types';
+import type { NewSpaceInput, Share, ShareRole, Space, SpaceGroup } from './space-types';
 
 async function send(url: string, method: string, failure: string, body?: object): Promise<void> {
   const response = await fetch(url, {
@@ -33,6 +33,24 @@ export const setSpaceCarryOver = ({ id, carryOver }: { id: string; carryOver: bo
 
 export const setSpaceParent = ({ id, parentId }: { id: string; parentId: string | null }) =>
   send(`/api/spaces/${id}/parent`, 'PUT', 'That space could not be moved. Please try again.', { parentId });
+
+export const setSpaceGroup = ({ id, groupId, order }: { id: string; groupId: string; order?: string[] }) =>
+  send(`/api/spaces/${id}/group`, 'PUT', 'That could not be moved. Please try again.', { groupId, order });
+
+export async function fetchSpaceGroups(): Promise<SpaceGroup[]> {
+  const response = await fetch('/api/space-groups');
+  if (!response.ok) throw new Error('Could not load your groups');
+  return response.json();
+}
+
+export const createSpaceGroup = (group: SpaceGroup) =>
+  send('/api/space-groups', 'POST', 'That group could not be created. Please try again.', group);
+
+export const renameSpaceGroup = ({ id, title }: SpaceGroup) =>
+  send(`/api/space-groups/${id}`, 'PATCH', 'That name could not be saved. Please try again.', { title });
+
+export const deleteSpaceGroup = (id: string) =>
+  send(`/api/space-groups/${id}`, 'DELETE', 'That group could not be deleted. Please try again.');
 
 export const reorderSpaces =(ids: string[]) =>
   send('/api/spaces/order', 'PUT', 'That order could not be saved. Please try again.', { ids });

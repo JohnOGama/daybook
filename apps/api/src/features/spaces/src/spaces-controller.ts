@@ -20,6 +20,7 @@ import {
   duplicateSpaceSchema,
   listSpacesSchema,
   moveSpaceSchema,
+  moveToGroupSchema,
   renameSpaceSchema,
   reorderSpacesSchema,
   shareRoleSchema,
@@ -55,6 +56,12 @@ export class SpacesController {
   @Put(':id/parent')
   move(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.spaces.move(userId, id, parseOrThrow(moveSpaceSchema, body).parentId);
+  }
+
+  @Put(':id/group')
+  moveToGroup(@UserId() userId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const { groupId, order } = parseOrThrow(moveToGroupSchema, body);
+    return this.spaces.moveToGroup(userId, id, groupId, order);
   }
 
   @Patch(':id')

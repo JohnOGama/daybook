@@ -169,6 +169,13 @@
       "when": 1794777962188,
       "tag": "0023_oval_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795179958655,
+      "tag": "0024_space_groups",
+      "breakpoints": true
     }
   ]
 }

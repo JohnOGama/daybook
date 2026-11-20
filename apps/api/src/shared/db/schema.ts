@@ -31,6 +31,22 @@ export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'boo
 export const shareRole = pgEnum('share_role', ['edit', 'view']);
 export type ShareRole = (typeof shareRole.enumValues)[number];
 
+// A heading in the sidebar ("Spaces", "Work"...) holding top-level folders and spaces. Its owner's only.
+export const spaceGroups = pgTable(
+  'space_groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    position: integer('position'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('space_groups_user_idx').on(t.userId)],
+);
+
 export const spaces = pgTable(
   'spaces',
   {
@@ -39,6 +55,8 @@ export const spaces = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     parentId: uuid('parent_id').references((): AnyPgColumn => spaces.id, { onDelete: 'cascade' }),
+    // Only top-level folders and spaces carry it; a space in a folder follows its folder.
+    groupId: uuid('group_id').references(() => spaceGroups.id, { onDelete: 'set null' }),
     kind: spaceKind('kind').notNull(),
     title: text('title').notNull(),
     tool: spaceTool('tool'),

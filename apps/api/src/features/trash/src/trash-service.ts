@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { notebookPages, spaces, tasks, vaultItems } from '../../../shared/db/schema.ts';
+import { notebookPages, spaceGroups, spaces, tasks, vaultItems } from '../../../shared/db/schema.ts';
 
 export type TrashItem = {
   id: string;
@@ -173,9 +173,11 @@ export class TrashService {
       .update(spaces)
       .set({ deletedAt: null })
       .where(eq(spaces.id, spaceId))
-      .returning({ parentId: spaces.parentId });
-    if (space?.parentId) {
-      await tx.update(spaces).set({ deletedAt: null }).where(eq(spaces.id, space.parentId));
-    }
+      .returning({ parentId: spaces.parentId, groupId: spaces.groupId });
+    const [top] = space?.parentId
+      ? await tx.update(spaces).set({ deletedAt: null }).where(eq(spaces.id, space.parentId)).returning({ groupId: spaces.groupId })
+      : [space];
+    // A sidebar group deleted with it comes back too.
+    if (top?.groupId) await tx.update(spaceGroups).set({ deletedAt: null }).where(eq(spaceGroups.id, top.groupId));
   }
 }

@@ -6,6 +6,7 @@ import { diagrams, notebookPages, type ShareRole, spaceShares, spaces, tasks, us
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
 import { type DotStatus, dotStatuses } from '../../../shared/utils/pipeline-status.ts';
 import { type Access, SpaceAccessService, type SpaceRow } from './space-access-service.ts';
+import { SpaceGroupsService } from './space-groups-service.ts';
 import type { CreateSpaceInput, ShareInput } from './space-schemas.ts';
 
 export type ShareDto = { id: string; email: string; role: ShareRole };
@@ -13,6 +14,8 @@ export type ShareDto = { id: string; email: string; role: ShareRole };
 export type SpaceDto = {
   id: string;
   parentId: string | null;
+  // The sidebar group of your own top-level folder or space; null inside a folder and on spaces shared with you.
+  groupId: string | null;
   kind: SpaceRow['kind'];
   title: string;
   tool: SpaceRow['tool'];
@@ -36,6 +39,7 @@ function toDto(row: SpaceRow, openToday: number, sharing: Sharing = ownSpace, pi
   return {
     id: row.id,
     parentId: row.parentId,
+    groupId: sharing.access === 'owner' && row.parentId === null ? row.groupId : null,
     kind: row.kind,
     title: row.title,
     tool: row.tool,
@@ -58,6 +62,7 @@ export class SpacesService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(SpaceAccessService) private readonly access: SpaceAccessService,
+    @Inject(SpaceGroupsService) private readonly groups: SpaceGroupsService = new SpaceGroupsService(db),
   ) {}
 
   async list(userId: string, today: string): Promise<SpaceDto[]> {
@@ -155,6 +160,7 @@ export class SpacesService {
   async create(userId: string, input: CreateSpaceInput): Promise<SpaceDto> {
     const parentId = input.kind === 'space' ? input.parentId : undefined;
     if (parentId) await this.assertOwnedFolder(userId, parentId);
+    const groupId = parentId ? null : await this.groups.resolve(userId, input.groupId);
     const [created] = await this.db
       .insert(spaces)
       .values({
@@ -164,6 +170,7 @@ export class SpacesService {
         title: input.title,
         tool: input.kind === 'space' ? input.tool : null,
         parentId,
+        groupId,
       })
       .returning();
     return toDto(created, 0);
@@ -208,13 +215,30 @@ export class SpacesService {
       for (const [position, sibling] of others.entries()) {
         await tx.update(spaces).set({ position }).where(eq(spaces.id, sibling.id));
       }
+      // Out of a folder, a space lands in that folder's group.
+      const [current] = await tx.select({ parentId: spaces.parentId, groupId: spaces.groupId }).from(spaces).where(and(eq(spaces.id, id), eq(spaces.userId, userId)));
+      const [folder] = current?.parentId ? await tx.select({ groupId: spaces.groupId }).from(spaces).where(eq(spaces.id, current.parentId)) : [];
+      const groupId = parentId ? null : (folder?.groupId ?? current?.groupId ?? null);
       const moved = await tx
         .update(spaces)
-        .set({ parentId, position: others.length })
+        .set({ parentId, groupId, position: others.length })
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), eq(spaces.kind, 'space'), isNull(spaces.deletedAt)))
         .returning({ id: spaces.id });
       if (moved.length === 0) throw new NotFoundException('Space not found');
     });
+  }
+
+  // Puts your folder or space into another of your groups (a space in a folder comes out of it), last there,
+  // or where `order` (the group's top-level ids, in their new order) puts it.
+  async moveToGroup(userId: string, id: string, groupId: string, order?: string[]): Promise<void> {
+    await this.groups.resolve(userId, groupId);
+    const moved = await this.db
+      .update(spaces)
+      .set({ groupId, parentId: null, position: null })
+      .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)))
+      .returning({ id: spaces.id });
+    if (moved.length === 0) throw new NotFoundException('Space not found');
+    if (order?.includes(id)) await this.reorder(userId, order);
   }
 
   async setCarryOver(userId: string, id: string, carryOver: boolean): Promise<void> {
@@ -244,6 +268,7 @@ export class SpacesService {
           id: newId,
           userId,
           parentId: source.parentId,
+          groupId: source.groupId,
           kind: 'space',
           tool: source.tool,
           carryOver: source.carryOver,

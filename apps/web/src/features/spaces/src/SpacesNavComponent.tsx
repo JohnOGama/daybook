@@ -1,11 +1,14 @@
 'use client';
 
 import {
+  closestCenter,
+  type CollisionDetection,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
   type Modifier,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -38,14 +41,52 @@ import { withinSameList } from '@/shared/utils/within-same-list';
 import { useActiveSpace } from '../hooks/useActiveSpace';
 import { useRenameSpace } from '../hooks/useRenameSpace';
 import { useReorderSpaces } from '../hooks/useReorderSpaces';
+import { useMoveToGroup, useSpaceGroups } from '../hooks/useSpaceGroups';
 import { useSpaces } from '../hooks/useSpaces';
 import { CreateSpaceFormComponent } from './CreateSpaceFormComponent';
 import { PipelineDotComponent } from './PipelineDotComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
+import { groupOf } from './space-cache';
 import { buildOwnTree, buildSharedTree, isOwn, type SpaceNode, spaceHref } from './space-tree';
-import type { Space, SpaceTool } from './space-types';
+import type { Space, SpaceGroup, SpaceTool } from './space-types';
 
-type CreatingState = { parentFolder?: Space };
+type CreatingState = { parentFolder?: Space; groupId?: string };
+
+const SAMPLE_GROUPS: SpaceGroup[] = [{ id: 'sample-group', title: 'Spaces' }];
+const GROUP_LIST = 'group-';
+
+// Top-level rows can be dropped on another group's rows or heading; everything else stays in its own list.
+const withinGroups: CollisionDetection = (args) => {
+  const list = String(args.active.data.current?.sortable?.containerId ?? '');
+  if (!list.startsWith(GROUP_LIST)) return withinSameList(args);
+  return closestCenter({
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (container) => String(container.data.current?.sortable?.containerId ?? '').startsWith(GROUP_LIST) || container.data.current?.groupId,
+    ),
+  });
+};
+
+// A group's heading: its name, and the + (shown on hover) that adds a space or folder to it. Rows can be dropped on it.
+function GroupHeading({ group, onAdd }: { group: SpaceGroup; onAdd: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `group-drop:${group.id}`, data: { groupId: group.id } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn('group/heading mx-2 mt-5 mb-1.5 flex items-center justify-between rounded-md text-[13px] font-medium text-muted-foreground', isOver && 'bg-accent text-foreground')}
+    >
+      <span className="truncate">{group.title}</span>
+      <button
+        type="button"
+        aria-label={`New space in ${group.title}`}
+        onClick={onAdd}
+        className="grid size-6 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-accent opacity-0 group-hover/heading:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+      >
+        <Plus className="size-3.5" aria-hidden />
+      </button>
+    </div>
+  );
+}
 type RenderSpaceSummary = (space: Space) => ReactNode;
 type Sortable = ReturnType<typeof useSortable>;
 
@@ -139,7 +180,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
     >
       {canReorder && !editing && <ReorderHandle title={space.title} sortable={sortable} />}
       <Tooltip delayDuration={300} open={renderSummary && space.tool === 'list' ? undefined : false}>
-        <SpaceContextMenuComponent space={space} onEdit={() => setEditing(true)}>
+        <SpaceContextMenuComponent space={space} editing={editing} onEdit={() => setEditing(true)}>
           {editing ? (
             <div>
               <LabelEditor space={space} icon={icon} onClose={() => setEditing(false)} />
@@ -199,7 +240,7 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
     <div ref={sortable.setNodeRef} style={dragStyle(sortable)} className={cn('relative', draggingClass(sortable))}>
       <div className="group/row relative">
         {canReorder && !editing && <ReorderHandle title={folder.title} sortable={sortable} />}
-        <SpaceContextMenuComponent space={folder} onEdit={() => setEditing(true)}>
+        <SpaceContextMenuComponent space={folder} editing={editing} onEdit={() => setEditing(true)}>
           {editing ? (
             <div>
               <LabelEditor space={folder} icon={icon} onClose={() => setEditing(false)} />
@@ -223,7 +264,7 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
                   type="button"
                   aria-label={`New space in ${folder.title}`}
                   onClick={onAddSpace}
-                  className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                  className="mr-8 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 >
                   <Plus className="size-3.5" aria-hidden />
                 </button>
@@ -251,19 +292,23 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
 }
 
 export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?: RenderSpaceSummary }) {
-  const { data = [], isPending } = useSpaces();
+  const { data = [], isPending: spacesPending } = useSpaces();
+  const { data: groupData, isPending: groupsPending } = useSpaceGroups();
+  const isPending = spacesPending || groupsPending;
   const spaces = isPending ? SAMPLE_SPACES : data;
+  const groups = isPending || !groupData?.length ? SAMPLE_GROUPS : groupData;
   const active = useActiveSpace();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState<CreatingState>();
   const reorder = useReorderSpaces();
+  const moveToGroup = useMoveToGroup();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const tree = buildOwnTree(spaces);
   const sharedTree = buildSharedTree(spaces);
-  const canReorder = !isPending && tree.length > 1;
+  const nodesIn = (groupId: string) => tree.filter((node) => groupOf(node, groups) === groupId);
 
   const renderNodes = (nodes: SpaceNode[], canReorderNodes: boolean) =>
     nodes.map((node) =>
@@ -291,6 +336,16 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
+    const from = String(active.data.current?.sortable?.containerId ?? '');
+    const overList = String(over.data.current?.sortable?.containerId ?? '');
+    const target: string | undefined = over.data.current?.groupId ?? (overList.startsWith(GROUP_LIST) ? overList.slice(GROUP_LIST.length) : undefined);
+    if (from.startsWith(GROUP_LIST) && target && from !== GROUP_LIST + target) {
+      const ids = nodesIn(target).map(({ id }) => id);
+      const at = over.data.current?.sortable ? ids.indexOf(String(over.id)) : ids.length;
+      moveToGroup.mutate({ id: String(active.id), groupId: target, order: [...ids.slice(0, at), String(active.id), ...ids.slice(at)] });
+      return;
+    }
+    if (over.data.current?.groupId) return;
     const ids: string[] = active.data.current?.sortable.items;
     reorder.mutate(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
   }
@@ -307,30 +362,26 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
 
   return (
     <>
-      <div className="mx-2 mt-5 mb-1.5 flex items-center justify-between text-[13px] font-medium text-muted-foreground">
-        Spaces
-        <button
-          type="button"
-          aria-label="New space"
-          onClick={() => setCreating({})}
-          className="grid size-6 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-accent"
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </button>
-      </div>
-
       <DndContext
         id="spaces-nav"
         sensors={sensors}
-        collisionDetection={withinSameList}
+        collisionDetection={withinGroups}
         modifiers={[keepRowVertical]}
         onDragEnd={handleDragEnd}
       >
-        <Skeleton loading={isPending} label="Loading spaces">
-          <SortableContext id="spaces" items={tree.map(({ id }) => id)} strategy={verticalListSortingStrategy}>
-            {renderNodes(tree, canReorder)}
-          </SortableContext>
-        </Skeleton>
+        {groups.map((group) => {
+          const nodes = nodesIn(group.id);
+          return (
+            <section key={group.id} aria-label={group.title}>
+              <GroupHeading group={group} onAdd={() => setCreating(group === SAMPLE_GROUPS[0] ? {} : { groupId: group.id })} />
+              <Skeleton loading={isPending} label="Loading spaces">
+                <SortableContext id={GROUP_LIST + group.id} items={nodes.map(({ id }) => id)} strategy={verticalListSortingStrategy}>
+                  {renderNodes(nodes, !isPending && nodes.length > 1)}
+                </SortableContext>
+              </Skeleton>
+            </section>
+          );
+        })}
 
         {sharedTree.length > 0 && (
           <>
@@ -346,11 +397,14 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
         <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>New space</DialogTitle>
-            {creating?.parentFolder && <DialogDescription>In {creating.parentFolder.title}</DialogDescription>}
+            {(creating?.parentFolder || groups.length > 1) && (
+              <DialogDescription>In {creating?.parentFolder?.title ?? groups.find((group) => group.id === creating?.groupId)?.title}</DialogDescription>
+            )}
           </DialogHeader>
           <CreateSpaceFormComponent
             allowFolder={!creating?.parentFolder}
             parentFolder={creating?.parentFolder}
+            groupId={creating?.groupId}
             onDone={close}
             onCancel={close}
           />
