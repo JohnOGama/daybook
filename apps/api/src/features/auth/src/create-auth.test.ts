@@ -29,6 +29,29 @@ describe('createAuth', () => {
     expect(sent[0].otp).toMatch(/^\d{6}$/);
   });
 
+  it('sends a welcome email once the email is verified, and a failure there does not block verifying', async () => {
+    const welcomed: string[] = [];
+    const build = async (sendWelcome: (m: { to: string; name: string }) => Promise<void>) =>
+      createAuth(await createTestDb(), async (message) => void sent.push(message), {
+        secret: 'test-secret-test-secret-test-secret',
+        baseURL: 'http://localhost:3000',
+        sendWelcome,
+      });
+
+    auth = await build(async ({ to }) => void welcomed.push(to));
+    await signUp();
+    expect(welcomed).toEqual([]);
+    await auth.api.verifyEmailOTP({ body: { email, otp: sent[0].otp } });
+    expect(welcomed).toEqual([email]);
+
+    auth = await build(async () => {
+      throw new Error('resend down');
+    });
+    await signUp();
+    await auth.api.verifyEmailOTP({ body: { email, otp: sent.at(-1)!.otp } });
+    await expect(signIn()).resolves.toMatchObject({ user: { email } });
+  });
+
   it('refuses sign-in until the email is verified', async () => {
     await signUp();
     await expect(signIn()).rejects.toMatchObject({ statusCode: 403 });

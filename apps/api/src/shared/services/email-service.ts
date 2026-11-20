@@ -11,6 +11,20 @@ const SUBJECTS: Record<OtpType, string> = {
   'change-email': 'Confirm your new Daybook email',
 };
 
+export type WelcomeSender = (message: { to: string; name: string }) => Promise<void>;
+
+export function createWelcomeSender(client: Pick<Resend, 'emails'>, from: string): WelcomeSender {
+  return async ({ to, name }) => {
+    const { error } = await client.emails.send({
+      from,
+      to,
+      subject: 'Welcome to Daybook',
+      text: `Hi ${name}, your Daybook account is ready. Make a space and start planning your day.`,
+    });
+    if (error) throw new Error(error.message);
+  };
+}
+
 export function createOtpSender(client: Pick<Resend, 'emails'>, from: string): OtpSender {
   return async ({ to, otp, type }) => {
     const { error } = await client.emails.send({

@@ -4,14 +4,14 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP } from 'better-auth/plugins';
 import type { Db } from '../../../shared/db/create-db.ts';
 import * as schema from '../../../shared/db/schema.ts';
-import type { OtpSender } from '../../../shared/services/email-service.ts';
+import type { OtpSender, WelcomeSender } from '../../../shared/services/email-service.ts';
 
 export const AUTH = Symbol('AUTH');
 
 export function createAuth(
   db: Db,
   sendOtp: OtpSender,
-  config: { secret: string; baseURL: string },
+  config: { secret: string; baseURL: string; sendWelcome?: WelcomeSender },
 ) {
   return betterAuth({
     database: drizzleAdapter(db, { provider: 'pg', schema }),
@@ -19,6 +19,12 @@ export function createAuth(
     baseURL: config.baseURL,
     trustedOrigins: [config.baseURL],
     emailAndPassword: { enabled: true, requireEmailVerification: true },
+    emailVerification: {
+      afterEmailVerification: async (user) => {
+        // A failed welcome email must never undo a verified account.
+        await config.sendWelcome?.({ to: user.email, name: user.name }).catch(() => {});
+      },
+    },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path !== '/sign-up/email' || typeof ctx.body?.email !== 'string') return;
