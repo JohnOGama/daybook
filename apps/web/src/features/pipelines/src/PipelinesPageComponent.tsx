@@ -2,14 +2,14 @@
 
 import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
-import { Skeleton } from 'skullet/react';
+import { Skeleton, SkeletonBox } from 'skullet/react';
 import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Drawer } from '@/shared/components/ui/drawer';
 import { useNow } from '../hooks/useNow';
 import { usePipelines, usePipelinesSpaceId } from '../hooks/usePipelines';
 import { ConnectJenkinsDialogComponent } from './ConnectJenkinsDialogComponent';
-import { JobCardComponent } from './JobCardComponent';
+import { PipelineCanvas } from './pipeline-parts';
 import { RunDrawerComponent } from './RunDrawerComponent';
 import { RunsTableComponent } from './RunsTableComponent';
 import { samplePipelines } from './sample-pipelines';
@@ -38,44 +38,43 @@ export function PipelinesPageComponent() {
   const title = space?.title ?? 'Pipelines';
 
   return (
-    <div className="pb-16">
-      <header className="flex flex-wrap items-center gap-3 px-4 pt-5 md:px-6">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <aside aria-label="Pipelines" className="z-10 flex max-h-60 flex-col gap-3 border-b bg-card/90 p-4 backdrop-blur md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-72 md:rounded-2xl md:border">
         <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
             <ViewOnlyBadgeComponent />
           </div>
           <Skeleton loading={isPending}>
             <p className="text-[13px] text-muted-foreground">
-              {view.jobs.length} {view.jobs.length === 1 ? 'pipeline' : 'pipelines'} reporting from Jenkins · updated live
+              {view.jobs.length} {view.jobs.length === 1 ? 'pipeline' : 'pipelines'} · updated live
             </p>
           </Skeleton>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <Skeleton loading={isPending} label="Loading the runs">
+          {view.recent.length > 0 && <RunsTableComponent runs={view.recent} now={now} onOpen={setOpenRunId} />}
+        </Skeleton>
+      </aside>
+
+      <div className="relative min-h-0 flex-1 md:absolute md:inset-0">
+        {isPending ? <SkeletonBox width="100%" height="100%" /> : <PipelineCanvas jobs={view.jobs} now={now} onOpen={setOpenRunId} />}
+        {!isPending && view.jobs.length === 0 && (
+          <p className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-dashed bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+            No runs yet. Connect Jenkins to start.
+          </p>
+        )}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
           <PresenceAvatarsComponent />
           {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
+            <Button variant="outline" size="sm" className="bg-card shadow-lg" onClick={() => setConnecting(true)}>
               <KeyRound aria-hidden />
               Connect Jenkins
             </Button>
           )}
         </div>
-      </header>
-
-      <div className="mx-auto mt-5 flex max-w-6xl flex-col gap-4 px-4 md:px-6">
-        <Skeleton loading={isPending} label="Loading the pipelines">
-          <div className="flex flex-col gap-4">
-            {view.jobs.length === 0 ? (
-              <p className="rounded-2xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">No runs yet. Connect Jenkins to start.</p>
-            ) : (
-              view.jobs.map((job) => <JobCardComponent key={job.job} job={job} now={now} onOpen={setOpenRunId} />)
-            )}
-            {view.recent.length > 0 && <RunsTableComponent runs={view.recent} now={now} onOpen={setOpenRunId} />}
-          </div>
-        </Skeleton>
       </div>
 
-      <Drawer direction="right" open={Boolean(open)} onOpenChange={(next) => !next && setOpenRunId(null)} modal={false}>
+      <Drawer direction="right" open={Boolean(open)} onOpenChange={(next) => !next && setOpenRunId(null)}>
         {open && <RunDrawerComponent key={open.id} initial={open} expected={expectedFor(open.job)} now={now} />}
       </Drawer>
 

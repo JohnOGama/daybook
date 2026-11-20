@@ -12,6 +12,7 @@ const { usePipelines, usePipelineRun, access } = vi.hoisted(() => ({
 
 vi.mock('../hooks/usePipelines', () => ({ usePipelines, usePipelinesSpaceId: () => 's1' }));
 vi.mock('../hooks/usePipelineRun', () => ({ usePipelineRun }));
+vi.mock('./pipeline-parts', async () => ({ PipelineCanvas: (await import('./PipelineCanvasComponent')).PipelineCanvasComponent }));
 vi.mock('./ConnectJenkinsDialogComponent', () => ({ ConnectJenkinsDialogComponent: () => null }));
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Backend', tool: 'pipelines' }),
@@ -65,11 +66,10 @@ beforeEach(() => {
   access.value = { access: 'owner', canEdit: true, isOwner: true };
 });
 
-it('shows a card per job with stage steps, the pending ones, and the latest message', () => {
+it('draws a node per job and per stage (the pending ones too), with the latest message', () => {
   show({ jobs: [{ job: 'api-deploy', latest: run({}), expected: ['Build', 'Deploy', 'Smoke test'] }], recent: [run({})] });
   const card = screen.getByRole('region', { name: 'api-deploy, running' });
-  const steps = within(card).getByRole('list', { name: 'Stages' });
-  expect(within(steps).getAllByRole('listitem').map((li) => li.textContent)).toEqual([expect.stringContaining('Build'), expect.stringContaining('Deploy'), expect.stringContaining('Smoke test')]);
+  expect(screen.getAllByRole('group', { name: /^Stage / }).map((node) => node.getAttribute('aria-label'))).toEqual(['Stage Build', 'Stage Deploy', 'Stage Smoke test']);
   expect(within(card).getByText('Rolling out api: 3 of 6 instances')).toBeInTheDocument();
   expect(within(card).getByRole('link', { name: /Open in Jenkins/ })).toHaveAttribute('href', 'https://jenkins.example.com/job/api-deploy/142/');
 });

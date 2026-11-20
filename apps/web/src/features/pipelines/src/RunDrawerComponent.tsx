@@ -19,10 +19,7 @@ export function RunDrawerComponent({ initial, expected, now }: RunDrawerProps) {
   const after = pendingStages(run, expected);
 
   return (
-    <DrawerContent
-      onInteractOutside={(event) => event.preventDefault()}
-      className="gap-4 overflow-y-auto overscroll-contain rounded-xl border bg-popover p-4 data-[vaul-drawer-direction=right]:inset-y-3 data-[vaul-drawer-direction=right]:right-3 data-[vaul-drawer-direction=right]:w-[calc(100%-1.5rem)] data-[vaul-drawer-direction=right]:sm:max-w-md"
-    >
+    <DrawerContent className="gap-4 overflow-y-auto overscroll-contain p-4 data-[vaul-drawer-direction=right]:sm:max-w-md">
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
