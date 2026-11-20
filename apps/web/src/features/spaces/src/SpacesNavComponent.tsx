@@ -35,6 +35,7 @@ import {
 } from '@/shared/components/BrandIconsComponent';
 import { InlineTitleInputComponent } from '@/shared/components/InlineTitleInputComponent';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { cn } from '@/shared/utils/cn';
 import { withinSameList } from '@/shared/utils/within-same-list';
@@ -50,7 +51,7 @@ import { groupOf } from './space-cache';
 import { buildOwnTree, buildSharedTree, isOwn, type SpaceNode, spaceHref } from './space-tree';
 import type { Space, SpaceGroup, SpaceTool } from './space-types';
 
-type CreatingState = { parentFolder?: Space; groupId?: string };
+type CreatingState = { kind: Space['kind']; parentFolder?: Space; groupId?: string };
 
 const SAMPLE_GROUPS: SpaceGroup[] = [{ id: 'sample-group', title: 'Spaces' }];
 const GROUP_LIST = 'group-';
@@ -67,8 +68,8 @@ const withinGroups: CollisionDetection = (args) => {
   });
 };
 
-// A group's heading: its name, and the + (shown on hover) that adds a space or folder to it. Rows can be dropped on it.
-function GroupHeading({ group, onAdd }: { group: SpaceGroup; onAdd: () => void }) {
+// A group's heading: its name, and the + (shown on hover) that offers a new space or folder in it. Rows can be dropped on it.
+function GroupHeading({ group, onAdd }: { group: SpaceGroup; onAdd: (kind: Space['kind']) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `group-drop:${group.id}`, data: { groupId: group.id } });
   return (
     <div
@@ -76,14 +77,24 @@ function GroupHeading({ group, onAdd }: { group: SpaceGroup; onAdd: () => void }
       className={cn('group/heading mx-2 mt-5 mb-1.5 flex items-center justify-between rounded-md text-[13px] font-medium text-muted-foreground', isOver && 'bg-accent text-foreground')}
     >
       <span className="truncate">{group.title}</span>
-      <button
-        type="button"
-        aria-label={`New space in ${group.title}`}
-        onClick={onAdd}
-        className="grid size-6 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-accent opacity-0 group-hover/heading:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-      >
-        <Plus className="size-3.5" aria-hidden />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={`Add to ${group.title}`}
+          className="grid size-6 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-accent opacity-0 group-hover/heading:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100"
+        >
+          <Plus className="size-3.5" aria-hidden />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onSelect={() => onAdd('space')}>
+            <SpaceIcon aria-hidden />
+            Space
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onAdd('folder')}>
+            <FolderIcon aria-hidden />
+            Folder
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -328,7 +339,7 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
           isOpen={!collapsed.has(node.id)}
           canReorder={canReorderNodes}
           onToggle={() => toggleFolder(node.id)}
-          onAddSpace={() => setCreating({ parentFolder: node })}
+          onAddSpace={() => setCreating({ kind: 'space', parentFolder: node })}
           renderSummary={renderSpaceSummary}
         />
       ),
@@ -373,7 +384,7 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
           const nodes = nodesIn(group.id);
           return (
             <section key={group.id} aria-label={group.title}>
-              <GroupHeading group={group} onAdd={() => setCreating(group === SAMPLE_GROUPS[0] ? {} : { groupId: group.id })} />
+              <GroupHeading group={group} onAdd={(kind) => setCreating(group === SAMPLE_GROUPS[0] ? { kind } : { kind, groupId: group.id })} />
               <Skeleton loading={isPending} label="Loading spaces">
                 <SortableContext id={GROUP_LIST + group.id} items={nodes.map(({ id }) => id)} strategy={verticalListSortingStrategy}>
                   {renderNodes(nodes, !isPending && nodes.length > 1)}
@@ -394,15 +405,16 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
       </DndContext>
 
       <Dialog open={creating !== undefined} onOpenChange={(open) => !open && close()}>
-        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className={creating?.kind === 'folder' ? 'sm:max-w-sm' : 'sm:max-w-2xl'}>
           <DialogHeader>
-            <DialogTitle>New space</DialogTitle>
+            <DialogTitle>{creating?.kind === 'folder' ? 'New folder' : 'New space'}</DialogTitle>
             {(creating?.parentFolder || groups.length > 1) && (
               <DialogDescription>In {creating?.parentFolder?.title ?? groups.find((group) => group.id === creating?.groupId)?.title}</DialogDescription>
             )}
           </DialogHeader>
           <CreateSpaceFormComponent
-            allowFolder={!creating?.parentFolder}
+            key={creating?.kind}
+            kind={creating?.kind}
             parentFolder={creating?.parentFolder}
             groupId={creating?.groupId}
             onDone={close}

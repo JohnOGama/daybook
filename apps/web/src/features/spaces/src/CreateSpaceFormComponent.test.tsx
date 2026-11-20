@@ -35,7 +35,7 @@ const typeTitle = (title: string) => userEvent.type(screen.getByLabelText('Title
 const create = () => userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
 it('creates a space with the List tool and opens it', async () => {
-  render(<CreateSpaceFormComponent allowFolder onDone={onDone} />);
+  render(<CreateSpaceFormComponent onDone={onDone} />);
   await typeTitle('Home');
   await create();
   expect(mutateAsync).toHaveBeenCalledWith({ kind: 'space', title: 'Home', tool: 'list' });
@@ -43,9 +43,16 @@ it('creates a space with the List tool and opens it', async () => {
   expect(onDone).toHaveBeenCalled();
 });
 
-it('switching to Folder hides the tool and creates a folder without opening it', async () => {
-  render(<CreateSpaceFormComponent allowFolder onDone={onDone} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Folder' }));
+it('creates a space with the picked tool', async () => {
+  render(<CreateSpaceFormComponent onDone={onDone} />);
+  await userEvent.click(screen.getByRole('button', { name: /Budget/ }));
+  await typeTitle('Money');
+  await create();
+  expect(mutateAsync).toHaveBeenCalledWith({ kind: 'space', title: 'Money', tool: 'budget' });
+});
+
+it('a folder form has no tool and creates a folder without opening it', async () => {
+  render(<CreateSpaceFormComponent kind="folder" onDone={onDone} />);
   expect(screen.queryByText('Tool')).not.toBeInTheDocument();
   await typeTitle('Team');
   await create();
@@ -54,17 +61,15 @@ it('switching to Folder hides the tool and creates a folder without opening it',
   expect(onDone).toHaveBeenCalled();
 });
 
-it('creates inside a folder with no switch', async () => {
+it('creates inside a folder', async () => {
   render(<CreateSpaceFormComponent parentFolder={folder} onDone={onDone} />);
-  expect(screen.queryByRole('button', { name: 'Folder' })).not.toBeInTheDocument();
   await typeTitle('Requests');
   await create();
   expect(mutateAsync).toHaveBeenCalledWith({ kind: 'space', title: 'Requests', tool: 'list', parentId: 'team' });
 });
 
-it('has no switch on the first-time form', () => {
+it('starts on the List tool', () => {
   render(<CreateSpaceFormComponent />);
-  expect(screen.queryByRole('button', { name: 'Folder' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /List/, pressed: true })).toBeInTheDocument();
 });
 
@@ -77,7 +82,7 @@ it('will not create with a blank title', async () => {
 
 it('stays open when creating fails', async () => {
   mutateAsync.mockRejectedValueOnce(new Error('nope'));
-  render(<CreateSpaceFormComponent allowFolder onDone={onDone} />);
+  render(<CreateSpaceFormComponent onDone={onDone} />);
   await typeTitle('Home');
   await create();
   expect(onDone).not.toHaveBeenCalled();
@@ -87,7 +92,7 @@ it('stays open when creating fails', async () => {
 
 it('shows Cancel only when it can be cancelled', async () => {
   const onCancel = vi.fn();
-  render(<CreateSpaceFormComponent allowFolder onCancel={onCancel} />);
+  render(<CreateSpaceFormComponent onCancel={onCancel} />);
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(onCancel).toHaveBeenCalled();
 });

@@ -162,14 +162,18 @@ it('clicking a folder closes and reopens its group', async () => {
   expect(screen.getByRole('link', { name: /Design Requests/ })).toBeInTheDocument();
 });
 
-it('the Spaces plus opens the dialog with the Space and Folder switch', async () => {
-  await userEvent.click(screen.getByRole('button', { name: 'New space in Spaces' }));
-  expect(await screen.findByRole('dialog')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Folder' })).toBeInTheDocument();
+it.each([
+  ['Space', 'New space', true],
+  ['Folder', 'New folder', false],
+])('the Spaces plus offers %s, which opens the %s dialog', async (choice, title, hasTools) => {
+  await userEvent.click(screen.getByRole('button', { name: 'Add to Spaces' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: choice }));
+  expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
+  expect(screen.queryByText('Tool') !== null).toBe(hasTools);
 });
 
-it('a folder plus opens the dialog inside that folder with no switch', async () => {
+it('a folder plus opens the New space dialog inside that folder', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'New space in Design Team' }));
-  expect(await screen.findByText('In Design Team')).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Folder' })).not.toBeInTheDocument();
+  expect(await screen.findByRole('dialog', { name: 'New space' })).toBeInTheDocument();
+  expect(screen.getByText('In Design Team')).toBeInTheDocument();
 });

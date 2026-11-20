@@ -49,7 +49,7 @@ export function SpaceGateComponent({ children }: { children: ReactNode }) {
       <FirstSpaceIcon />
       <h1 className="mt-4 text-xl font-semibold tracking-tight">Create your first space</h1>
       <p className="mt-1.5 mb-6 text-sm text-muted-foreground">A space holds your tasks or your pages. Name it and pick a tool.</p>
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-xl">
         <CreateSpaceFormComponent />
       </div>
     </div>

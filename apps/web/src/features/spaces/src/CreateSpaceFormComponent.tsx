@@ -3,7 +3,7 @@
 import { BookMarked, BriefcaseBusiness, Dumbbell, List, Network, Workflow } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
-import { BudgetIcon, FolderIcon, NotebookIcon, SpaceIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
+import { BudgetIcon, NotebookIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -13,7 +13,7 @@ import { spaceHref } from './space-tree';
 import { type Space, type SpaceTool, TOOLS } from './space-types';
 
 type CreateSpaceFormProps = {
-  allowFolder?: boolean;
+  kind?: Space['kind'];
   parentFolder?: Space;
   // The sidebar group a top-level folder or space goes into; the first one when not given.
   groupId?: string;
@@ -33,10 +33,9 @@ const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   pipelines: <Workflow className="size-[18px]" aria-hidden />,
 };
 
-export function CreateSpaceFormComponent({ allowFolder, parentFolder, groupId, onDone, onCancel }: CreateSpaceFormProps) {
+export function CreateSpaceFormComponent({ kind = 'space', parentFolder, groupId, onDone, onCancel }: CreateSpaceFormProps) {
   const router = useRouter();
   const createSpace = useCreateSpace();
-  const [kind, setKind] = useState<Space['kind']>('space');
   const [title, setTitle] = useState('');
   const [tool, setTool] = useState<SpaceTool>('list');
   const [saving, setSaving] = useState(false);
@@ -58,33 +57,8 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, groupId, o
     }
   }
 
-  const kindOptions = [
-    { value: 'space' as const, label: 'Space', icon: <SpaceIcon aria-hidden /> },
-    { value: 'folder' as const, label: 'Folder', icon: <FolderIcon aria-hidden /> },
-  ];
-
   return (
     <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 text-left">
-      {allowFolder && (
-        <div className="flex gap-1 rounded-lg border bg-sidebar p-0.5">
-          {kindOptions.map(({ value, label, icon }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={kind === value}
-              onClick={() => setKind(value)}
-              className={cn(
-                'flex h-8 flex-1 items-center justify-center gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors [&_svg]:size-4',
-                kind === value && 'bg-background text-foreground shadow-xs',
-              )}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="space-title">Title</Label>
         <Input
@@ -100,26 +74,26 @@ export function CreateSpaceFormComponent({ allowFolder, parentFolder, groupId, o
       {!isFolder && (
         <div className="flex flex-col gap-1.5">
           <span className="text-sm leading-none font-medium">Tool</span>
-          {TOOLS.map(({ id, label, description }) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={tool === id}
-              onClick={() => setTool(id)}
-              className={cn(
-                'flex items-center gap-3 rounded-xl border-[1.5px] p-2.5 text-left',
-                tool === id ? 'border-primary bg-primary/10' : 'hover:bg-accent',
-              )}
-            >
-              <span className="grid size-8 place-items-center rounded-lg border bg-background">
-                {TOOL_ICONS[id]}
-              </span>
-              <span>
-                <b className="block text-sm font-semibold">{label}</b>
-                <span className="text-xs text-muted-foreground">{description}</span>
-              </span>
-            </button>
-          ))}
+          <div className="grid max-h-[55vh] grid-cols-2 gap-2 overflow-y-auto p-0.5 sm:grid-cols-3">
+            {TOOLS.map(({ id, label, description }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={tool === id}
+                onClick={() => setTool(id)}
+                className={cn(
+                  'flex flex-col items-start gap-2.5 rounded-xl border-[1.5px] p-3 text-left transition-colors',
+                  tool === id ? 'border-primary bg-primary/10' : 'hover:bg-accent',
+                )}
+              >
+                <span className="grid size-8 place-items-center rounded-lg border bg-background">{TOOL_ICONS[id]}</span>
+                <span>
+                  <b className="block text-sm font-semibold">{label}</b>
+                  <span className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
