@@ -68,6 +68,15 @@ it("a pipeline message patches the space's dot and invalidates its page and runs
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['pipeline-run'] });
 });
 
+it("an uptime message patches the space's dot and invalidates its page and site", () => {
+  const { client, invalidate, socket } = renderProvider();
+  socket.open();
+  socket.receive({ type: 'uptime', spaceId: 's1', status: 'down' });
+  expect(client.getQueryData<Space[]>(['spaces'])?.find((s) => s.id === 's1')?.uptime).toBe('down');
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['uptime', 's1'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['uptime-monitor'] });
+});
+
 it('ignores unknown message types', () => {
   const { client, invalidate, socket } = renderProvider();
   socket.open();

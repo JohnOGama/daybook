@@ -10,11 +10,12 @@ export async function fetchPages(spaceId: string): Promise<NotebookPage[]> {
   return response.json();
 }
 
-export async function createPage({ id, spaceId }: { id: string; spaceId: string }): Promise<void> {
+// An uploaded page arrives with its title and content, so it is saved in one go.
+export async function createPage(input: { id: string; spaceId: string; title?: string; content?: JSONContent }): Promise<void> {
   const response = await fetch('/api/notebook-pages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, spaceId }),
+    body: JSON.stringify(input),
   });
   if (!response.ok) throw new Error('That page could not be added. Please try again.');
 }

@@ -52,6 +52,8 @@ const CONTENT_NAMES: Record<SpaceTool, string> = {
   jobs: 'jobs and your CV',
   diagram: 'its diagram',
   pipelines: 'its runs and its Jenkins key',
+  skills: 'skills',
+  uptime: 'its sites and their history',
 };
 
 type SpaceContextMenuProps = {
@@ -168,7 +170,7 @@ function OwnerMenu({ space, onEdit, editing, moreClassName, children }: SpaceCon
   const current = space.parentId === null ? groupOf(space, groups) : undefined;
   const targetGroups = groups.length > 1 || space.parentId !== null ? groups.filter((group) => group.id !== current) : [];
   const canMove = otherFolders.length > 0 || targetGroups.length > 0 || (!isFolder && space.parentId !== null);
-  const canDuplicate = !isFolder && !['vault', 'budget', 'fitness', 'jobs', 'pipelines'].includes(space.tool ?? '');
+  const canDuplicate = !isFolder && !['vault', 'budget', 'fitness', 'jobs', 'pipelines', 'uptime'].includes(space.tool ?? '');
 
   const items = ({ Item, Sub, SubTrigger, SubContent }: Parts) => (
     <>

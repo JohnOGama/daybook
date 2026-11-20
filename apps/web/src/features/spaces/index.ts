@@ -9,4 +9,4 @@ export { SpaceSettingsComponent } from './src/SpaceSettingsComponent';
 export { SpaceGroupsManagerComponent } from './src/SpaceGroupsManagerComponent';
 export { SpacesNavComponent } from './src/SpacesNavComponent';
 export { ViewOnlyBadgeComponent } from './src/ViewOnlyBadgeComponent';
-export type { PipelineStatus, Share, Space, SpaceAccess } from './src/space-types';
+export type { PipelineStatus, Share, Space, SpaceAccess, UptimeStatus } from './src/space-types';

@@ -78,6 +78,12 @@ describe('spaces API', () => {
     expect(byId.get(list.id)).toBeNull();
   });
 
+  it('creates an Uptime space and refuses to duplicate it', async () => {
+    const sites = (await post({ kind: 'space', title: 'Sites', tool: 'uptime' }).expect(201)).body;
+    const { body } = await request(app.getHttpServer()).post(`/api/spaces/${sites.id}/duplicate`).set('x-test-user', 'u1').send({}).expect(400);
+    expect(body.message).toBe('A uptime space cannot be duplicated');
+  });
+
   it('refuses to duplicate a pipelines space', async () => {
     const ci = (await post({ kind: 'space', title: 'Backend', tool: 'pipelines' }).expect(201)).body;
     await request(app.getHttpServer()).post(`/api/spaces/${ci.id}/duplicate`).set('x-test-user', 'u1').send({}).expect(400);

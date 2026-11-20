@@ -20,7 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { type RefObject, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +38,8 @@ import { cn } from '@/shared/utils/cn';
 import { usePageMutations } from '../hooks/usePageMutations';
 import { type NotebookPage, pageSnippet, pageTitle } from './page-types';
 
+const defaultSnippet = (page: NotebookPage) => pageSnippet(page.content) || 'Empty page';
+
 type PageRowProps = {
   page: NotebookPage;
   href: string;
@@ -45,13 +47,14 @@ type PageRowProps = {
   canReorder: boolean;
   canEdit: boolean;
   dragging: RefObject<boolean>;
+  itemName: string;
+  snippetOf: (page: NotebookPage) => string;
 };
 
-function PageRow({ page, href, isActive, canReorder, canEdit, dragging }: PageRowProps) {
+function PageRow({ page, href, isActive, canReorder, canEdit, dragging, itemName, snippetOf }: PageRowProps) {
   const { remove } = usePageMutations();
   const [confirming, setConfirming] = useState(false);
   const sortable = useSortable({ id: page.id, disabled: !canReorder });
-  const snippet = pageSnippet(page.content);
 
   return (
     <li
@@ -74,7 +77,7 @@ function PageRow({ page, href, isActive, canReorder, canEdit, dragging }: PageRo
             className={cn('block rounded-lg px-2.5 py-2 hover:bg-accent', isActive && 'bg-muted')}
           >
             <span className="block truncate text-sm font-medium">{pageTitle(page)}</span>
-            <span className="block truncate text-xs text-muted-foreground">{snippet || 'Empty page'}</span>
+            <span className="block truncate text-xs text-muted-foreground">{snippetOf(page)}</span>
           </Link>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -85,7 +88,7 @@ function PageRow({ page, href, isActive, canReorder, canEdit, dragging }: PageRo
       {canEdit && <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this page?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this {itemName}?</AlertDialogTitle>
             <AlertDialogDescription>
               &quot;{pageTitle(page)}&quot; will move to Trash. You can restore it from there.
             </AlertDialogDescription>
@@ -110,9 +113,13 @@ type PageListProps = {
   hrefOf: (id: string) => string;
   onAddPage: () => void;
   canEdit?: boolean;
+  itemName?: string;
+  snippetOf?: (page: NotebookPage) => string;
+  // More buttons beside "Add", for editors only.
+  actions?: ReactNode;
 };
 
-export function PageListComponent({ title, pages, activeId, isPending, hrefOf, onAddPage, canEdit = true }: PageListProps) {
+export function PageListComponent({ title, pages, activeId, isPending, hrefOf, onAddPage, canEdit = true, itemName = 'page', snippetOf = defaultSnippet, actions }: PageListProps) {
   const { reorder } = usePageMutations();
   // The whole row drags: a click still opens the page, Enter still follows the link and Space picks it up.
   const sensors = useSensors(
@@ -142,14 +149,17 @@ export function PageListComponent({ title, pages, activeId, isPending, hrefOf, o
         <ViewOnlyBadgeComponent />
         <PresenceAvatarsComponent />
         <span className="shrink-0 text-[13px] text-muted-foreground">
-          {pages.length} {pages.length === 1 ? 'page' : 'pages'}
+          {pages.length} {pages.length === 1 ? itemName : `${itemName}s`}
         </span>
       </div>
       {canEdit && (
-        <Button variant="outline" size="sm" onClick={onAddPage}>
-          <Plus aria-hidden />
-          Add page
-        </Button>
+        <div className="flex gap-2 [&>*]:flex-1">
+          <Button variant="outline" size="sm" onClick={onAddPage}>
+            <Plus aria-hidden />
+            Add {itemName}
+          </Button>
+          {actions}
+        </div>
       )}
       <DndContext
         id="notebook-pages"
@@ -170,6 +180,8 @@ export function PageListComponent({ title, pages, activeId, isPending, hrefOf, o
                 canReorder={canReorder}
                 canEdit={canEdit}
                 dragging={dragging}
+                itemName={itemName}
+                snippetOf={snippetOf}
               />
             ))}
           </ul>

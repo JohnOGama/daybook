@@ -9,11 +9,15 @@ export type PageDto = Pick<PageRow, 'id' | 'title' | 'content' | 'version'> & { 
 
 export type VersionDto = { id: string; createdAt: string };
 
-const PAGE_TOOLS = ['notebook', 'book'] as const;
+const PAGE_TOOLS = ['notebook', 'book', 'skills'] as const;
 const VERSION_GAP_MS = 10 * 60 * 1000;
 const VERSIONS_KEPT = 50;
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+// Skills spaces hold skills and every other page space holds documents, so each editor only ever opens its own kind.
+const fitsTool = (tool: string | null | undefined, content: Record<string, unknown>) => (tool === 'skills') === (content.type === 'skill');
+const MISFIT = 'That content does not belong in this space';
 
 const toDto = ({ id, title, content, version, createdAt }: PageRow): PageDto => ({
   id,
@@ -41,8 +45,9 @@ export class NotebookService {
     return rows.map(toDto);
   }
 
-  async create(userId: string, input: { id: string; spaceId: string }): Promise<void> {
+  async create(userId: string, input: { id: string; spaceId: string; title?: string; content?: Record<string, unknown> }): Promise<void> {
     const tool = await this.assertPageSpace(userId, input.spaceId);
+    if (input.content && !fitsTool(tool, input.content)) throw new BadRequestException(MISFIT);
     const position = await this.edgePosition(input.spaceId, tool === 'book' ? 'end' : 'start');
     await this.db.insert(notebookPages).values({ ...input, userId, position });
   }
@@ -76,6 +81,8 @@ export class NotebookService {
         return { version: page.version };
       }
       if (version === undefined) throw new BadRequestException('Send the version you edited');
+      const [space] = await tx.select({ tool: spaces.tool }).from(spaces).where(eq(spaces.id, page.spaceId));
+      if (!fitsTool(space?.tool, changes.content)) throw new BadRequestException(MISFIT);
       await this.keepVersion(tx, page, VERSION_GAP_MS);
       const [saved] = await tx
         .update(notebookPages)

@@ -6,7 +6,7 @@ import { Skeleton, SkeletonBox } from 'skullet/react';
 import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
 import { Drawer } from '@/shared/components/ui/drawer';
-import { useNow } from '../hooks/useNow';
+import { useNow } from '@/shared/hooks/useNow';
 import { usePipelines, usePipelinesSpaceId } from '../hooks/usePipelines';
 import { ConnectJenkinsDialogComponent } from './ConnectJenkinsDialogComponent';
 import { PipelineCanvas } from './pipeline-parts';

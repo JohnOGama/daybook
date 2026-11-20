@@ -29,7 +29,8 @@ export function usePageMutations() {
 
   const addPage = useMutation({
     scope,
-    mutationFn: ({ page }: { page: NotebookPage }) => createPage({ id: page.id, spaceId }),
+    mutationFn: ({ page }: { page: NotebookPage }) =>
+      createPage({ id: page.id, spaceId, title: page.title || undefined, content: page.content ?? undefined }),
     onMutate: ({ page }) => {
       writePages((pages) => (addsAtEnd ? [...pages, page] : [page, ...pages]));
     },
@@ -97,8 +98,8 @@ export function usePageMutations() {
     },
   });
 
-  function create() {
-    const page: NotebookPage = { id: crypto.randomUUID(), title: '', content: null, createdAt: new Date().toISOString(), version: 0 };
+  function create(initial?: Pick<NotebookPage, 'title' | 'content'>) {
+    const page: NotebookPage = { id: crypto.randomUUID(), title: '', content: null, createdAt: new Date().toISOString(), version: 0, ...initial };
     addPage.mutate({ page });
     return page.id;
   }

@@ -1,7 +1,8 @@
-export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram' | 'pipelines';
+export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram' | 'pipelines' | 'skills' | 'uptime';
 
 // A Pipelines space's sidebar dot: from each job's newest run, failed beats running beats passed; null with no runs.
 export type PipelineStatus = 'passed' | 'running' | 'failed';
+export type UptimeStatus = 'up' | 'slow' | 'down';
 
 export type SpaceAccess = 'owner' | 'edit' | 'view';
 export type ShareRole = Exclude<SpaceAccess, 'owner'>;
@@ -25,6 +26,8 @@ export type Space = {
   ownerName: string | null;
   // Only on Pipelines spaces (null with no runs); optional so other spaces need not carry it.
   pipelines?: PipelineStatus | null;
+  // Only on Uptime spaces: down beats slow beats up; null with no checked, unpaused sites.
+  uptime?: UptimeStatus | null;
 };
 
 export type CreateSpaceInput =
@@ -46,4 +49,6 @@ export const TOOLS: { id: SpaceTool; label: string; description: string }[] = [
   { id: 'jobs', label: 'Job hunt', description: 'Track the jobs you apply for' },
   { id: 'diagram', label: 'Database diagram', description: 'Design database tables with AI' },
   { id: 'pipelines', label: 'Pipelines', description: 'Track CI/CD runs from Jenkins' },
+  { id: 'skills', label: 'Skills', description: 'Write Claude Code skills with AI help' },
+  { id: 'uptime', label: 'Uptime', description: 'See if your sites and APIs are up' },
 ];

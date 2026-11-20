@@ -1,6 +1,6 @@
 'use client';
 
-import { BookMarked, BriefcaseBusiness, Dumbbell, List, Network, Workflow } from 'lucide-react';
+import { Activity, BookMarked, BriefcaseBusiness, Dumbbell, List, Network, ScrollText, Workflow } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { BudgetIcon, NotebookIcon, VaultIcon } from '@/shared/components/BrandIconsComponent';
@@ -31,6 +31,8 @@ const TOOL_ICONS: Record<SpaceTool, ReactNode> = {
   jobs: <BriefcaseBusiness className="size-[18px]" aria-hidden />,
   diagram: <Network className="size-[18px]" aria-hidden />,
   pipelines: <Workflow className="size-[18px]" aria-hidden />,
+  skills: <ScrollText className="size-[18px]" aria-hidden />,
+  uptime: <Activity className="size-[18px]" aria-hidden />,
 };
 
 export function CreateSpaceFormComponent({ kind = 'space', parentFolder, groupId, onDone, onCancel }: CreateSpaceFormProps) {

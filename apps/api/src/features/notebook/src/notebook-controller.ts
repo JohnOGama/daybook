@@ -5,7 +5,7 @@ import { AuthGuard, UserId } from '../../auth/index.ts';
 import { BudgetAiService } from '../../budget/index.ts';
 import { notebookPages } from '../../../shared/db/schema.ts';
 import { SpaceAccessService, SpaceLockService } from '../../spaces/index.ts';
-import { createPageSchema, improveTextSchema, listPagesSchema, reorderPagesSchema, updatePageSchema } from './notebook-schemas.ts';
+import { createPageSchema, improveSkillSchema, improveTextSchema, listPagesSchema, reorderPagesSchema, updatePageSchema } from './notebook-schemas.ts';
 import { NotebookService } from './notebook-service.ts';
 
 @UseGuards(AuthGuard)
@@ -39,6 +39,14 @@ export class NotebookController {
     const { spaceId, text, instruction } = parseOrThrow(improveTextSchema, body);
     await this.access.resolve(userId, spaceId, 'edit');
     return { text: await this.ai.rewrite(text, instruction) };
+  }
+
+  // Like improve: only the skill sent with the request goes to the AI, and nothing is saved here.
+  @Post('ai/skill')
+  async improveSkill(@UserId() userId: string, @Body() body: unknown) {
+    const { spaceId, skill, instruction } = parseOrThrow(improveSkillSchema, body);
+    await this.access.resolve(userId, spaceId, 'edit');
+    return this.ai.improveSkill(skill, instruction);
   }
 
   @Put('order')

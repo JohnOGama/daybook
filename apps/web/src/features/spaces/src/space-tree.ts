@@ -9,6 +9,8 @@ const TOOL_SCREENS: Partial<Record<SpaceTool, string>> = {
   jobs: '/jobs',
   diagram: '/diagram',
   pipelines: '/pipelines',
+  skills: '/skills',
+  uptime: '/uptime',
 };
 
 export type SpaceNode = Space & { children: Space[] };

@@ -102,6 +102,41 @@ describe('notebook API sharing', () => {
     await as('u2', 'post', '/ai/improve').send({ spaceId, text: 'x', instruction: 'y' }).expect(403);
   });
 
+  it('refuses a viewer on AI skill improve', async () => {
+    await insertShare(db, { spaceId, ownerId: 'u1', email: 'u2@example.com', role: 'view' });
+    await as('u2', 'post', '/ai/skill').send({ spaceId, skill: { name: 'x', description: '', body: '' } }).expect(403);
+  });
+
+  it('keeps skills in Skills spaces and documents everywhere else', async () => {
+    const skill = { type: 'skill', description: 'Use when deploying.', body: '# Deploy' };
+    await as('u1', 'patch', `/${pageId}`).send({ content: skill, version: 0 }).expect(400);
+
+    const skillsSpace = await insertSpace(db, 'u1', { tool: 'skills' });
+    await as('u1', 'post', '').send({ id: newId, spaceId: skillsSpace }).expect(201);
+    await as('u1', 'patch', `/${newId}`).send({ content: doc('x'), version: 0 }).expect(400);
+    await as('u1', 'patch', `/${newId}`).send({ title: 'deploy-checklist', content: skill, version: 0 }).expect(200);
+    const { body } = await as('u1', 'get', `?spaceId=${skillsSpace}`).expect(200);
+    expect(body).toMatchObject([{ id: newId, title: 'deploy-checklist', content: skill, version: 1 }]);
+  });
+
+  it('creates an uploaded skill with its files in one request, refusing paths outside its folder', async () => {
+    const skillsSpace = await insertSpace(db, 'u1', { tool: 'skills' });
+    const skill = (path: string) => ({
+      type: 'skill',
+      description: 'Use when setting up Jenkins.',
+      body: 'Copy `templates/Jenkinsfile`.',
+      frontmatter: 'allowed-tools: Read, Write',
+      files: [{ path, content: 'pipeline {}' }],
+    });
+    for (const path of ['../evil', '/etc/passwd', 'a\\b', 'SKILL.md', 'a//b']) {
+      await as('u1', 'post', '').send({ id: newId, spaceId: skillsSpace, title: 'x', content: skill(path) }).expect(400);
+    }
+    await as('u1', 'post', '').send({ id: newId, spaceId, title: 'x', content: skill('templates/Jenkinsfile') }).expect(400);
+    await as('u1', 'post', '').send({ id: newId, spaceId: skillsSpace, title: 'jenkinsfile-setup', content: skill('templates/Jenkinsfile') }).expect(201);
+    const { body } = await as('u1', 'get', `?spaceId=${skillsSpace}`).expect(200);
+    expect(body).toMatchObject([{ title: 'jenkinsfile-setup', content: skill('templates/Jenkinsfile'), version: 0 }]);
+  });
+
   it('only returns a version that belongs to the page', async () => {
     const other = '6f1c1e5e-3a3e-4a39-9d6f-0a1d8f6b2c13';
     await db.insert(notebookPages).values({ id: other, userId: 'u1', spaceId, position: 1 });
@@ -119,6 +154,7 @@ describe('notebook API sharing', () => {
     ['GET list', 'get', '?spaceId=SPACE', undefined],
     ['POST create', 'post', '', { id: newId, spaceId: 'SPACE' }],
     ['POST ai/improve', 'post', '/ai/improve', { spaceId: 'SPACE', text: 'x', instruction: 'y' }],
+    ['POST ai/skill', 'post', '/ai/skill', { spaceId: 'SPACE', skill: { name: 'x', description: '', body: '' } }],
     ['PUT order', 'put', '/order', { spaceId: 'SPACE', ids: [pageId] }],
     ['GET versions', 'get', `/${pageId}/versions`, undefined],
     ['GET version', 'get', `/${pageId}/versions/${versionId}`, undefined],

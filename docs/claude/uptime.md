@@ -1,0 +1,40 @@
+# Uptime rules
+
+## Uptime rules
+
+- **What a site is.** An Uptime space lists sites (`uptime_monitors`): a name, a URL, and a kind (`web` or `api`, which only changes the hints). Each site carries its current `status` (`up`, `slow`, `down`, or null before the first check), `lastCheckedAt`, `lastResponseMs`, `lastError` and `downSince`.
+  - Every check goes in `uptime_checks`.
+  - A spell of down checks is one `uptime_incidents` row: opened by the first down check, closed by the next up or slow one.
+  - Checks and closed incidents older than 30 days are pruned.
+- **A check** (`check-site.ts`):
+  - It's one `GET` with `User-Agent: Daybook-Uptime/1.0`. Redirects are followed up to 3 times, and the final answer counts; a 3xx still left after the third hop counts as an answer. The body is never read.
+  - **Up** is 200–399 within 10 s, and **slow** is the same over 2,000 ms (slow counts as up in every percentage).
+  - Anything else is **down**, with a short reason ("502 Bad Gateway", "Timed out after 10 s", "Connection refused", "Address not found", "Not a public address").
+  - `checkWithRetry` tries a down result once more after 5 s and keeps only the second answer, so a blip never turns a site red.
+- **Only public addresses.** Every connection's resolved address must pass `isPublicAddress`, checked in the socket `lookup` through `shared/utils/public-address.ts` (shared with the jobs posting fetcher), so redirects and DNS rebinding can't reach private addresses. Adding a site, or changing its URL, first runs `isPublicUrl` (http(s), at most 2,000 characters, every DNS address public); otherwise it answers 400 "Public addresses only".
+- **The scheduler** (`UptimeScheduler`) is the API's one background job.
+  - Every 15 s it checks each due site: not paused, last checked a minute ago or more (or never), in a space that isn't in Trash, and still visible through `SpaceAccessService.viewerIds` (so a folder or group in Trash stops it too). Locked spaces are still checked: the password guards reading.
+  - A tick that is still running makes later ticks skip, so at most 5 checks ever run at once, and a site already in flight is skipped.
+  - Each site is recorded at the time its own check started (the tick's time plus its wait in the queue).
+  - It prunes once an hour.
+  - It doesn't start under vitest, and it stops on shutdown.
+  - It lives in the API process, so the API must stay a single instance, and nothing is checked while the API is down (those half hours show as grey, and count neither way).
+- **The dot.** `uptimeDots` (`shared/utils/uptime-status.ts`) works out a space's dot from its sites' current status: down beats slow beats up, ignoring paused and never-checked sites. `GET /spaces` sends it as `uptime`.
+  - When a check changes a site's status, or a site is paused, resumed or deleted, `RealtimeUptimeNotifier` pushes `{ type: 'uptime', spaceId, status }` on the per-user socket to `viewerIds` at that moment.
+  - The browser patches `space.uptime` and invalidates `['uptime', spaceId]` and `['uptime-monitor']`.
+- **Routes** (`/uptime`; reads also need the unlock cookie):
+  - `GET /:spaceId` (view): sites, each with its 48 half-hour bars (worst result first, `none` when empty) and 24 h uptime; plus the space's 24 h uptime, incidents in 7 days and newest check.
+  - `GET /monitors/:id` (view): 7- and 30-day uptime, half-hour average response times, and incidents (ongoing ones and the last 30 days, newest first, at most 50).
+  - `POST /:spaceId/monitors` (edit, at most 50 per space) checks once before answering. `PATCH /monitors/:id` vets and checks only a URL that differs from the stored one, so a rename saves at once even while the site's DNS is broken.
+  - `POST /monitors/:id/check` is limited to once every 10 s per site (429), in memory.
+  - `DELETE /monitors/:id` hard-deletes the site with its history; there is no Undo.
+  - A non-Uptime space answers 404.
+- **Pausing** clears the site's status, `downSince` and `lastError`, and closes its open incident, so paused time never counts as downtime. A resumed site starts afresh at its next check.
+- **Owner scoping.** The service's reads and writes for a person (`load`, `row`, `monitor`, `update`, `remove`) take the owner id that `SpaceAccessService` returned and filter on it. `record`, `due`, `prune` and `dotStatus` serve the scheduler and the dot.
+- **Space rules.** An Uptime space can be shared (viewers see everything; editors add, edit, pause, check and delete), but it can't be duplicated. Its rows go when the space is deleted for good.
+- **The web** (`features/uptime`, `/uptime`):
+  - The page has a header ("Checked every minute · Last check N s ago"), three tiles (up now over unpaused sites, 24 h uptime, incidents in 7 days), and a table with the status pill, name, URL, the down reason with its duration, response time, the 24-hour strip and 24 h %.
+  - A row opens `MonitorDrawerComponent` (vaul, from the right). Add and Edit share `MonitorDialogComponent`.
+  - Add, edit, check and pause wait for the server's answer, then write the returned site into the page and the open drawer. Delete is optimistic.
+  - `['uptime', spaceId]` refetches every 60 s while the page is open.
+  - Colours: up is `status-done`, slow `signal`, down `destructive`, and paused or empty is muted.

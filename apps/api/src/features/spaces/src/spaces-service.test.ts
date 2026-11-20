@@ -2,7 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
-import { diagrams, tasks } from '../../../shared/db/schema.ts';
+import { diagrams, tasks, uptimeMonitors } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { SpaceAccessService } from './space-access-service.ts';
 import { SpacesService } from './spaces-service.ts';
@@ -18,6 +18,18 @@ describe('SpacesService', () => {
     await insertUser(db, 'u1');
     await insertUser(db, 'u2');
     svc = new SpacesService(db, new SpaceAccessService(db));
+  });
+
+  it('gives Uptime spaces their dot in the list', async () => {
+    const sites = await insertSpace(db, 'u1', { tool: 'uptime' });
+    const list = await insertSpace(db, 'u1', { tool: 'list' });
+    await db.insert(uptimeMonitors).values([
+      { spaceId: sites, userId: 'u1', name: 'A', url: 'https://a.example', kind: 'web', status: 'up' },
+      { spaceId: sites, userId: 'u1', name: 'B', url: 'https://b.example', kind: 'api', status: 'down' },
+    ]);
+    const byId = new Map((await svc.list('u1', today)).map((space) => [space.id, space.uptime]));
+    expect(byId.get(sites)).toBe('down');
+    expect(byId.get(list)).toBeNull();
   });
 
   it('starts with no spaces', async () => {

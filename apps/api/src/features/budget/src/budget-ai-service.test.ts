@@ -45,6 +45,26 @@ describe('BudgetAiService', () => {
     await expect(withReply('{"headline":"No points"}').service.fitnessRead({})).rejects.toThrow(BadGatewayException);
   });
 
+  it('improves a skill, joining body lines and keeping the old name when the new one breaks the rules', async () => {
+    const reply = { name: 'Deploy Checklist!', description: ' Use when deploying. ', bodyLines: ['# Deploy', '', '1. Migrate.'], purpose: 'Ships a release.', changes: ['a', ' ', 'b'] };
+    const { service, generateContent } = withReply(JSON.stringify(reply));
+    const skill = { name: 'deploy-checklist', description: 'Deploy stuff', body: 'run migrations' };
+    expect(await service.improveSkill(skill, 'Shorter')).toEqual({
+      name: 'deploy-checklist',
+      description: 'Use when deploying.',
+      body: '# Deploy\n\n1. Migrate.',
+      purpose: 'Ships a release.',
+      changes: ['a', 'b'],
+    });
+    const request = JSON.stringify(generateContent.mock.calls[0][0]);
+    expect(request).toContain('run migrations');
+    expect(request).toContain('<instruction>\\nShorter');
+    const withFiles = withReply(JSON.stringify(reply));
+    await withFiles.service.improveSkill({ ...skill, files: ['templates/Jenkinsfile'] });
+    expect(JSON.stringify(withFiles.generateContent.mock.calls[0][0])).toContain('<other-files>\\ntemplates/Jenkinsfile');
+    expect((await withReply(JSON.stringify({ ...reply, name: 'deploy-v2' })).service.improveSkill(skill)).name).toBe('deploy-v2');
+  });
+
   it('refuses a reply that does not fit the schema instead of using it', async () => {
     const { service } = withReply('{"category":"Rent"}');
     await expect(service.categorize(categories, { note: 'Flat', kind: 'expense', amount: '$900' })).rejects.toThrow(BadGatewayException);

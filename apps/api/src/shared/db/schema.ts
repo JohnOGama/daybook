@@ -26,7 +26,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines', 'skills', 'uptime']);
 
 export const shareRole = pgEnum('share_role', ['edit', 'view']);
 export type ShareRole = (typeof shareRole.enumValues)[number];
@@ -658,4 +658,58 @@ export const pipelineStages = pgTable(
     finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'string' }),
   },
   (t) => [uniqueIndex('pipeline_stages_run_name_idx').on(t.runId, t.name)],
+);
+
+// A site an Uptime space watches. `status` is up | slow | down (null before its first check), set after every check;
+// `kind` is web | api and only changes the hints shown. The scheduler checks unpaused sites every minute.
+export const uptimeMonitors = pgTable(
+  'uptime_monitors',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ...ownedBySpace(),
+    name: text('name').notNull(),
+    url: text('url').notNull(),
+    kind: text('kind').notNull(),
+    paused: boolean('paused').notNull().default(false),
+    position: integer('position').notNull().default(0),
+    status: text('status'),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastResponseMs: integer('last_response_ms'),
+    lastError: text('last_error'),
+    downSince: timestamp('down_since', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('uptime_monitors_space_idx').on(t.spaceId)],
+);
+
+// One stored check: kept for 30 days. `responseMs` is null when down, `httpStatus` when nothing answered.
+export const uptimeChecks = pgTable(
+  'uptime_checks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    monitorId: uuid('monitor_id')
+      .notNull()
+      .references(() => uptimeMonitors.id, { onDelete: 'cascade' }),
+    checkedAt: timestamp('checked_at', { withTimezone: true }).notNull(),
+    status: text('status').notNull(),
+    responseMs: integer('response_ms'),
+    httpStatus: integer('http_status'),
+    error: text('error'),
+  },
+  (t) => [index('uptime_checks_monitor_time_idx').on(t.monitorId, t.checkedAt)],
+);
+
+// A spell of down checks: opened by the first, closed by the next up or slow one. `endedAt` is null while ongoing.
+export const uptimeIncidents = pgTable(
+  'uptime_incidents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    monitorId: uuid('monitor_id')
+      .notNull()
+      .references(() => uptimeMonitors.id, { onDelete: 'cascade' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    reason: text('reason'),
+  },
+  (t) => [index('uptime_incidents_monitor_time_idx').on(t.monitorId, t.startedAt)],
 );
