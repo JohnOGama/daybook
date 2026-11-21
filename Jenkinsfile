@@ -200,12 +200,10 @@ pipeline {
     }
 
     post {
-        success { daybookFinish('passed') }
-        failure { daybookFinish('failed') }
-        aborted { daybookFinish('aborted') }
         always  { echo '===== Pipeline Finished ====='; sh 'docker logout' }
-        success { echo '===== Pipeline Successful =====' }
-        failure { echo '===== Pipeline Failed =====' }
+        success { echo '===== Pipeline Successful ====='; daybookFinish('passed') }
+        failure { echo '===== Pipeline Failed ====='; daybookFinish('failed') }
+        aborted { daybookFinish('aborted') }
         cleanup { echo '===== Cleaning Jenkins Workspace ====='; deleteDir() }
     }
 }
