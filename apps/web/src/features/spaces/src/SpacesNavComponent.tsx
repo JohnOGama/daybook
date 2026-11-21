@@ -182,7 +182,7 @@ type SpaceRowProps = {
 function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceRowProps) {
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({ id: space.id });
-  const Icon = TOOL_ICONS[space.tool ?? 'list'];
+  const Icon = TOOL_ICONS[space.tool ?? 'list'] ?? TOOL_ICONS.list;
   const icon = <Icon className="size-4 shrink-0" data-active={isActive || undefined} aria-hidden />;
   const startEditing = isOwn(space) ? () => setEditing(true) : undefined;
 

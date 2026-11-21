@@ -46,7 +46,7 @@ function PasswordRow({ space, folder }: Row) {
   const [mode, setMode] = useState<PasswordDialogMode>();
   const { lockNow } = useSpaceLock();
   const { data: unlocked } = useSpaceUnlocked(space);
-  const ToolIcon = TOOL_ICONS[space.tool ?? 'list'];
+  const ToolIcon = TOOL_ICONS[space.tool ?? 'list'] ?? TOOL_ICONS.list;
   const toolLabel = TOOLS.find(({ id }) => id === space.tool)?.label;
   const StatusIcon = unlocked ? LockKeyholeOpen : LockKeyhole;
   const status = space.locked ? (
