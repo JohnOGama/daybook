@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Daybook is a personal workspace: a Next.js app (`apps/web`) and a NestJS API (`apps/api`) in a pnpm workspace, using Postgres (Neon), Drizzle and Better Auth. Everything lives in spaces, each running one tool: List (day-based tasks, Calendar, Kanban), Notebook, Book, Vault, Budget, Fitness, Job hunt, Database diagram, Pipelines, Skills and Uptime. There is also an Assistant page, and spaces can be shared and edited live. `docs/superpowers/specs/2026-11-09-daybook-design.md` has the overview and the task list's design, and each tool or feature has its own spec in the same folder. The rule sections below are the working summary of how each one behaves.
+Daybook is a personal workspace: a Next.js app (`apps/web`) and a NestJS API (`apps/api`) in a pnpm workspace, using Postgres (Neon), Drizzle and Better Auth. Everything lives in spaces, each running one tool: List (day-based tasks, Calendar, Kanban), Notebook, Book, Vault, Budget, Fitness, Job hunt, Database diagram, Pipelines, Skills and Uptime. There is also an Assistant page, spaces can be shared and edited live, and AI apps can log Fitness entries over MCP. `docs/superpowers/specs/2026-11-09-daybook-design.md` has the overview and the task list's design, and each tool or feature has its own spec in the same folder. The rule sections below are the working summary of how each one behaves.
 
 The structure and naming rules below apply inside each app, so `src/features` means `apps/web/src/features` or `apps/api/src/features`.
 
@@ -48,6 +48,7 @@ The rules live in one file per area, imported below. Keep each file current: a b
 - Pipelines rules: The Jenkins report endpoint, keys, pushes, the AI helper. @docs/claude/pipelines.md
 - Skills rules: SKILL.md pages, the improve AI, download. @docs/claude/skills.md
 - Uptime rules: Checks, the scheduler, incidents, the live dot. @docs/claude/uptime.md
+- MCP rules: OAuth for AI apps, the /api/mcp Fitness tools, connected apps. @docs/claude/mcp.md
 - Assistant page: The /assistant page and its dots. @docs/claude/assistant.md
 - Sharing rules: Shares, access checks, versions. @docs/claude/sharing.md
 - Web data flow, UI and loading: Query keys, the Vault cache rule, optimistic mutations, theme, Skullet. @docs/claude/web.md

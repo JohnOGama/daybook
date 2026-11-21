@@ -6,5 +6,10 @@ import { FitnessFoodService } from './fitness-food-service.ts';
 import { FitnessService } from './fitness-service.ts';
 import { FitnessWorkoutService } from './fitness-workout-service.ts';
 
-@Module({ imports: [SpacesModule, BudgetModule], controllers: [FitnessController], providers: [FitnessService, FitnessFoodService, FitnessWorkoutService] })
+@Module({
+  imports: [SpacesModule, BudgetModule],
+  controllers: [FitnessController],
+  providers: [FitnessService, FitnessFoodService, FitnessWorkoutService],
+  exports: [FitnessService, FitnessFoodService, FitnessWorkoutService],
+})
 export class FitnessModule {}

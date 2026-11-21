@@ -10,4 +10,5 @@
 - Targets, BMI, day totals, the forecast and muscle load are computed in the browser (`targets-math.ts`, `food-math.ts`, `forecast-math.ts`, `workout-math.ts`); the API only stores and checks ownership. Days with nothing eaten are left out of averages, never counted as zero.
 - The body diagram's shapes (`body-shapes.ts`) are from react-body-highlighter (MIT, notice in the file). Its one upper-back region stands for both lats and middle back.
 - The AI read reuses `BudgetAiService.fitnessRead` through `POST /fitness/ai/read`. It is sent only what `fitness-summary.ts` builds: figures, never food, exercise or workout names.
+- AI apps log food, workouts and weigh-ins through MCP (`docs/claude/mcp.md`) under the same rules: one-off foods are logs only, never stored foods.
 - There is no offline queue and a Fitness space cannot be duplicated.

@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "1.7.18",
     "@codemirror/language": "6.13.1",
     "@codemirror/lint": "6.9.8",
     "@codemirror/state": "6.7.6",

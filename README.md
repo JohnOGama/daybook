@@ -68,7 +68,13 @@ The Vault only works over HTTPS or on localhost, because browsers limit Web Cryp
 
 Run the API as a single instance. Live editing and presence (`/api/realtime/*`), the per-user live socket and the Pipelines report limiter all keep their state in that process's memory. Several API servers would need a shared relay first. Your host or proxy must also pass WebSocket upgrades through to the API.
 
+`/api/auth/oauth2/register` is public too: AI apps register themselves before signing in. Put the same IP rate limiting in front of it.
+
 `POST /api/pipelines/report` is public: Jenkins calls it with a space's key, with no sign-in. Each key is limited to 120 reports a minute, but requests with a wrong key are not limited yet, so put the same IP rate limiting in front of it as for sign-in.
+
+## Connect an AI app
+
+ChatGPT, Claude and Gemini can log food, workouts and weigh-ins in your Fitness spaces. In the app, add a custom connector with the URL `https://<your site>/api/mcp`; it opens Daybook's sign-in and asks you to Allow. ChatGPT and claude.ai connect from their own servers, so they need the public HTTPS site (while developing, `cloudflared tunnel --url http://localhost:3000` gives a temporary one). MCP Inspector, Claude Code and Gemini CLI also work against `http://localhost:3000/api/mcp`. Disconnect an app in Settings → Connected apps.
 
 ## Test
 

@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { authClient } from '@/shared/services/auth-client';
 import { AuthCardComponent } from './AuthCardComponent';
 import { AuthFieldComponent } from './AuthFieldComponent';
+import { withWaitingApp } from './oauth-request';
 
 export function ForgotPasswordPageComponent() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export function ForgotPasswordPageComponent() {
     if (requestError) {
       setError(requestError.message ?? 'Something went wrong. Please try again.');
     } else if (codeSent) {
-      router.push('/sign-in');
+      router.push(withWaitingApp('/sign-in'));
     } else {
       setCodeSent(true);
     }
@@ -41,7 +42,7 @@ export function ForgotPasswordPageComponent() {
       error={error}
       onSubmit={handleSubmit}
       footer={
-        <Link href="/sign-in" className="underline">
+        <Link href={withWaitingApp('/sign-in')} className="underline">
           Back to sign in
         </Link>
       }

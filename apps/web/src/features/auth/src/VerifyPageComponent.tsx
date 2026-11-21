@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/button';
 import { authClient } from '@/shared/services/auth-client';
 import { AuthCardComponent } from './AuthCardComponent';
 import { AuthFieldComponent } from './AuthFieldComponent';
+import { withWaitingApp } from './oauth-request';
 
 export function VerifyPageComponent() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export function VerifyPageComponent() {
       setBusy(false);
       return;
     }
-    router.push('/sign-in');
+    router.push(withWaitingApp('/sign-in'));
   }
 
   async function handleResend() {

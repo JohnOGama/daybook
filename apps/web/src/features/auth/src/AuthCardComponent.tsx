@@ -10,11 +10,13 @@ type AuthCardProps = {
   onSubmit: FormEventHandler<HTMLFormElement>;
   children: ReactNode;
   footer?: ReactNode;
+  // For pages only a signed-in person sees, like the OAuth consent page.
+  signedIn?: boolean;
 };
 
-export function AuthCardComponent({ title, subtitle, error, onSubmit, children, footer }: AuthCardProps) {
-  const { isSignedOut } = useRedirectIfSignedIn();
-  if (!isSignedOut) return <AuthCardSkeletonComponent />;
+export function AuthCardComponent({ title, subtitle, error, onSubmit, children, footer, signedIn = false }: AuthCardProps) {
+  const { isSignedOut } = useRedirectIfSignedIn(!signedIn);
+  if (!signedIn && !isSignedOut) return <AuthCardSkeletonComponent />;
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-sidebar p-4">

@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { authClient } from '@/shared/services/auth-client';
 import { AuthCardComponent } from './AuthCardComponent';
 import { AuthFieldComponent } from './AuthFieldComponent';
+import { withWaitingApp } from './oauth-request';
 
 export function SignUpPageComponent() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export function SignUpPageComponent() {
       setBusy(false);
       return;
     }
-    router.push(`/verify?email=${encodeURIComponent(email)}`);
+    router.push(withWaitingApp(`/verify?email=${encodeURIComponent(email)}`));
   }
 
   return (
@@ -39,7 +40,7 @@ export function SignUpPageComponent() {
       error={error}
       onSubmit={handleSubmit}
       footer={
-        <Link href="/sign-in" className="underline">
+        <Link href={withWaitingApp('/sign-in')} className="underline">
           Already have an account? Sign in
         </Link>
       }

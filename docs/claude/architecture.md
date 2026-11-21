@@ -8,6 +8,7 @@
 
 - The browser only calls same-origin `/api/*`. `next.config.ts` rewrites that to the API (`API_ORIGIN`, default `http://localhost:4000`), which keeps session cookies first-party.
 - `apps/api/src/main.ts` mounts Better Auth directly on Express at `/api/auth/*splat` with Nest's body parser off, then adds `express.json()`. Better Auth needs the unparsed body, so keep that order.
+- `/.well-known/*` is rewritten to the API too (OAuth and MCP discovery). `POST /api/mcp` takes a bearer token from Daybook's OAuth provider instead of the session cookie; see `docs/claude/mcp.md`.
 - Controllers use `@UseGuards(AuthGuard)` and `@UserId()`, and validate input with `parseOrThrow(zodSchema, body)`. Every service query must be scoped to `userId`.
 - A space can have a password (any tool but Vault). `SpaceLockService` enforces it on the server: any endpoint that returns a space's contents must call `assertUnlocked` (or mask them, as Trash does), and unlocking sets a signed, httpOnly `daybook_unlock_<spaceId>` cookie. The web `SpaceLockGateComponent` only decides what to show.
 - The web app's sign-in gate is client-side, in `AppShellComponent`. Auth rate limiting is off until the steps in the README's "Before deploying" section are done.

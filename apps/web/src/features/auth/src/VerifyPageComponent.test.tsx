@@ -56,3 +56,13 @@ it('shows an error when a new code cannot be sent', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Resend code' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not send');
 });
+
+it('goes back to sign in with the waiting app’s query, so the app’s sign-in carries on', async () => {
+  window.history.pushState({}, '', '/verify?email=a%40b.c&client_id=c1&sig=abc');
+  verifyEmail.mockResolvedValue({ data: {}, error: null });
+  render(<VerifyPageComponent />);
+  await userEvent.type(screen.getByLabelText(/code/i), '123456');
+  await userEvent.click(screen.getByRole('button', { name: /verify/i }));
+  expect(push).toHaveBeenCalledWith('/sign-in?client_id=c1&sig=abc');
+  window.history.pushState({}, '', '/');
+});

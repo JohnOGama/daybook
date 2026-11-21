@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { authClient } from '@/shared/services/auth-client';
 import { AuthCardComponent } from './AuthCardComponent';
 import { AuthFieldComponent } from './AuthFieldComponent';
+import { leaveFor, withWaitingApp } from './oauth-request';
 
 export function SignInPageComponent() {
   const router = useRouter();
@@ -22,12 +23,18 @@ export function SignInPageComponent() {
     const result = await authClient.signIn.email({ email, password });
     if (result.error?.code === 'EMAIL_NOT_VERIFIED') {
       await authClient.emailOtp.sendVerificationOtp({ email, type: 'email-verification' });
-      router.push(`/verify?email=${encodeURIComponent(email)}`);
+      router.push(withWaitingApp(`/verify?email=${encodeURIComponent(email)}`));
       return;
     }
     if (result.error) {
       setError(result.error.message ?? 'Could not sign in.');
       setBusy(false);
+      return;
+    }
+    // Reached from an app's authorization: Better Auth answers with where to continue.
+    const next = result.data as { redirect?: boolean; url?: unknown } | null;
+    if (next?.redirect && typeof next.url === 'string') {
+      leaveFor(next.url);
       return;
     }
     router.push('/list');
@@ -40,10 +47,10 @@ export function SignInPageComponent() {
       onSubmit={handleSubmit}
       footer={
         <div className="flex justify-between">
-          <Link href="/sign-up" className="underline">
+          <Link href={withWaitingApp('/sign-up')} className="underline">
             Create an account
           </Link>
-          <Link href="/forgot-password" className="underline">
+          <Link href={withWaitingApp('/forgot-password')} className="underline">
             Forgot password?
           </Link>
         </div>

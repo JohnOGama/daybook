@@ -1,14 +1,40 @@
 'use client';
 
-import { LayoutGrid, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Plug, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { ConnectedAppsComponent } from '@/features/connected-apps';
 import { SpaceGroupsManagerComponent, SpacePasswordsComponent } from '@/features/spaces';
 
 const SECTIONS = [
   { id: 'spaces', label: 'Spaces', Icon: LayoutGrid },
   { id: 'security', label: 'Security', Icon: ShieldCheck },
+  { id: 'apps', label: 'Connected apps', Icon: Plug },
 ];
+
+function ConnectedAppsSectionComponent() {
+  // Read after mount so the server render and the first client render agree.
+  const [origin, setOrigin] = useState('');
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  return (
+    <section aria-labelledby="connected-apps" className="mt-8 flex max-w-3xl flex-col gap-4">
+      <div>
+        <h2 id="connected-apps" className="text-xl font-semibold tracking-tight">
+          Connected apps
+        </h2>
+        <p className="mt-1 max-w-xl text-sm text-pretty text-muted-foreground">
+          Apps like ChatGPT, Claude or Gemini that you've let log food, workouts and weight in your Fitness spaces. Disconnecting one stops it at once.
+        </p>
+        <p className="mt-2 max-w-xl text-sm text-pretty text-muted-foreground">
+          To connect one, add <code className="rounded bg-muted px-1 py-0.5 text-foreground">{origin}/api/mcp</code> as a custom connector in the app.
+        </p>
+      </div>
+      <ConnectedAppsComponent />
+    </section>
+  );
+}
 
 export function SettingsPageComponent() {
   const section = useSearchParams().get('section');
@@ -32,7 +58,9 @@ export function SettingsPageComponent() {
           ))}
         </nav>
 
-        {current.id === 'spaces' ? (
+        {current.id === 'apps' ? (
+          <ConnectedAppsSectionComponent />
+        ) : current.id === 'spaces' ? (
           <section aria-labelledby="spaces" className="mt-8 flex max-w-3xl flex-col gap-4">
             <div>
               <h2 id="spaces" className="text-xl font-semibold tracking-tight">
