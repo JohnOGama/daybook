@@ -23,7 +23,7 @@ pipeline {
     }
 
     environment {
-        DAYBOOK_URL = 'http://localhost:3000'
+        DAYBOOK_URL = 'https://daybook-production.ogama.one'
         DAYBOOK_KEY = credentials('DAYBOOK_DAYBOOK_KEY')
         SERVER_IP    = credentials('SERVER_IP')
         IMAGE_NAME   = 'johnogama19/daybook-backend'
