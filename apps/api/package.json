@@ -9,6 +9,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:wipe": "tsx --env-file=.env src/scripts/wipe-db.ts",
     "fitness:import-foods": "tsx --env-file=.env src/scripts/import-usda-foods.ts",
     "fitness:import-exercises": "tsx --env-file=.env src/scripts/import-exercises.ts"
   },
