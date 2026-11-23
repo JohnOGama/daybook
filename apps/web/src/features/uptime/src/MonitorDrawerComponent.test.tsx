@@ -77,9 +77,9 @@ it('shows uptime for 24 h, 7 days and 30 days, the response chart and the incide
   expect(screen.getByText('99.8%')).toBeInTheDocument();
   expect(screen.getByRole('img', { name: 'Response time, last 24 hours' })).toBeInTheDocument();
   const incidents = within(screen.getByRole('list', { name: 'Incidents' })).getAllByRole('listitem');
-  expect(incidents[0]).toHaveTextContent(`Down now · since ${clock(ongoingSince)} (12 min)`);
+  expect(incidents[0]).toHaveTextContent(`Down now · since ${clock(ongoingSince)} (12 minutes)`);
   expect(incidents[0]).toHaveTextContent('502 Bad Gateway');
-  expect(incidents[1]).toHaveTextContent('Down 25 min');
+  expect(incidents[1]).toHaveTextContent('Down 25 minutes');
   expect(incidents[1]).toHaveTextContent(`${clock(closedStart)}–${clock(closedEnd)}`);
   expect(incidents[1]).toHaveTextContent('Timed out after 10 s');
 });

@@ -38,3 +38,4 @@
   - Add, edit, check and pause wait for the server's answer, then write the returned site into the page and the open drawer. Delete is optimistic.
   - `['uptime', spaceId]` refetches every 60 s while the page is open.
   - Colours: up is `status-done`, slow `signal`, down `destructive`, and paused or empty is muted.
+  - Hovering a status pill (`MonitorStatusComponent`) says how fast the last check answered in seconds (`formatSeconds`), or a down site's reason. Hovering a bar in the 24-hour strip (`UptimeBarsComponent`) shows a card with its date, half hour and result; only the hovered bar mounts a tooltip. Durations (incidents, "down for") are in words, rounded down (`formatDuration`: "45 seconds", "1 hour 5 minutes").

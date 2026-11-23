@@ -10,15 +10,22 @@ export const formatResponse = (ms: number | null) => {
   return `${Number((ms / 1000).toFixed(1))} s`;
 };
 
+// A response time always in seconds, for the status pill's hover: 0.18 s, 2.4 s, 12.5 s.
+export const formatSeconds = (ms: number) => `${Number((ms / 1000).toFixed(ms < 1000 ? 2 : 1))} s`;
+
 export const formatUptime = (pct: number | null) => (pct === null ? '—' : `${pct}%`);
 
-// The two largest units that matter: 45 s, 12 min, 1 h 5 min, 2 d 3 h.
+const count = (value: number, unit: string) => `${value} ${unit}${value === 1 ? '' : 's'}`;
+
+// The two largest units that matter, in words: 45 seconds, 12 minutes, 1 hour 5 minutes, 2 days 3 hours.
+// Rounded down, so 59.6 seconds never reads as 60.
 export function formatDuration(ms: number): string {
-  if (ms < MINUTE) return `${Math.round(ms / 1000)} s`;
-  if (ms < HOUR) return `${Math.round(ms / MINUTE)} min`;
-  const pair = (big: number, bigUnit: string, small: number, smallUnit: string) => (small > 0 ? `${big} ${bigUnit} ${small} ${smallUnit}` : `${big} ${bigUnit}`);
-  if (ms < DAY) return pair(Math.floor(ms / HOUR), 'h', Math.floor((ms % HOUR) / MINUTE), 'min');
-  return pair(Math.floor(ms / DAY), 'd', Math.floor((ms % DAY) / HOUR), 'h');
+  if (ms < 1000) return 'under a second';
+  if (ms < MINUTE) return count(Math.floor(ms / 1000), 'second');
+  if (ms < HOUR) return count(Math.floor(ms / MINUTE), 'minute');
+  const pair = (big: string, small: number, smallUnit: string) => (small > 0 ? `${big} ${count(small, smallUnit)}` : big);
+  if (ms < DAY) return pair(count(Math.floor(ms / HOUR), 'hour'), Math.floor((ms % HOUR) / MINUTE), 'minute');
+  return pair(count(Math.floor(ms / DAY), 'day'), Math.floor((ms % DAY) / HOUR), 'hour');
 }
 
 export function checkedAgo(iso: string | null, now: Date): string {

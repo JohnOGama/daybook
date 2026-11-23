@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkedAgo, formatDuration, formatResponse, formatUptime, upNow } from './uptime-math';
+import { checkedAgo, formatDuration, formatResponse, formatSeconds, formatUptime, upNow } from './uptime-math';
 import type { MonitorRow } from './uptime-types';
 
 describe('uptime-math', () => {
@@ -23,11 +23,25 @@ describe('uptime-math', () => {
   });
 
   it.each([
-    [45_000, '45 s'],
-    [12 * 60_000, '12 min'],
-    [65 * 60_000, '1 h 5 min'],
-    [2 * 3_600_000, '2 h'],
-    [(2 * 24 + 3) * 3_600_000, '2 d 3 h'],
+    [182, '0.18 s'],
+    [2_345, '2.3 s'],
+    [10_000, '10 s'],
+  ])('says a response of %s ms took %s', (ms, text) => {
+    expect(formatSeconds(ms)).toBe(text);
+  });
+
+  it.each([
+    [400, 'under a second'],
+    [1_000, '1 second'],
+    [45_000, '45 seconds'],
+    [59_600, '59 seconds'],
+    [60_000, '1 minute'],
+    [12 * 60_000, '12 minutes'],
+    [61 * 60_000, '1 hour 1 minute'],
+    [65 * 60_000, '1 hour 5 minutes'],
+    [2 * 3_600_000, '2 hours'],
+    [(24 + 1) * 3_600_000, '1 day 1 hour'],
+    [(2 * 24 + 3) * 3_600_000, '2 days 3 hours'],
   ])('formats a duration of %s ms as %s', (ms, text) => {
     expect(formatDuration(ms)).toBe(text);
   });

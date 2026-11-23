@@ -26,7 +26,7 @@ export function MonitorTableComponent({ monitors, now, onOpen }: { monitors: Mon
         {monitors.map((site) => (
           <TableRow key={site.id} className="cursor-pointer" onClick={() => onOpen(site.id)}>
             <TableCell>
-              <MonitorStatusComponent status={site.status} paused={site.paused} />
+              <MonitorStatusComponent status={site.status} paused={site.paused} responseMs={site.lastResponseMs} error={site.lastError} />
             </TableCell>
             <TableCell className="max-w-0 min-w-40">
               <button type="button" onClick={() => onOpen(site.id)} className="flex items-center gap-2 text-left font-semibold hover:underline">

@@ -37,7 +37,7 @@ export function PresenceAvatarsComponent() {
               <AvatarFallback className="text-[10px] font-medium text-foreground">{initials(person.name)}</AvatarFallback>
             </Avatar>
           </TooltipTrigger>
-          <TooltipContent>{label(person)}</TooltipContent>
+          <TooltipContent side="bottom">{label(person)}</TooltipContent>
         </Tooltip>
       ))}
       {rest.length > 0 && (
@@ -47,7 +47,7 @@ export function PresenceAvatarsComponent() {
               +{rest.length}
             </AvatarGroupCount>
           </TooltipTrigger>
-          <TooltipContent>
+          <TooltipContent side="bottom">
             {rest.map((person) => (
               <div key={person.userId}>{label(person)}</div>
             ))}

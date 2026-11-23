@@ -76,7 +76,7 @@ it('shows each site with its status, response, bars and 24 h uptime, and the til
   expect(screen.getByText('Last check 12 s ago', { exact: false })).toBeInTheDocument();
   const gym = screen.getByRole('row', { name: /Gym API/ });
   expect(within(gym).getByText('Down')).toBeInTheDocument();
-  expect(within(gym).getByText('502 Bad Gateway · down for 12 min')).toBeInTheDocument();
+  expect(within(gym).getByText('502 Bad Gateway · down for 12 minutes')).toBeInTheDocument();
   expect(within(gym).getByText('97.1%')).toBeInTheDocument();
   const web = screen.getByRole('row', { name: /Daybook web/ });
   expect(within(web).getByText('182 ms')).toBeInTheDocument();

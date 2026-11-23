@@ -59,14 +59,15 @@ it('hides Shared with me when nothing is shared', () => {
   expect(screen.queryByText('Shared with me')).not.toBeInTheDocument();
 });
 
-it('lists spaces shared with me under their own heading, with the owner name and no drag handles', () => {
+it('lists spaces shared with me under their own heading, naming the owner on hover only, with no drag handles', () => {
   showWith([
     ...ownSpaces,
     space('theirs', 'Their Plans', fromSam),
     space('other', 'Other Plans', fromSam),
   ]);
   expect(screen.getByText('Shared with me')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /Their Plans/ })).toHaveTextContent('Sam');
+  expect(screen.getByRole('link', { name: /Their Plans/ })).toHaveAttribute('title', 'Shared by Sam');
+  expect(screen.getByRole('link', { name: /Their Plans/ })).not.toHaveTextContent('Sam');
   expect(screen.queryByRole('button', { name: 'Drag Their Plans' })).not.toBeInTheDocument();
 });
 
@@ -76,7 +77,8 @@ it('puts a shared folder with its spaces in Shared with me, with no new space bu
     space('their-folder', 'Their Folder', { ...fromSam, kind: 'folder', tool: null }),
     space('inside', 'Inside Theirs', { ...fromSam, parentId: 'their-folder' }),
   ]);
-  expect(screen.getByRole('button', { name: /^Their Folder/ })).toHaveTextContent('Sam');
+  expect(screen.getByRole('button', { name: /^Their Folder/ })).toHaveAttribute('title', 'Shared by Sam');
+  expect(screen.getByRole('button', { name: /^Their Folder/ })).not.toHaveTextContent('Sam');
   expect(screen.getByRole('link', { name: /Inside Theirs/ })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'New space in Their Folder' })).not.toBeInTheDocument();
 });

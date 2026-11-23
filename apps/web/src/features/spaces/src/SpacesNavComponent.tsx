@@ -154,10 +154,8 @@ const SAMPLE_SPACES: Space[] = ['My first list', 'Weekly plans', 'Side project']
   ownerName: null,
 }));
 
-function OwnerName({ space }: { space: Space }) {
-  if (isOwn(space) || !space.ownerName) return null;
-  return <span className="shrink-0 truncate text-xs font-normal text-muted-foreground">{space.ownerName}</span>;
-}
+// Who shared a row with you, on hover only, to keep the sidebar to titles.
+const sharedBy = (space: Space) => (isOwn(space) || !space.ownerName ? undefined : `Shared by ${space.ownerName}`);
 
 function LabelEditor({ space, icon, onClose }: { space: Space; icon: ReactNode; onClose: () => void }) {
   const rename = useRenameSpace();
@@ -251,6 +249,7 @@ function SpaceRow({ space, isActive, canDrag, nested, renderSummary }: SpaceRowP
               <Link
                 href={spaceHref(space)}
                 draggable={false}
+                title={sharedBy(space)}
                 aria-current={isActive ? 'page' : undefined}
                 onDoubleClick={startEditing}
                 className={cn(
@@ -262,7 +261,6 @@ function SpaceRow({ space, isActive, canDrag, nested, renderSummary }: SpaceRowP
                 {icon}
                 <span className="truncate">{space.title}</span>
                 {space.shared && <Users className="size-3.5 shrink-0 text-muted-foreground" aria-label="Shared" />}
-                <OwnerName space={space} />
                 <PipelineDotComponent space={space} />
                 <UptimeDotComponent space={space} />
                 {space.openToday > 0 && (
@@ -317,6 +315,7 @@ function FolderRow({ folder, activeId, isOpen, canDrag, dropTarget, onToggle, on
               <button
                 type="button"
                 aria-expanded={isOpen}
+                title={sharedBy(folder)}
                 onClick={onToggle}
                 onDoubleClick={own ? () => setEditing(true) : undefined}
                 className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-foreground"
@@ -324,7 +323,6 @@ function FolderRow({ folder, activeId, isOpen, canDrag, dropTarget, onToggle, on
                 {icon}
                 <span className="truncate">{folder.title}</span>
                 {folder.shared && <Users className="size-3.5 shrink-0 text-muted-foreground" aria-label="Shared" />}
-                <OwnerName space={folder} />
               </button>
               {own && (
                 <button

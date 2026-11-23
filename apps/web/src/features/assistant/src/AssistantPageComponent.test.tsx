@@ -55,6 +55,8 @@ describe('AssistantPageComponent', () => {
     expect(status()).toBe('Thinking…');
     act(() => vi.advanceTimersByTime(500));
     expect(status()).toBe('Ready when you are');
+    // Only the 0.7 s glide back to idle is left, and it ends.
+    act(() => vi.advanceTimersByTime(750));
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -79,6 +81,21 @@ describe('AssistantPageComponent', () => {
     fireEvent.click(screen.getByRole('button', { name: "What's on today?" }));
     expect(img.className).toContain('assistant-field-thinking');
     expect(snapshot()).toEqual(idle);
+  });
+
+  it('glides the thinking strength up frame by frame, then back down, so every browser animates it', () => {
+    render(<AssistantPageComponent />);
+    const amp = () => Number(screen.getByRole('img').style.getPropertyValue('--amp') || 0);
+    fireEvent.click(screen.getByRole('button', { name: "What's on today?" }));
+    act(() => vi.advanceTimersByTime(350));
+    expect(amp()).toBeGreaterThan(0);
+    expect(amp()).toBeLessThan(1);
+    act(() => vi.advanceTimersByTime(400));
+    expect(amp()).toBe(1);
+    act(() => vi.advanceTimersByTime(1750));
+    expect(status()).toBe('Ready when you are');
+    act(() => vi.advanceTimersByTime(750));
+    expect(amp()).toBe(0);
   });
 
   it('thinking breathes out from the centre: no circling, dots farther out start later', () => {

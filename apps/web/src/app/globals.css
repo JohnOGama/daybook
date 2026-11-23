@@ -143,6 +143,10 @@
   a {
     transition: scale 120ms var(--ease-out);
   }
+  /* In the base layer, so cursor-grab and friends still win. */
+  :is(button, [role="button"], [role="tab"], [role="radio"], [role="menuitem"], summary, label[for]):not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+  }
   button:not(:disabled):active,
   a:active {
     scale: 0.97;
@@ -468,7 +472,8 @@ nav[aria-label="Main"] {
 
 /* The assistant's field of dots (ThinkingDotsComponent).
    Both animations run all the time; --amp (0 idle, 1 thinking) scales the thinking breath in and out over 0.7 s, so
-   switching state never restarts anything and every dot glides from where it is.
+   switching state never restarts anything and every dot glides from where it is. The component steps --amp once a
+   frame: a CSS transition of it would glide in Chrome but jump in Firefox.
    .assistant-dot (outer): breathes out from the centre along --dx/--dy, stronger with --amp; dots farther out follow
    later (--breath-delay), so the breath swells outwards. It also takes the hover push (--hx/--hy/--grow) on the
    separate translate and scale properties, which add to the keyframe transform and glide via the transition.
@@ -476,11 +481,6 @@ nav[aria-label="Main"] {
    while thinking. Delays are used negatively, so the pattern is already running on the first frame.
    The animations are !important: the owner asked for the movement, so they beat the app-wide reduced-motion rule
    above, which would otherwise cut them to a single 0.01 ms frame. */
-@property --amp {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0;
-}
 @keyframes assistant-breath {
   0%,
   100% {
@@ -512,11 +512,7 @@ nav[aria-label="Main"] {
 }
 .assistant-field {
   --amp: 0;
-  transition: --amp 700ms cubic-bezier(0.45, 0, 0.25, 1) !important;
   animation: assistant-field-breathe 6s ease-in-out infinite !important;
-}
-.assistant-field-thinking {
-  --amp: 1;
 }
 .assistant-dot {
   translate: var(--hx, 0px) var(--hy, 0px);

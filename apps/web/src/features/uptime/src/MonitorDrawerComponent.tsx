@@ -34,7 +34,7 @@ function IncidentItem({ incident, now }: { incident: Incident; now: Date }) {
   const started = new Date(incident.startedAt).getTime();
   const ongoing = incident.endedAt === null;
   return (
-    <li className="rounded-lg border bg-card px-3 py-2 text-[13px]">
+    <li className="rounded-lg border bg-card px-3 py-2 text-[13px] [overflow-wrap:anywhere]">
       {ongoing ? (
         <p>
           <b className="text-destructive">Down now</b> · since {clock(incident.startedAt)} ({formatDuration(now.getTime() - started)})
@@ -70,9 +70,9 @@ function Details({ site, onClose }: { site: MonitorDetail; onClose: () => void }
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <DrawerTitle className="truncate text-lg tracking-tight">{site.name}</DrawerTitle>
+            <DrawerTitle className="max-w-full min-w-0 truncate text-lg tracking-tight">{site.name}</DrawerTitle>
             <span className="rounded-md border px-1.5 text-[11px] text-muted-foreground">{site.kind === 'api' ? 'API' : 'Web'}</span>
-            <MonitorStatusComponent status={site.status} paused={site.paused} />
+            <MonitorStatusComponent status={site.status} paused={site.paused} responseMs={site.lastResponseMs} error={site.lastError} />
           </div>
           <DrawerDescription className="truncate font-mono text-xs">{site.url}</DrawerDescription>
         </div>
@@ -178,7 +178,7 @@ export function MonitorDrawerComponent({ monitorId, onClose }: { monitorId: stri
 
   return (
     <Drawer direction="right" open={Boolean(monitorId)} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="gap-5 overflow-y-auto overscroll-contain p-4 data-[vaul-drawer-direction=right]:sm:max-w-md">
+      <DrawerContent className="gap-5 overflow-x-hidden overflow-y-auto overscroll-contain p-4 data-[vaul-drawer-direction=right]:sm:max-w-md">
         {isError ? (
           <>
             <DrawerTitle className="sr-only">Site</DrawerTitle>

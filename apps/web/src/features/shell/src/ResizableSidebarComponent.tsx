@@ -39,7 +39,7 @@ export function ResizableSidebarComponent({ children }: { children: ReactNode })
         onPointerCancel={() => (drag.current = undefined)}
         onKeyDown={handleKeyDown}
       >
-        <span className="absolute inset-y-6 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-transparent transition-colors group-hover/resizer:bg-muted-foreground group-focus-visible/resizer:bg-foreground" />
+        <span className="absolute inset-y-6 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-transparent transition-colors group-focus-visible/resizer:bg-ring" />
       </div>
     </div>
   );

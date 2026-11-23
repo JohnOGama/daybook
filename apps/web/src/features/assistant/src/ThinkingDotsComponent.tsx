@@ -9,6 +9,8 @@ const MIDDLE = (SIZE - 1) / 2;
 const DOT = 6;
 // One idle twinkle, in seconds; it must match the keyframe duration in globals.css.
 const TWINKLE_S = 5;
+// How long the dots take to glide between idle and thinking, in ms.
+const RAMP_MS = 700;
 // How far the pointer reaches, and how far it can push a dot, in px.
 const REACH = 46;
 const MAX_PUSH = 12;
@@ -59,9 +61,13 @@ export function pushAway(dot: { x: number; y: number }, pointer: { x: number; y:
 
 const DOTS = dotField();
 
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+
 // The assistant's state as a field of white dots you can play with.
-// Both animations always run; the field's `assistant-field-thinking` class only turns a strength value (--amp) up or
-// down over 0.7 s, so switching state never restarts a dot: each one glides from where it is.
+// Both animations always run; switching state only turns a strength value (--amp) up or down over 0.7 s, so it never
+// restarts a dot: each one glides from where it is. --amp is stepped from here once a frame rather than as a CSS
+// transition of a registered property, because Firefox doesn't redraw keyframes that read a transitioning variable
+// (they jumped there, while Chrome glided).
 // Idle (--amp 0): each dot twinkles and floats on its own. Thinking (--amp 1): the dots also breathe out from the
 // centre and back, brighter. Hover: dots near the pointer slide out of its way and glide back when it leaves.
 // Each dot is two spans: the outer one breathes and takes the hover push, the inner one floats.
@@ -70,7 +76,27 @@ export function ThinkingDotsComponent({ thinking }: { thinking: boolean }) {
   const field = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
 
+  const amp = useRef(0);
+
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  // Glide --amp from wherever it is now to the new state, so a quick switch back mid-way never jumps.
+  useEffect(() => {
+    const element = field.current;
+    const from = amp.current;
+    const to = thinking ? 1 : 0;
+    if (!element || from === to) return;
+    const start = performance.now();
+    let ramp = 0;
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - start) / RAMP_MS);
+      amp.current = from + (to - from) * easeInOut(progress);
+      element.style.setProperty('--amp', amp.current.toFixed(3));
+      if (progress < 1) ramp = requestAnimationFrame(step);
+    };
+    ramp = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(ramp);
+  }, [thinking]);
 
   // Hover moves are written straight onto the dots once a frame, never through React state, so the field never re-renders.
   function place(pointer: { x: number; y: number } | null) {
