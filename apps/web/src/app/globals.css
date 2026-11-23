@@ -340,20 +340,37 @@ nav[aria-label="Main"] {
 .page-content code {
   border-radius: 4px;
   background: var(--muted);
-  padding: 0.1em 0.35em;
-  font-size: 0.9em;
+  padding: 0.15em 0.4em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.85em;
+  color: var(--code-keyword);
 }
 
 .page-content pre {
   overflow-x: auto;
   border-radius: 8px;
-  background: var(--card);
-  padding: 0.75em 1em;
+  background: var(--muted);
+  padding: 1em 1.25em;
+  font-size: 0.875em;
+  line-height: 1.6;
+  tab-size: 2;
 }
 
 .page-content pre code {
   background: none;
   padding: 0;
+  font-size: inherit;
+  color: var(--foreground);
+}
+
+/* A Shift+Enter at the end of a block needs these to show the new line straight away. */
+.page-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.page-content br.ProseMirror-trailingBreak {
+  display: inline;
 }
 
 .page-content a {

@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorContent, useEditor } from '@tiptap/react';
-import { History } from 'lucide-react';
+import { History, Lock, LockOpen } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { SkeletonBox } from 'skullet/react';
 import { Button } from '@/shared/components/ui/button';
@@ -25,7 +25,9 @@ type PageEditorProps = {
   canEdit?: boolean;
 };
 
-export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer, improveWithAi, canEdit = true }: PageEditorProps) {
+export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitled', footer, improveWithAi, canEdit: canEditPage = true }: PageEditorProps) {
+  const [readOnly, setReadOnly] = useState(false);
+  const canEdit = canEditPage && !readOnly;
   const { schedule, status, reload } = usePageAutosave(page.id, page.version);
   const [title, setTitle] = useState(page.title);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -80,6 +82,20 @@ export function PageEditorComponent({ page, eyebrow, titlePlaceholder = 'Untitle
         {canEdit && status === 'conflict' && (
           <Button type="button" variant="outline" size="sm" className="shrink-0 self-center" onClick={handleReload}>
             Reload
+          </Button>
+        )}
+        {canEditPage && (
+          <Button
+            type="button"
+            variant={readOnly ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={readOnly}
+            title={readOnly ? 'Click to edit again' : 'Lock the page so it can’t be edited by accident'}
+            className="shrink-0 self-center text-muted-foreground"
+            onClick={() => setReadOnly((current) => !current)}
+          >
+            {readOnly ? <Lock aria-hidden /> : <LockOpen aria-hidden />}
+            Read only
           </Button>
         )}
         <Button
