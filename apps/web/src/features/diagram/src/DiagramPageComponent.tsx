@@ -244,7 +244,7 @@ function Workspace({ diagram, presence, title }: { diagram: Diagram; presence: S
 
       <div className="flex min-h-0 flex-1">
         {codeOpen && (
-          <section aria-label="DBML code" className="flex w-full shrink-0 flex-col border-r bg-black/40 md:w-[340px]">
+          <section aria-label="DBML code" className="flex w-full shrink-0 flex-col border-r bg-muted/50 md:w-[340px] dark:bg-black/40">
             <div className="flex items-center justify-between border-b px-3 py-1.5 text-xs text-muted-foreground">
               <span>DBML</span>
               <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setCodeOpen(false)}>

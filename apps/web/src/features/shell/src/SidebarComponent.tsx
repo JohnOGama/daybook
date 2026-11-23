@@ -1,32 +1,24 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
 import { Check, LogOut, Settings, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { SpacesNavComponent } from '@/features/spaces';
 import { SpaceSummaryComponent } from '@/features/tasks';
 import { BinIcon } from '@/shared/components/BrandIconsComponent';
-import { authClient } from '@/shared/services/auth-client';
 import { cn } from '@/shared/utils/cn';
+import { useSignOut } from '../hooks/useSignOut';
 
 export function SidebarComponent() {
-  const router = useRouter();
   const pathname = usePathname();
-  const queryClient = useQueryClient();
+  const handleSignOut = useSignOut();
   const isTrash = pathname === '/trash';
   const isSettings = pathname === '/preferences';
   const isAssistant = pathname === '/assistant';
 
-  async function handleSignOut() {
-    await authClient.signOut();
-    queryClient.clear();
-    router.push('/sign-in');
-  }
-
   return (
     <nav aria-label="Main" className="flex min-h-full w-full flex-col">
-      <div className="flex items-center gap-2.5 rounded-2xl border bg-card p-3 font-semibold">
+      <div className="flex items-center gap-2.5 rounded-[20px] bg-card p-3 font-display font-extrabold tracking-[-0.03em] dark:border">
         <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Check className="size-4" strokeWidth={3} aria-hidden />
         </span>

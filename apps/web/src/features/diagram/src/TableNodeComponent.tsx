@@ -27,7 +27,7 @@ function TableNode({ data: { table, fresh, pointsTo }, selected }: NodeProps<Tab
       aria-label={`Table ${table.name}`}
       style={{ width: TABLE_WIDTH }}
       className={cn(
-        'overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg shadow-black/50',
+        'overflow-hidden rounded-lg border bg-card text-card-foreground dark:shadow-lg dark:shadow-black/50',
         fresh && 'border-signal ring-3 ring-signal/15',
         selected && 'border-foreground',
       )}

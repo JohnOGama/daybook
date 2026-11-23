@@ -61,18 +61,6 @@ export function CreateSpaceFormComponent({ kind = 'space', parentFolder, groupId
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 text-left">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="space-title">Title</Label>
-        <Input
-          id="space-title"
-          autoFocus
-          maxLength={200}
-          placeholder={isFolder ? 'e.g. Design Team' : 'e.g. Personal'}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
-      </div>
-
       {!isFolder && (
         <div className="flex flex-col gap-1.5">
           <span className="text-sm leading-none font-medium">Tool</span>
@@ -84,11 +72,11 @@ export function CreateSpaceFormComponent({ kind = 'space', parentFolder, groupId
                 aria-pressed={tool === id}
                 onClick={() => setTool(id)}
                 className={cn(
-                  'flex flex-col items-start gap-2.5 rounded-xl border-[1.5px] p-3 text-left transition-colors',
-                  tool === id ? 'border-primary bg-primary/10' : 'hover:bg-accent',
+                  'flex flex-col items-start gap-2.5 rounded-[20px] border-2 border-muted p-3 text-left transition-colors dark:border-border',
+                  tool === id ? 'border-primary dark:border-primary' : 'hover:bg-accent',
                 )}
               >
-                <span className="grid size-8 place-items-center rounded-lg border bg-background">{TOOL_ICONS[id]}</span>
+                <span className="grid size-8 place-items-center rounded-[10px] bg-muted">{TOOL_ICONS[id]}</span>
                 <span>
                   <b className="block text-sm font-semibold">{label}</b>
                   <span className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</span>
@@ -98,6 +86,18 @@ export function CreateSpaceFormComponent({ kind = 'space', parentFolder, groupId
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="space-title">Title</Label>
+        <Input
+          id="space-title"
+          autoFocus
+          maxLength={200}
+          placeholder={isFolder ? 'e.g. Design Team' : 'e.g. Personal'}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </div>
 
       <div className={cn('flex gap-2', onCancel && 'justify-end')}>
         {onCancel && (

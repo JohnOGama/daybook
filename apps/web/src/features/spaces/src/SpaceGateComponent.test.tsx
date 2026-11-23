@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { SpaceGateComponent } from './SpaceGateComponent';
 
@@ -10,6 +11,7 @@ const { useSpaces, replace, pathname } = vi.hoisted(() => ({
 
 vi.mock('../hooks/useSpaces', () => ({ useSpaces }));
 vi.mock('../hooks/useCreateSpace', () => ({ useCreateSpace: () => ({ mutateAsync: vi.fn() }) }));
+vi.mock('@/shared/services/auth-client', () => ({ authClient: { useSession: () => ({ data: { user: { name: 'Sam Lee' } } }) } }));
 // The live connection has its own tests; here it only wraps the screen.
 vi.mock('./SpacePresenceProviderComponent', () => ({ SpacePresenceProviderComponent: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('next/navigation', () => ({
@@ -49,21 +51,32 @@ const renderGate = () => render(<SpaceGateComponent>tool screen</SpaceGateCompon
 
 beforeEach(() => vi.clearAllMocks());
 
-it('shows the blank first-space page when there are no spaces', () => {
+it('welcomes someone with no spaces instead of asking for one', () => {
   useSpaces.mockReturnValue({ data: [], isPending: false, isError: false });
   renderGate();
-  expect(screen.getByRole('heading', { name: 'Create your first space' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Welcome to Daybook' })).toBeInTheDocument();
+  expect(screen.getByText(/Hi Sam/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
   expect(screen.queryByText('tool screen')).not.toBeInTheDocument();
 });
 
-it('shows the first-space page when only folders exist', () => {
+it('opens every tool from Browse tools', async () => {
+  useSpaces.mockReturnValue({ data: [], isPending: false, isError: false });
+  renderGate();
+  await userEvent.click(screen.getByRole('button', { name: 'Browse tools' }));
+  expect(screen.getByRole('dialog', { name: 'Browse tools' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Budget/ })).toBeInTheDocument();
+  expect(screen.getByLabelText('Title')).toBeInTheDocument();
+});
+
+it('shows the welcome page when only folders exist', () => {
   useSpaces.mockReturnValue({
     data: [{ id: 'f', parentId: null, kind: 'folder', title: 'F', tool: null, createdAt: '', openToday: 0 }],
     isPending: false,
     isError: false,
   });
   renderGate();
-  expect(screen.getByRole('heading', { name: 'Create your first space' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Welcome to Daybook' })).toBeInTheDocument();
 });
 
 it('shows the tool screen once a space exists', () => {

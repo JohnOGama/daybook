@@ -3,7 +3,53 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Light is the default; `.dark` on <html> (next-themes, Settings → Appearance) switches to dark. See docs/theme.md. */
 :root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #000000;
+  --muted: #f3f3f3;
+  --muted-foreground: rgb(0 0 0 / 0.5);
+  --accent: #f3f3f3;
+  --accent-foreground: #000000;
+  --destructive: #d92d20;
+  /* Darker than the reference gold because the app also uses it as text. */
+  --signal: #b8860b;
+  --status-todo: #64748b;
+  --status-progress: #2f6fd0;
+  --status-hold: #7c5cd6;
+  --status-done: #2f9e67;
+  --money-in: #2f9e67;
+  --money-out: #d9483b;
+  --border: #ebebeb;
+  --input: #ebebeb;
+  --ring: #cc3f02;
+  --radius: 0.875rem;
+  --sidebar: #ededed;
+  --overlay: rgb(0 0 0 / 0.2);
+  --float-border: var(--border);
+  --float-shadow: none;
+  --skullet-base: rgb(0 0 0 / 0.07);
+  --skullet-highlight: rgb(255 255 255 / 0.6);
+  --code-gutter: rgb(0 0 0 / 0.3);
+  --code-active-line: rgb(0 0 0 / 0.03);
+  --code-selection: rgb(0 0 0 / 0.1);
+  --code-keyword: #8b3fc7;
+  --code-type: #1f5fd1;
+  --code-string: #2f7d32;
+  --code-comment: #8a8a8a;
+  --canvas-dots: #d4d4d4;
+}
+
+.dark {
   color-scheme: dark;
   --background: #000000;
   --foreground: #ffffff;
@@ -29,9 +75,20 @@
   --money-out: #f07167;
   --border: #2e2e2e;
   --input: #2e2e2e;
-  --ring: rgb(255 255 255 / 0.4);
-  --radius: 0.625rem;
   --sidebar: #0a0a0a;
+  --overlay: rgb(0 0 0 / 0.6);
+  --float-border: rgb(255 255 255 / 0.1);
+  --float-shadow: 0 12px 32px rgb(0 0 0 / 0.6);
+  --skullet-base: rgb(255 255 255 / 0.08);
+  --skullet-highlight: rgb(255 255 255 / 0.1);
+  --code-gutter: #4a4a4a;
+  --code-active-line: rgb(255 255 255 / 0.03);
+  --code-selection: rgb(255 255 255 / 0.14);
+  --code-keyword: #c792ea;
+  --code-type: #8ab4f8;
+  --code-string: #a3c99c;
+  --code-comment: #6b6b6b;
+  --canvas-dots: #262626;
 }
 
 @theme inline {
@@ -65,7 +122,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: ui-rounded, "SF Pro Rounded", var(--font-nunito), system-ui, sans-serif;
 }
 
 @layer base {
@@ -74,6 +132,12 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  :is(h1, h2, h3):not(.page-content *) {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
   }
   button,
   a {
@@ -103,8 +167,31 @@
 [data-slot="dialog-content"],
 [data-slot="alert-dialog-content"],
 [data-slot="sheet-content"] {
-  border-color: rgb(255 255 255 / 0.1);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.6);
+  border-color: var(--float-border);
+  box-shadow: var(--float-shadow);
+}
+
+/* On the grey sidebar, hover, active rows and inputs are white rather than a paler grey. */
+nav[aria-label="Main"] {
+  --muted: #ffffff;
+  --accent: rgb(255 255 255 / 0.6);
+}
+
+.dark nav[aria-label="Main"] {
+  --muted: #1f1f1f;
+  --accent: #1f1f1f;
+}
+
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"],
+[data-slot="drawer-overlay"] {
+  background-color: var(--overlay);
+}
+
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  border-radius: 28px;
 }
 
 [data-slot="dialog-content"],

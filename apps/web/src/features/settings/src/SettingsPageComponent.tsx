@@ -1,16 +1,18 @@
 'use client';
 
-import { LayoutGrid, Plug, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Palette, Plug, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ConnectedAppsComponent } from '@/features/connected-apps';
 import { SpaceGroupsManagerComponent, SpacePasswordsComponent } from '@/features/spaces';
+import { AppearanceSettingsComponent } from './AppearanceSettingsComponent';
 
 const SECTIONS = [
   { id: 'spaces', label: 'Spaces', Icon: LayoutGrid },
   { id: 'security', label: 'Security', Icon: ShieldCheck },
   { id: 'apps', label: 'Connected apps', Icon: Plug },
+  { id: 'appearance', label: 'Appearance', Icon: Palette },
 ];
 
 function ConnectedAppsSectionComponent() {
@@ -60,6 +62,16 @@ export function SettingsPageComponent() {
 
         {current.id === 'apps' ? (
           <ConnectedAppsSectionComponent />
+        ) : current.id === 'appearance' ? (
+          <section aria-labelledby="appearance" className="mt-8 flex max-w-3xl flex-col gap-4">
+            <div>
+              <h2 id="appearance" className="text-xl font-semibold tracking-tight">
+                Appearance
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-pretty text-muted-foreground">Choose how Daybook looks in this browser.</p>
+            </div>
+            <AppearanceSettingsComponent />
+          </section>
         ) : current.id === 'spaces' ? (
           <section aria-labelledby="spaces" className="mt-8 flex max-w-3xl flex-col gap-4">
             <div>

@@ -3,6 +3,7 @@
 import '@xyflow/react/dist/style.css';
 import { applyNodeChanges, type FitViewOptions, Background, BackgroundVariant, ControlButton, Controls, type NodeChange, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { LayoutGrid } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { JobNodeComponent } from './JobNodeComponent';
 import { buildFlow, type PipelineNode } from './pipeline-flow';
@@ -22,6 +23,7 @@ type PipelineCanvasProps = { jobs: PipelineJob[]; now: Date; onOpen(runId: strin
 function Canvas({ jobs, now, onOpen }: PipelineCanvasProps) {
   const flow = useMemo(() => buildFlow(jobs, now), [jobs, now]);
   const { fitView } = useReactFlow();
+  const dark = useTheme().resolvedTheme === 'dark';
   const fit = useCallback(() => requestAnimationFrame(() => void fitView(fitOptions())), [fitView]);
 
   // Local copy so a node follows the pointer. A refresh updates each node's content but keeps where you put it.
@@ -54,7 +56,7 @@ function Canvas({ jobs, now, onOpen }: PipelineCanvasProps) {
       nodes={nodes}
       edges={flow.edges}
       nodeTypes={nodeTypes}
-      colorMode="dark"
+      colorMode={dark ? 'dark' : 'light'}
       minZoom={0.1}
       maxZoom={2}
       nodesConnectable={false}
@@ -64,7 +66,7 @@ function Canvas({ jobs, now, onOpen }: PipelineCanvasProps) {
       onNodeClick={(_, node) => onOpen(node.data.runId)}
       className="!bg-background"
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#262626" />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--canvas-dots)" />
       <Controls position="bottom-center" orientation="horizontal" showInteractive={false} fitViewOptions={fitOptions()}>
         <ControlButton onClick={tidy} title="Tidy layout" aria-label="Tidy layout">
           <LayoutGrid aria-hidden />

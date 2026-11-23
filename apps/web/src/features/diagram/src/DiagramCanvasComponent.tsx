@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import { toPng, toSvg } from 'html-to-image';
 import { LayoutGrid, Maximize, Minus, PanelLeftOpen, Plus } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { type ReactNode, type Ref, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useSpacePresence } from '@/features/spaces';
 import { Button } from '@/shared/components/ui/button';
@@ -99,6 +100,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
   const flow = useReactFlow<TableNode, RelationEdge>();
   const wrapper = useRef<HTMLDivElement>(null);
   const presence = useSpacePresence();
+  const dark = useTheme().resolvedTheme === 'dark';
   const cursorSent = useRef(0);
 
   // Each card keeps the same node object until its own table, links, position or selection changes,
@@ -167,7 +169,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
 
   useImperativeHandle(ref, () => ({
     fitView: () => void flow.fitView({ padding: 0.15 }),
-    // The whole diagram, not only what is on screen, on the app's dark background.
+    // The whole diagram, not only what is on screen, on the app's current background.
     toImage: async (kind) => {
       const viewport = wrapper.current?.querySelector<HTMLElement>('.react-flow__viewport');
       if (!viewport) throw new Error('The diagram is not ready yet.');
@@ -176,7 +178,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
       const height = Math.ceil(bounds.height + IMAGE_PADDING * 2);
       const view = getViewportForBounds(bounds, width, height, 1, 1, 0);
       const options = {
-        backgroundColor: '#000000',
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--background'),
         width,
         height,
         style: { width: `${width}px`, height: `${height}px`, transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` },
@@ -202,7 +204,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        colorMode="dark"
+        colorMode={dark ? 'dark' : 'light'}
         fitView
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.1}
@@ -228,7 +230,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         onPaneClick={() => onSelect(null)}
         className="!bg-background"
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#262626" />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--canvas-dots)" />
         {presence && (
           <ViewportPortal>
             <RemoteCursorsComponent awareness={presence.awareness} members={presence.members} />
@@ -237,7 +239,7 @@ function Canvas({ model, positions, fresh, selected, onSelect, onMove, onTidy, o
         <Controls onTidy={onTidy} onShowCode={onShowCode} />
         {/* Top-right: the app's Assistant button sits in the bottom-right corner. */}
         {nodes.length > 0 && (
-          <MiniMap pannable zoomable position="top-right" className="hidden !rounded-lg !border !bg-popover @2xl:block" maskColor="rgb(0 0 0 / 0.6)" nodeColor="#333" />
+          <MiniMap pannable zoomable position="top-right" className="hidden !rounded-lg !border !bg-popover @2xl:block" maskColor={dark ? 'rgb(0 0 0 / 0.6)' : undefined} nodeColor={dark ? '#333' : undefined} />
         )}
       </ReactFlow>
     </div>

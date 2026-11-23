@@ -4,13 +4,15 @@ import { Menu } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import { AssistantPanelComponent } from '@/features/assistant';
-import { SpaceGateComponent } from '@/features/spaces';
+import { SpaceGateComponent, useSpaces } from '@/features/spaces';
 import { TaskMutationsProviderComponent } from '@/features/tasks';
 import { VaultSessionProviderComponent } from '@/features/vault';
 import { AppSkeletonComponent } from '@/shared/components/AppSkeletonComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/components/ui/sheet';
 import { authClient } from '@/shared/services/auth-client';
+import { cn } from '@/shared/utils/cn';
+import { FirstRunBarComponent } from './FirstRunBarComponent';
 import { LiveUpdatesProviderComponent } from './LiveUpdatesProviderComponent';
 import { ResizableSidebarComponent } from './ResizableSidebarComponent';
 import { SidebarComponent } from './SidebarComponent';
@@ -18,41 +20,55 @@ import { SidebarComponent } from './SidebarComponent';
 export function AppShellComponent({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const activeSpaceParam = useSearchParams().get('space');
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!isPending && !session) router.replace('/sign-in');
   }, [isPending, session, router]);
 
+  if (!session) return <AppSkeletonComponent />;
+  return <SignedInShell>{children}</SignedInShell>;
+}
+
+function SignedInShell({ children }: { children: ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const activeSpaceParam = useSearchParams().get('space');
+  const pathname = usePathname();
+  const { data: spaces } = useSpaces();
+
   useEffect(() => setMenuOpen(false), [activeSpaceParam, pathname]);
 
-  if (!session) return <AppSkeletonComponent />;
   const outsideSpaces = pathname === '/trash' || pathname === '/preferences' || pathname === '/assistant';
+  // Someone with no space yet gets the welcome page on its own, without the sidebar.
+  const firstRun = !outsideSpaces && spaces !== undefined && !spaces.some((space) => space.kind === 'space');
 
   return (
     <LiveUpdatesProviderComponent>
     <div className="flex h-dvh overflow-hidden bg-sidebar">
-      <ResizableSidebarComponent>
-        <SidebarComponent />
-      </ResizableSidebarComponent>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:py-2">
-        <div className="flex items-center gap-2 p-2 md:hidden">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open menu">
-                <Menu aria-hidden />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 overflow-y-auto bg-sidebar p-3">
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <SidebarComponent />
-            </SheetContent>
-          </Sheet>
-          <span className="font-semibold">Daybook</span>
-        </div>
-        <main className="min-h-0 flex-1 overflow-y-auto bg-background md:rounded-l-2xl md:border-l">
+      {!firstRun && (
+        <ResizableSidebarComponent>
+          <SidebarComponent />
+        </ResizableSidebarComponent>
+      )}
+      <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', !firstRun && 'md:py-2')}>
+        {firstRun ? (
+          <FirstRunBarComponent />
+        ) : (
+          <div className="flex items-center gap-2 p-2 md:hidden">
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Menu aria-hidden />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 overflow-y-auto bg-sidebar p-3">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SidebarComponent />
+              </SheetContent>
+            </Sheet>
+            <span className="font-display font-extrabold tracking-[-0.03em]">Daybook</span>
+          </div>
+        )}
+        <main className={cn('min-h-0 flex-1 overflow-y-auto', !firstRun && 'bg-background md:rounded-l-[28px] md:border-l')}>
           <TaskMutationsProviderComponent>
             <VaultSessionProviderComponent>
               {outsideSpaces ? children : <SpaceGateComponent>{children}</SpaceGateComponent>}

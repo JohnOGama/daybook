@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Geist, Nunito } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { ProvidersComponent } from '@/shared/components/ProvidersComponent';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const nunito = Nunito({ subsets: ['latin'], weight: ['600', '700', '800', '900'], variable: '--font-nunito' });
 
 export const metadata: Metadata = {
   title: 'Daybook',
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
+    // next-themes sets the `dark` class before paint, so the server's markup differs on purpose.
+    <html lang="en" className={`${geist.variable} ${nunito.variable}`} suppressHydrationWarning>
       <body>
         <ProvidersComponent>{children}</ProvidersComponent>
       </body>

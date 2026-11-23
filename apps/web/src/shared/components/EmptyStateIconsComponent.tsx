@@ -117,16 +117,3 @@ export function EmptyVaultIcon() {
     </EmptyIcon>
   );
 }
-
-export function FirstSpaceIcon() {
-  return (
-    <EmptyIcon>
-      <Missing>
-        <rect x="9" y="9" width="46" height="46" rx="11" />
-      </Missing>
-      <Solid>
-        <path d="m27 20-3 24M41 20l-3 24M20 28h27M17 36h27" />
-      </Solid>
-    </EmptyIcon>
-  );
-}
