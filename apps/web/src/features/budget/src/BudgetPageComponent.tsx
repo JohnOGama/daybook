@@ -222,7 +222,7 @@ export function BudgetPageComponent() {
         </div>
         <nav
           aria-label="Budget views"
-          className="mt-3 flex gap-1.5 overflow-x-auto border-b px-2 md:px-4"
+          className="mt-3 flex gap-1.5 overflow-x-auto overflow-y-hidden border-b px-2 md:px-4"
         >
           {TABS.filter(({ view: tab }) => canEdit || tab !== "settings").map(
             ({ view: tab, label, Icon }) => (

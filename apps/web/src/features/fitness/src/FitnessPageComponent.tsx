@@ -77,7 +77,7 @@ export function FitnessPageComponent() {
           <ViewOnlyBadgeComponent />
           <PresenceAvatarsComponent />
         </div>
-        <nav aria-label="Fitness views" className="mt-3 flex gap-1.5 overflow-x-auto border-b px-2 md:px-4">
+        <nav aria-label="Fitness views" className="mt-3 flex gap-1.5 overflow-x-auto overflow-y-hidden border-b px-2 md:px-4">
           {TABS.map(({ view: tab, label, Icon }) => (
             <Link
               key={tab}

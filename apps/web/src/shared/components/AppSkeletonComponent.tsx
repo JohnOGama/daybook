@@ -11,11 +11,11 @@ export function AppSkeletonComponent() {
         <SkeletonBox width="100%" height={28} />
         <SkeletonBox width="100%" height={28} />
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col md:py-2">
+      <div className="flex min-w-0 flex-1 flex-col md:py-2 md:pr-2">
         <div className="p-2 md:hidden">
           <SkeletonBox width={120} height={36} />
         </div>
-        <main className="flex-1 bg-background md:rounded-l-2xl md:border-l">
+        <main className="flex-1 bg-background md:rounded-[28px] md:border md:border-black/10 md:dark:border-border">
           <PageSkeletonComponent />
         </main>
       </div>

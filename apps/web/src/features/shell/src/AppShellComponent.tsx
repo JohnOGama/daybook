@@ -49,7 +49,7 @@ function SignedInShell({ children }: { children: ReactNode }) {
           <SidebarComponent />
         </ResizableSidebarComponent>
       )}
-      <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', !firstRun && 'md:py-2')}>
+      <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', !firstRun && 'md:py-2 md:pr-2')}>
         {firstRun ? (
           <FirstRunBarComponent />
         ) : (
@@ -68,7 +68,7 @@ function SignedInShell({ children }: { children: ReactNode }) {
             <span className="font-display font-extrabold tracking-[-0.03em]">Daybook</span>
           </div>
         )}
-        <main className={cn('min-h-0 flex-1 overflow-y-auto', !firstRun && 'bg-background md:rounded-l-[28px] md:border-l')}>
+        <main className={cn('min-h-0 flex-1 overflow-y-auto', !firstRun && 'bg-background md:rounded-[28px] md:border md:border-black/10 md:dark:border-border')}>
           <TaskMutationsProviderComponent>
             <VaultSessionProviderComponent>
               {outsideSpaces ? children : <SpaceGateComponent>{children}</SpaceGateComponent>}

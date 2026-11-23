@@ -67,7 +67,7 @@ it('lists spaces shared with me under their own heading, with the owner name and
   ]);
   expect(screen.getByText('Shared with me')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Their Plans/ })).toHaveTextContent('Sam');
-  expect(screen.queryByRole('button', { name: 'Reorder Their Plans' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Drag Their Plans' })).not.toBeInTheDocument();
 });
 
 it('puts a shared folder with its spaces in Shared with me, with no new space button', () => {
@@ -128,10 +128,10 @@ it('Escape cancels a label edit', async () => {
   expect(screen.getByText('Team Setup Guide')).toBeInTheDocument();
 });
 
-it('offers a drag handle only where there is something to swap with', () => {
-  expect(screen.getByRole('button', { name: 'Reorder Team Setup Guide' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Reorder Design Team' })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Reorder Design Requests' })).not.toBeInTheDocument();
+it('offers a drag handle on every row I own, even a space alone in its folder', () => {
+  expect(screen.getByRole('button', { name: 'Drag Team Setup Guide' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Drag Design Team' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Drag Design Requests' })).toBeInTheDocument();
 });
 
 it('the ⋯ button on a row opens the same menu as right-click', async () => {

@@ -1,19 +1,22 @@
 'use client';
 
 import {
+  type Active,
   closestCenter,
   type CollisionDetection,
   DndContext,
   type DragEndEvent,
+  DragOverlay,
   KeyboardSensor,
   type Modifier,
+  type Over,
   PointerSensor,
+  pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -22,7 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Activity, BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, ScrollText, Users, Workflow } from 'lucide-react';
 import Link from 'next/link';
-import { type ReactNode, useState } from 'react';
+import { type PointerEventHandler, type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import {
   BudgetIcon,
@@ -38,8 +41,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { cn } from '@/shared/utils/cn';
-import { withinSameList } from '@/shared/utils/within-same-list';
 import { useActiveSpace } from '../hooks/useActiveSpace';
+import { useMoveSpace } from '../hooks/useMoveSpace';
 import { useRenameSpace } from '../hooks/useRenameSpace';
 import { useReorderSpaces } from '../hooks/useReorderSpaces';
 import { useMoveToGroup, useSpaceGroups } from '../hooks/useSpaceGroups';
@@ -49,33 +52,51 @@ import { PipelineDotComponent } from './PipelineDotComponent';
 import { UptimeDotComponent } from './UptimeDotComponent';
 import { SpaceContextMenuComponent } from './SpaceContextMenuComponent';
 import { groupOf } from './space-cache';
+import { type DropAction, dropAction, type DropSide, GROUP_LIST } from './sidebar-drop';
 import { buildOwnTree, buildSharedTree, isOwn, type SpaceNode, spaceHref } from './space-tree';
 import type { Space, SpaceGroup, SpaceTool } from './space-types';
 
 type CreatingState = { kind: Space['kind']; parentFolder?: Space; groupId?: string };
 
 const SAMPLE_GROUPS: SpaceGroup[] = [{ id: 'sample-group', title: 'Spaces' }];
-const GROUP_LIST = 'group-';
 
-// Top-level rows can be dropped on another group's rows or heading; everything else stays in its own list.
-const withinGroups: CollisionDetection = (args) => {
-  const list = String(args.active.data.current?.sortable?.containerId ?? '');
-  if (!list.startsWith(GROUP_LIST)) return withinSameList(args);
+// A space goes into a folder when the pointer is over the middle of that folder's header. Otherwise any row can land
+// on group rows and headings, and a space also on the spaces inside your other folders. Shared rows are never targets.
+const sidebarCollision: CollisionDetection = (args) => {
+  const dragged = args.active.data.current;
+  const list = String(dragged?.sortable?.containerId ?? '');
+  if (dragged?.kind === 'space') {
+    const intoFolder = pointerWithin({
+      ...args,
+      droppableContainers: args.droppableContainers.filter((container) => container.data.current?.folderId && container.data.current.folderId !== list),
+    });
+    if (intoFolder.length) return intoFolder;
+  }
   return closestCenter({
     ...args,
-    droppableContainers: args.droppableContainers.filter(
-      (container) => String(container.data.current?.sortable?.containerId ?? '').startsWith(GROUP_LIST) || container.data.current?.groupId,
-    ),
+    droppableContainers: args.droppableContainers.filter(({ data: { current: target } }) => {
+      if (target?.folderId) return false;
+      if (target?.groupId) return true;
+      return String(target?.sortable?.containerId ?? '').startsWith(GROUP_LIST) || (dragged?.kind === 'space' && target?.inOwnFolder);
+    }),
   });
 };
 
+const dropSide = ({ id, data: { current } }: Active | Over): DropSide => ({
+  id: String(id),
+  list: current?.sortable?.containerId === undefined ? undefined : String(current.sortable.containerId),
+  groupId: current?.groupId,
+  folderId: current?.folderId,
+  items: current?.sortable?.items.map(String),
+});
+
 // A group's heading: its name, and the + (shown on hover) that offers a new space or folder in it. Rows can be dropped on it.
-function GroupHeading({ group, onAdd }: { group: SpaceGroup; onAdd: (kind: Space['kind']) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `group-drop:${group.id}`, data: { groupId: group.id } });
+function GroupHeading({ group, isTarget, onAdd }: { group: SpaceGroup; isTarget: boolean; onAdd: (kind: Space['kind']) => void }) {
+  const { setNodeRef } = useDroppable({ id: `group-drop:${group.id}`, data: { groupId: group.id } });
   return (
     <div
       ref={setNodeRef}
-      className={cn('group/heading mx-2 mt-5 mb-1.5 flex items-center justify-between rounded-md text-[13px] font-medium text-muted-foreground', isOver && 'bg-accent text-foreground')}
+      className={cn('group/heading mx-2 mt-5 mb-1.5 flex items-center justify-between rounded-md text-[13px] font-medium text-muted-foreground transition-colors', isTarget && 'text-foreground')}
     >
       <span className="truncate">{group.title}</span>
       <DropdownMenu>
@@ -104,7 +125,18 @@ type Sortable = ReturnType<typeof useSortable>;
 
 const keepRowVertical: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 const dragStyle = ({ transform, transition }: Sortable) => ({ transform: CSS.Translate.toString(transform), transition });
-const draggingClass = ({ isDragging }: Sortable) => isDragging && 'z-20 rounded-lg bg-accent';
+// The row stays where it was, faded, while DragPreview follows the pointer.
+const draggingClass = ({ isDragging }: Sortable) => isDragging && 'opacity-40';
+// The whole row starts a drag (after 4 px, so clicks and double-clicks still work); the keyboard uses the handle.
+const dragFromRow = (sortable: Sortable, enabled: boolean) =>
+  enabled ? { onPointerDown: sortable.listeners?.onPointerDown as PointerEventHandler<HTMLDivElement> | undefined } : {};
+
+// Where a dragged row will land in a group: a line between rows that takes no space, so nothing shifts under the pointer.
+const DROP_LINE = (
+  <div key="drop-line" aria-hidden className="relative h-0">
+    <div className="absolute inset-x-1 -top-px h-0.5 rounded-full bg-foreground" />
+  </div>
+);
 
 const SAMPLE_SPACES: Space[] = ['My first list', 'Weekly plans', 'Side project'].map((title, index) => ({
   id: `sample-${index}`,
@@ -147,13 +179,27 @@ function ReorderHandle({ title, sortable }: { title: string; sortable: Sortable 
     <button
       ref={sortable.setActivatorNodeRef}
       type="button"
-      aria-label={`Reorder ${title}`}
+      aria-label={`Drag ${title}`}
       {...sortable.attributes}
       {...sortable.listeners}
-      className="absolute top-1.5 left-1.5 z-10 grid size-6 cursor-grab touch-none place-items-center rounded-md bg-accent text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
+      className="absolute top-1.5 left-1.5 z-10 grid size-6 cursor-grab touch-none place-items-center rounded-md bg-accent text-muted-foreground opacity-0 focus-visible:opacity-100 active:cursor-grabbing [@media(hover:none)]:opacity-100"
     >
       <GripVertical className="size-4" aria-hidden />
     </button>
+  );
+}
+
+// The floating copy of the row being dragged, with where it will go when that changes its folder or group.
+function DragPreview({ space, destination }: { space: Space; destination?: string }) {
+  const Icon = space.kind === 'folder' ? FolderIcon : (TOOL_ICONS[space.tool ?? 'list'] ?? TOOL_ICONS.list);
+  return (
+    <div className="flex cursor-grabbing items-center gap-2.5 rounded-lg bg-card px-2.5 py-2 text-sm font-medium text-foreground ring-2 ring-foreground/15">
+      <Icon className="size-4 shrink-0" aria-hidden />
+      <span className="truncate">{space.title}</span>
+      {destination && (
+        <span className="ml-auto shrink-0 truncate rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">{destination}</span>
+      )}
+    </div>
   );
 }
 
@@ -174,14 +220,14 @@ export const TOOL_ICONS: Record<SpaceTool, IconComponent> = {
 type SpaceRowProps = {
   space: Space;
   isActive: boolean;
-  canReorder: boolean;
+  canDrag: boolean;
   nested?: boolean;
   renderSummary?: RenderSpaceSummary;
 };
 
-function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceRowProps) {
+function SpaceRow({ space, isActive, canDrag, nested, renderSummary }: SpaceRowProps) {
   const [editing, setEditing] = useState(false);
-  const sortable = useSortable({ id: space.id });
+  const sortable = useSortable({ id: space.id, data: { kind: 'space', inOwnFolder: nested && isOwn(space) } });
   const Icon = TOOL_ICONS[space.tool ?? 'list'] ?? TOOL_ICONS.list;
   const icon = <Icon className="size-4 shrink-0" data-active={isActive || undefined} aria-hidden />;
   const startEditing = isOwn(space) ? () => setEditing(true) : undefined;
@@ -190,9 +236,10 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
     <div
       ref={sortable.setNodeRef}
       style={dragStyle(sortable)}
-      className={cn('group/row relative', nested && 'ml-4', draggingClass(sortable))}
+      className={cn('group/row relative', nested && 'ml-4', canDrag && 'select-none', draggingClass(sortable))}
+      {...dragFromRow(sortable, canDrag && !editing)}
     >
-      {canReorder && !editing && <ReorderHandle title={space.title} sortable={sortable} />}
+      {canDrag && !editing && <ReorderHandle title={space.title} sortable={sortable} />}
       <Tooltip delayDuration={300} open={renderSummary && space.tool === 'list' ? undefined : false}>
         <SpaceContextMenuComponent space={space} editing={editing} onEdit={() => setEditing(true)}>
           {editing ? (
@@ -203,6 +250,7 @@ function SpaceRow({ space, isActive, canReorder, nested, renderSummary }: SpaceR
             <TooltipTrigger asChild>
               <Link
                 href={spaceHref(space)}
+                draggable={false}
                 aria-current={isActive ? 'page' : undefined}
                 onDoubleClick={startEditing}
                 className={cn(
@@ -238,30 +286,34 @@ type FolderRowProps = {
   folder: SpaceNode;
   activeId?: string;
   isOpen: boolean;
-  canReorder: boolean;
+  canDrag: boolean;
+  dropTarget: boolean;
   onToggle: () => void;
   onAddSpace: () => void;
   renderSummary?: RenderSpaceSummary;
 };
 
-function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace, renderSummary }: FolderRowProps) {
+function FolderRow({ folder, activeId, isOpen, canDrag, dropTarget, onToggle, onAddSpace, renderSummary }: FolderRowProps) {
   const [editing, setEditing] = useState(false);
-  const sortable = useSortable({ id: folder.id });
-  const Icon = isOpen ? FolderOpenIcon : FolderIcon;
-  const icon = <Icon className="size-4 shrink-0" aria-hidden />;
+  const sortable = useSortable({ id: folder.id, data: { kind: 'folder' } });
   const own = isOwn(folder);
+  const intoFolder = useDroppable({ id: `folder-drop:${folder.id}`, data: { folderId: folder.id }, disabled: !own });
+  const Icon = isOpen || dropTarget ? FolderOpenIcon : FolderIcon;
+  const icon = <Icon className="size-4 shrink-0" aria-hidden />;
 
   return (
     <div ref={sortable.setNodeRef} style={dragStyle(sortable)} className={cn('relative', draggingClass(sortable))}>
-      <div className="group/row relative">
-        {canReorder && !editing && <ReorderHandle title={folder.title} sortable={sortable} />}
+      <div className={cn('group/row relative', canDrag && 'select-none')} {...dragFromRow(sortable, canDrag && !editing)}>
+        {canDrag && !editing && <ReorderHandle title={folder.title} sortable={sortable} />}
+        {/* The middle of the header: a space dropped here goes into the folder; the edges still reorder around it. */}
+        <span ref={intoFolder.setNodeRef} aria-hidden className="pointer-events-none absolute inset-x-0 top-1/4 bottom-1/4" />
         <SpaceContextMenuComponent space={folder} editing={editing} onEdit={() => setEditing(true)}>
           {editing ? (
             <div>
               <LabelEditor space={folder} icon={icon} onClose={() => setEditing(false)} />
             </div>
           ) : (
-            <div className="flex items-center rounded-lg hover:bg-accent">
+            <div className={cn('flex items-center rounded-lg transition-colors hover:bg-accent', dropTarget && 'bg-muted ring-2 ring-foreground')}>
               <button
                 type="button"
                 aria-expanded={isOpen}
@@ -295,7 +347,7 @@ function FolderRow({ folder, activeId, isOpen, canReorder, onToggle, onAddSpace,
               key={child.id}
               space={child}
               isActive={child.id === activeId}
-              canReorder={own && folder.children.length > 1}
+              canDrag={own}
               nested
               renderSummary={renderSummary}
             />
@@ -317,6 +369,9 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
   const [creating, setCreating] = useState<CreatingState>();
   const reorder = useReorderSpaces();
   const moveToGroup = useMoveToGroup();
+  const moveSpace = useMoveSpace();
+  const [preview, setPreview] = useState<DropAction>();
+  const [draggingId, setDraggingId] = useState<string>();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -325,14 +380,14 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
   const sharedTree = buildSharedTree(spaces);
   const nodesIn = (groupId: string) => tree.filter((node) => groupOf(node, groups) === groupId);
 
-  const renderNodes = (nodes: SpaceNode[], canReorderNodes: boolean) =>
+  const renderNodes = (nodes: SpaceNode[], canDrag: boolean) =>
     nodes.map((node) =>
       node.kind === 'space' ? (
         <SpaceRow
           key={node.id}
           space={node}
           isActive={node.id === active?.id}
-          canReorder={canReorderNodes}
+          canDrag={canDrag}
           renderSummary={renderSpaceSummary}
         />
       ) : (
@@ -341,7 +396,8 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
           folder={node}
           activeId={active?.id}
           isOpen={!collapsed.has(node.id)}
-          canReorder={canReorderNodes}
+          canDrag={canDrag}
+          dropTarget={preview?.kind === 'folder' && preview.parentId === node.id}
           onToggle={() => toggleFolder(node.id)}
           onAddSpace={() => setCreating({ kind: 'space', parentFolder: node })}
           renderSummary={renderSpaceSummary}
@@ -349,20 +405,28 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
       ),
     );
 
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id) return;
-    const from = String(active.data.current?.sortable?.containerId ?? '');
-    const overList = String(over.data.current?.sortable?.containerId ?? '');
-    const target: string | undefined = over.data.current?.groupId ?? (overList.startsWith(GROUP_LIST) ? overList.slice(GROUP_LIST.length) : undefined);
-    if (from.startsWith(GROUP_LIST) && target && from !== GROUP_LIST + target) {
-      const ids = nodesIn(target).map(({ id }) => id);
-      const at = over.data.current?.sortable ? ids.indexOf(String(over.id)) : ids.length;
-      moveToGroup.mutate({ id: String(active.id), groupId: target, order: [...ids.slice(0, at), String(active.id), ...ids.slice(at)] });
-      return;
-    }
-    if (over.data.current?.groupId) return;
-    const ids: string[] = active.data.current?.sortable.items;
-    reorder.mutate(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
+  const actionFor = ({ active, over }: Pick<DragEndEvent, 'active' | 'over'>) =>
+    over ? dropAction(dropSide(active), dropSide(over), (groupId) => nodesIn(groupId).map(({ id }) => id)) : undefined;
+
+  const dragging = spaces.find((space) => space.id === draggingId);
+  const destination =
+    preview?.kind === 'folder'
+      ? `Into ${spaces.find((space) => space.id === preview.parentId)?.title ?? 'folder'}`
+      : preview?.kind === 'group'
+        ? `To ${groups.find((group) => group.id === preview.groupId)?.title ?? 'group'}`
+        : undefined;
+
+  function stopDragging() {
+    setPreview(undefined);
+    setDraggingId(undefined);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    stopDragging();
+    const action = actionFor(event);
+    if (action?.kind === 'folder') moveSpace.mutate({ id: action.id, parentId: action.parentId });
+    if (action?.kind === 'group') moveToGroup.mutate({ id: action.id, groupId: action.groupId, order: action.order });
+    if (action?.kind === 'reorder') reorder.mutate(action.order);
   }
 
   function toggleFolder(id: string) {
@@ -380,18 +444,23 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
       <DndContext
         id="spaces-nav"
         sensors={sensors}
-        collisionDetection={withinGroups}
+        collisionDetection={sidebarCollision}
         modifiers={[keepRowVertical]}
+        onDragStart={({ active }) => setDraggingId(String(active.id))}
+        onDragOver={(event) => setPreview(actionFor(event))}
+        onDragCancel={stopDragging}
         onDragEnd={handleDragEnd}
       >
         {groups.map((group) => {
           const nodes = nodesIn(group.id);
+          const rows = renderNodes(nodes, !isPending);
+          const lineAt = preview?.kind === 'group' && preview.groupId === group.id ? preview.order.indexOf(preview.id) : -1;
           return (
             <section key={group.id} aria-label={group.title}>
-              <GroupHeading group={group} onAdd={(kind) => setCreating(group === SAMPLE_GROUPS[0] ? { kind } : { kind, groupId: group.id })} />
+              <GroupHeading group={group} isTarget={lineAt !== -1} onAdd={(kind) => setCreating(group === SAMPLE_GROUPS[0] ? { kind } : { kind, groupId: group.id })} />
               <Skeleton loading={isPending} label="Loading spaces">
                 <SortableContext id={GROUP_LIST + group.id} items={nodes.map(({ id }) => id)} strategy={verticalListSortingStrategy}>
-                  {renderNodes(nodes, !isPending && nodes.length > 1)}
+                  {lineAt === -1 ? rows : [...rows.slice(0, lineAt), DROP_LINE, ...rows.slice(lineAt)]}
                 </SortableContext>
               </Skeleton>
             </section>
@@ -406,6 +475,9 @@ export function SpacesNavComponent({ renderSpaceSummary }: { renderSpaceSummary?
             </SortableContext>
           </>
         )}
+        <DragOverlay modifiers={[keepRowVertical]} dropAnimation={null}>
+          {dragging && <DragPreview space={dragging} destination={destination} />}
+        </DragOverlay>
       </DndContext>
 
       <Dialog open={creating !== undefined} onOpenChange={(open) => !open && close()}>
