@@ -1,5 +1,5 @@
-import { HomeRedirectComponent } from '@/features/auth';
+import { LandingPageComponent } from '@/features/landing';
 
 export default function HomePage() {
-  return <HomeRedirectComponent />;
+  return <LandingPageComponent />;
 }

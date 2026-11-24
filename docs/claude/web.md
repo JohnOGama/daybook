@@ -27,3 +27,7 @@ Use Skullet (`skullet/react`) for every loading state, with no spinners, "Loadin
 - **Colours:** `SkulletProvider` gets no `mode`; the skeleton colours are `--skullet-base` and `--skullet-highlight` per theme in `globals.css`.
 - **Debugging:** add `?skullet-debug` to a URL to outline each skeleton and show layout shifts.
 - **The `id` prop:** it remembers shapes across visits. If you start using it, call `forgetShapes()` on sign-out.
+
+## Landing page
+
+- `/` is the public landing page (`features/landing`, `LandingPageComponent`), light by default like the rest of the app. Signed-in people stay on it and see a Dashboard link (to `/list`) in place of Sign in. Its copy and the repo link live in `landing-content.ts`; the tool previews are real screenshots in `public/landing/` taken from a demo account with made-up data, never from a real one.
