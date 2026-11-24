@@ -97,6 +97,17 @@ describe('jobs API sharing', () => {
 
   afterEach(() => app.close());
 
+  it('changes only the fields sent, so a status change keeps the description, notes and interview time', async () => {
+    await as('u1', 'patch', `/${job}`, { notes: 'Ask about the team', nextStepAt: '2026-11-19T09:30:00.000Z' }).expect(200);
+    await as('u1', 'patch', `/${job}`, { status: 'applied', events: [{ kind: 'status', status: 'applied', day: '2026-11-14' }] }).expect(200);
+    const [row] = await db.select().from(jobs);
+    expect(row).toMatchObject({ description: 'Build things', notes: 'Ask about the team', status: 'applied' });
+    expect(new Date(row.nextStepAt as string).toISOString()).toBe('2026-11-19T09:30:00.000Z');
+    const { body } = await as('u1', 'get', `?spaceId=${space}`).expect(200);
+    expect(body.jobs[0]).toMatchObject({ nextStepAt: '2026-11-19T09:30:00.000Z' });
+    expect(body.jobs[0]).not.toHaveProperty('reminderSentFor');
+  });
+
   it('shows the owner\'s jobs to a viewer', async () => {
     await insertShare(db, { spaceId: space, ownerId: 'u1', email: 'u2@example.com', role: 'view' });
     const { body } = await as('u2', 'get', `?spaceId=${space}`).expect(200);

@@ -36,3 +36,19 @@ export function createOtpSender(client: Pick<Resend, 'emails'>, from: string): O
     if (error) throw new Error(error.message);
   };
 }
+
+export type InterviewReminder = { to: string; name: string; role: string; company: string; note: string | null; minutes: number; link: string };
+export type InterviewReminderSender = (message: InterviewReminder) => Promise<void>;
+
+export function createInterviewReminderSender(client: Pick<Resend, 'emails'>, from: string): InterviewReminderSender {
+  return async ({ to, name, role, company, note, minutes, link }) => {
+    const when = minutes <= 1 ? 'now' : `in ${minutes} minutes`;
+    const { error } = await client.emails.send({
+      from,
+      to,
+      subject: `Interview ${when}: ${role} at ${company}`,
+      text: [`Hi ${name}, your interview for ${role} at ${company} starts ${when}.`, note, `Open it in Daybook: ${link}`].filter(Boolean).join('\n\n'),
+    });
+    if (error) throw new Error(error.message);
+  };
+}

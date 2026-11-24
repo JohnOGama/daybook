@@ -37,7 +37,7 @@ const waiting: Job = {
   status: 'applied',
   events: [{ kind: 'status', status: 'applied', day: '2026-11-01' }],
   nextStepDay: null,
-  nextStepNote: null,
+  nextStepNote: null, nextStepAt: null,
   match: { pct: 80, summary: 'Good fit.', skillsHave: ['React'], skillsMissing: [], matchedAt: '2026-11-11T09:00:00.000Z' },
   createdAt: '2026-11-01T09:00:00.000Z',
   updatedAt: '2026-11-01T09:00:00.000Z',

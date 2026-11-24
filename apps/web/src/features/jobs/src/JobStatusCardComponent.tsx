@@ -7,7 +7,7 @@ import { Input } from '@/shared/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-group';
 import { formatShortDay } from '@/shared/utils/date-formatter';
 import { useJobsMutations } from '../hooks/useJobsMutations';
-import { moveTo } from './jobs-math';
+import { moveTo, stepInstant, stepTime } from './jobs-math';
 import { StatusPillComponent } from './JobsTableComponent';
 import { type Job, type JobFields, type JobStatus, STATUS_LABELS, STATUS_STEPS } from './jobs-types';
 
@@ -37,6 +37,7 @@ export function JobStatusCardComponent({ job, today, canEdit = true }: { job: Jo
   const [askingNext, setAskingNext] = useState(false);
   const [nextDay, setNextDay] = useState(job.nextStepDay ?? '');
   const [nextNote, setNextNote] = useState(job.nextStepNote ?? '');
+  const [nextTime, setNextTime] = useState(stepTime(job.nextStepAt) ?? '');
 
   const save = (changes: Partial<JobFields>) => saveJob.mutate({ id: job.id, changes });
 
@@ -47,7 +48,7 @@ export function JobStatusCardComponent({ job, today, canEdit = true }: { job: Jo
   }
 
   function saveNextStep() {
-    const nextStep = { nextStepDay: nextDay || null, nextStepNote: nextNote.trim() || null };
+    const nextStep = { nextStepDay: nextDay || null, nextStepNote: nextNote.trim() || null, nextStepAt: stepInstant(nextDay || null, nextTime) };
     save(askingNext ? { ...moveTo(job, 'interviewing', day), ...nextStep } : nextStep);
     setAskingNext(false);
   }
@@ -59,7 +60,7 @@ export function JobStatusCardComponent({ job, today, canEdit = true }: { job: Jo
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <StatusPillComponent job={job} />
             {job.status === 'interviewing' && (job.nextStepDay || job.nextStepNote) && (
-              <span className="text-muted-foreground">{[job.nextStepNote, job.nextStepDay].filter(Boolean).join(' · ')}</span>
+              <span className="text-muted-foreground">{[job.nextStepNote, job.nextStepDay, stepTime(job.nextStepAt)].filter(Boolean).join(' · ')}</span>
             )}
           </div>
         ) : (
@@ -95,10 +96,12 @@ export function JobStatusCardComponent({ job, today, canEdit = true }: { job: Jo
         {(askingNext || job.status === 'interviewing') && (
           <div className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
             <span className="text-xs font-medium">{askingNext ? 'Moving to Interviewing. Anything booked?' : 'Next step'}</span>
-            <div className="flex gap-2">
-              <Input type="date" aria-label="Next step date" value={nextDay} onChange={(event) => setNextDay(event.target.value)} className="h-8 w-40 text-xs" />
-              <Input aria-label="Next step note" placeholder="Interview 10:00" maxLength={120} value={nextNote} onChange={(event) => setNextNote(event.target.value)} className="h-8 text-xs" />
+            <div className="flex flex-wrap gap-2">
+              <Input type="date" aria-label="Next step date" value={nextDay} onChange={(event) => setNextDay(event.target.value)} className="h-8 w-36 text-xs" />
+              <Input type="time" aria-label="Next step time" value={nextTime} onChange={(event) => setNextTime(event.target.value)} className="h-8 w-28 text-xs" />
+              <Input aria-label="Next step note" placeholder="Interview with the team" maxLength={120} value={nextNote} onChange={(event) => setNextNote(event.target.value)} className="h-8 min-w-32 flex-1 text-xs" />
             </div>
+            <p className="text-xs text-muted-foreground">{nextDay && nextTime ? "We'll email you 30 minutes before." : 'Add a time to get an email 30 minutes before.'}</p>
             <div className="flex justify-end gap-2">
               {askingNext && (
                 <Button

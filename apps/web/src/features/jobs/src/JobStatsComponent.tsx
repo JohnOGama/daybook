@@ -19,7 +19,7 @@ export function JobStatsComponent({ jobs, today }: { jobs: Job[]; today: string 
       <StatTileComponent
         label="Interviewing"
         value={String(stats.interviewing)}
-        detail={stats.nextStep ? `Next: ${stats.nextStep.job.company}, ${formatShortDay(stats.nextStep.day)}` : 'Nothing booked'}
+        detail={stats.nextStep ? `Next: ${stats.nextStep.job.company}, ${formatShortDay(stats.nextStep.day)}${stats.nextStep.time ? ` ${stats.nextStep.time}` : ''}` : 'Nothing booked'}
       />
       <StatTileComponent label="Reply rate" value={stats.replyRate === null ? '—' : percent(stats.replyRate)} detail={stats.replyRate === null ? 'Apply to a job to see this' : undefined}>
         {stats.replyRate !== null && (

@@ -1,23 +1,10 @@
 import { addDays, localDay } from '@/shared/utils/date-formatter';
+
+export { formatMonthHeading, monthGrid, shiftMonth } from '@/shared/utils/month-grid';
 import { allInTree } from './task-cache';
 import type { Task } from './task-types';
 
 const VISIBLE_ENTRIES = 3;
-
-const mondayIndex = (date: Date) => (date.getDay() + 6) % 7;
-
-function parseMonth(month: string): Date {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return new Date(year, monthNumber - 1, 1);
-}
-
-export function monthGrid(month: string): string[] {
-  const first = parseMonth(month);
-  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
-  const cellCount = mondayIndex(first) + last.getDate() + (6 - mondayIndex(last));
-  const start = addDays(localDay(first), -mondayIndex(first));
-  return Array.from({ length: cellCount }, (_, index) => addDays(start, index));
-}
 
 const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 86_400_000;
 
@@ -104,14 +91,4 @@ export function dayListHref(day: string, today: string, filters: URLSearchParams
   const query = new URLSearchParams(filters);
   if (day !== today) query.set('day', day);
   return query.size > 0 ? `/list?${query}` : '/list';
-}
-
-export function shiftMonth(month: string, amount: number): string {
-  const date = parseMonth(month);
-  date.setMonth(date.getMonth() + amount);
-  return localDay(date).slice(0, 7);
-}
-
-export function formatMonthHeading(month: string): string {
-  return parseMonth(month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }

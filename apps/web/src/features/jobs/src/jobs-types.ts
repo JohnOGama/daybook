@@ -42,6 +42,8 @@ export type JobFields = {
   events: JobEvent[];
   nextStepDay: string | null;
   nextStepNote: string | null;
+  // The interview's exact moment, when a time was given: the server emails a reminder 30 minutes before.
+  nextStepAt: string | null;
 };
 
 export type Job = JobFields & { id: string; match: Match | null; createdAt: string; updatedAt: string };

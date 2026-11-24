@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Plus, Search } from 'lucide-react';
+import { CalendarDays, FileText, Plus, Rows3, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Skeleton } from 'skullet/react';
 import { PresenceAvatarsComponent, useActiveSpace, useSpaceAccess, ViewOnlyBadgeComponent } from '@/features/spaces';
@@ -9,6 +9,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Drawer } from '@/shared/components/ui/drawer';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-group';
 import { useToday } from '@/shared/hooks/useToday';
 import { useJobs } from '../hooks/useJobs';
 import { AddFromLinkComponent } from './AddFromLinkComponent';
@@ -17,6 +18,7 @@ import { countByStatus, visibleJobs } from './jobs-math';
 import { JOB_STATUSES, type JobSort, type JobStatus, STATUS_LABELS } from './jobs-types';
 import { JobFormDialogComponent, type JobFormInitial } from './JobFormDialogComponent';
 import { JobPanelComponent } from './JobPanelComponent';
+import { JobsCalendarComponent } from './JobsCalendarComponent';
 import { JobStatsComponent } from './JobStatsComponent';
 import { JobsTableComponent } from './JobsTableComponent';
 import { sampleJobs } from './sample-jobs';
@@ -36,6 +38,7 @@ export function JobsPageComponent() {
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [form, setForm] = useState<JobFormInitial | null>(null);
   const [cvOpen, setCvOpen] = useState(false);
+  const [view, setView] = useState<'table' | 'calendar'>('table');
 
   if (isError) {
     return (
@@ -102,12 +105,25 @@ export function JobsPageComponent() {
                   ))}
                 </TabsList>
               </Tabs>
-              <div className="relative xl:w-56">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <Input type="search" aria-label="Search jobs" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} className="pl-8" />
+              <div className="flex items-center gap-2">
+                <ToggleGroup type="single" variant="outline" size="sm" aria-label="View" value={view} onValueChange={(next) => next && setView(next as 'table' | 'calendar')}>
+                  <ToggleGroupItem value="table" aria-label="Table view">
+                    <Rows3 aria-hidden />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="calendar" aria-label="Calendar view">
+                    <CalendarDays aria-hidden />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <div className="relative flex-1 xl:w-56 xl:flex-none">
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input type="search" aria-label="Search jobs" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} className="pl-8" />
+                </div>
               </div>
             </div>
 
+            {view === 'calendar' ? (
+              <JobsCalendarComponent jobs={shown} today={today} onSelect={setSelectedId} />
+            ) : (
             <JobsTableComponent
               jobs={shown}
               empty={empty}
@@ -122,11 +138,12 @@ export function JobsPageComponent() {
               onSelect={setSelectedId}
               onAddCv={() => setCvOpen(true)}
             />
+            )}
           </div>
         </Skeleton>
       </div>
 
-      <Drawer direction="right" open={Boolean(selected)} onOpenChange={(open) => !open && setSelectedId(null)} modal={false}>
+      <Drawer direction="right" open={Boolean(selected)} onOpenChange={(open) => !open && setSelectedId(null)}>
         {selected && (
           <JobPanelComponent
             key={selected.id}

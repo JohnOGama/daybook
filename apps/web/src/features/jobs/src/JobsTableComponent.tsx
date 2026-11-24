@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/shared/utils/cn';
 import { formatShortDay, relativeDayLabel } from '@/shared/utils/date-formatter';
 import { useJobsMutations } from '../hooks/useJobsMutations';
-import { appliedOn, followUp, moveTo, nudgeFor } from './jobs-math';
+import { appliedOn, bookedStep, followUp, moveTo, nudgeFor } from './jobs-math';
 import { type Job, type JobProfile, type JobSort, STATUS_DOT, STATUS_LABELS, WORK_MODE_LABELS } from './jobs-types';
 import { MatchRingComponent } from './MatchRingComponent';
 
@@ -33,11 +33,12 @@ const subtitle = (job: Job) => [job.company, job.location ?? (job.workMode ? WOR
 function AppliedCell({ job, today }: { job: Job; today: string }) {
   const applied = appliedOn(job);
   const nudge = nudgeFor(job, today);
+  const booked = bookedStep(job);
   const lastStatusDay = job.events.filter((event) => event.kind === 'status').at(-1)?.day;
   const second = nudge
     ? { text: `${nudge.days} days, no reply${nudge.closeIt ? ' · close it?' : ''}`, signal: true }
-    : job.nextStepDay && job.nextStepDay >= today
-      ? { text: [job.nextStepNote, relativeDayLabel(job.nextStepDay, today)].filter(Boolean).join(' · '), signal: false }
+    : booked && booked.day >= today
+      ? { text: [booked.note, relativeDayLabel(booked.day, today), booked.time].filter(Boolean).join(' · '), signal: false }
       : (job.status === 'offer' || job.status === 'rejected') && lastStatusDay
         ? { text: `${STATUS_LABELS[job.status]} ${formatShortDay(lastStatusDay)}`, signal: false }
         : null;

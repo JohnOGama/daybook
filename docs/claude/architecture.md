@@ -15,6 +15,6 @@
 
 ## API conventions
 
-- The API runs one background job in its own process, the uptime scheduler (`UptimeScheduler`), and keeps live rooms in memory, so it must run as a single instance.
+- The API runs two background jobs in its own process, the uptime scheduler (`UptimeScheduler`) and interview reminders (`InterviewReminderScheduler`), and keeps live rooms in memory, so it must run as a single instance.
 - The API runs through `tsx`, with no `emitDecoratorMetadata`, so every constructor dependency needs an explicit `@Inject(Token)`.
 - Relative imports in `apps/api` include the `.ts` extension. `apps/web` uses the `@/` alias.

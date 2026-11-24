@@ -130,18 +130,13 @@ function Description({ job, canEdit, onSave }: { job: Job; canEdit: boolean; onS
 
 type JobPanelProps = { job: Job; profile: JobProfile; aiEnabled: boolean; canEdit?: boolean; today: string; onClose: () => void; onAddCv: () => void };
 
-// Lives inside a non-modal <Drawer>: the list stays usable, and picking another job swaps what the panel shows.
-
-// One job in full: status, match, details, description and notes, in a drawer floating on the right.
+// One job in full: status, match, details, description and notes, in the standard drawer on the right.
 export function JobPanelComponent({ job, profile, aiEnabled, canEdit = true, today, onClose, onAddCv }: JobPanelProps) {
   const { saveJob, deleteJobWithUndo } = useJobsMutations();
   const save = (changes: Partial<JobFields>) => saveJob.mutate({ id: job.id, changes });
 
   return (
-    <DrawerContent
-      onInteractOutside={(event) => event.preventDefault()}
-      className="gap-4 overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl border bg-popover p-4 data-[vaul-drawer-direction=right]:inset-y-3 data-[vaul-drawer-direction=right]:right-3 data-[vaul-drawer-direction=right]:w-[calc(100%-1.5rem)] data-[vaul-drawer-direction=right]:sm:max-w-md"
-    >
+    <DrawerContent className="gap-4 overflow-x-hidden overflow-y-auto overscroll-contain p-4 data-[vaul-drawer-direction=right]:sm:max-w-md">
       <div className="flex items-start gap-3">
         <CompanyLogoComponent company={job.company} className="size-10" />
         <div className="flex min-w-0 flex-1 flex-col">

@@ -16,7 +16,7 @@ const PRUNE_EVERY_MS = 60 * 60_000;
 
 type DueSite = { id: string; url: string; spaceId: string };
 
-// Daybook's one background job: checks every due site, a few at a time, in this API process.
+// One of Daybook's two background jobs (with interview reminders): checks every due site, a few at a time, in this API process.
 // Rooms already tie the API to a single instance, so a timer here is enough; nothing is checked while the API is down.
 @Injectable()
 export class UptimeScheduler implements OnModuleInit, OnApplicationShutdown {

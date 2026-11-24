@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   appliedOn,
+  bookedStep,
+  calendarEntries,
   countByStatus,
   followUp,
   isMatchStale,
@@ -35,6 +37,7 @@ const job = (overrides: Partial<Job> = {}): Job => ({
   events: [],
   nextStepDay: null,
   nextStepNote: null,
+  nextStepAt: null,
   match: null,
   createdAt: '2026-11-01T09:00:00.000Z',
   updatedAt: '2026-11-01T09:00:00.000Z',
@@ -153,4 +156,26 @@ describe('normalizeLink and isMatchStale', () => {
     expect(isMatchStale(matched, { cvText: 'cv', cvUpdatedAt: '2026-11-09T00:00:00.000Z' })).toBe(false);
     expect(isMatchStale(job(), { cvText: 'cv', cvUpdatedAt: '2026-11-12T00:00:00.000Z' })).toBe(false);
   });
+});
+
+it('counts a booked next step only while the job is in Interviewing', () => {
+  const interviewing = job({ status: 'interviewing', nextStepDay: '2026-11-19', nextStepNote: 'Panel 10:00' });
+  expect(bookedStep(interviewing)).toEqual({ day: '2026-11-19', note: 'Panel 10:00', time: null });
+  expect(bookedStep({ ...interviewing, nextStepAt: new Date('2026-11-19T10:00').toISOString() })?.time).toBe('10:00');
+  expect(bookedStep({ ...interviewing, status: 'rejected' })).toBeNull();
+  expect(jobStats([{ ...interviewing, status: 'offer' }], TODAY).nextStep).toBeNull();
+  expect(jobStats([interviewing], TODAY).nextStep).toMatchObject({ day: '2026-11-19', note: 'Panel 10:00' });
+});
+
+it('puts interviews, status changes and follow-ups on the calendar', () => {
+  const entries = calendarEntries([
+    job({ id: 'j1', company: 'Acme', status: 'interviewing', nextStepDay: '2026-11-19', nextStepNote: null, events: [applied('2026-11-04'), { kind: 'followUp', day: '2026-11-08' }] }),
+    job({ id: 'j2', company: 'Initech', status: 'rejected', nextStepDay: '2026-11-20', events: [applied('2026-11-01')] }),
+  ]);
+  expect(entries).toEqual([
+    { jobId: 'j1', day: '2026-11-19', kind: 'interview', label: 'Acme · Interview' },
+    { jobId: 'j1', day: '2026-11-04', kind: 'status', status: 'applied', label: 'Acme · Applied' },
+    { jobId: 'j1', day: '2026-11-08', kind: 'followUp', label: 'Acme · Followed up' },
+    { jobId: 'j2', day: '2026-11-01', kind: 'status', status: 'applied', label: 'Initech · Applied' },
+  ]);
 });

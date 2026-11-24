@@ -23,6 +23,7 @@ export function sampleJobs(today: string): Jobs {
       events,
       nextStepDay: null,
       nextStepNote: null,
+      nextStepAt: null,
       match: pct === null ? null : { pct, summary: '', skillsHave: [], skillsMissing: [], matchedAt: `${day}T00:00:00.000Z` },
       createdAt: `${day}T00:00:00.000Z`,
       updatedAt: `${day}T00:00:00.000Z`,

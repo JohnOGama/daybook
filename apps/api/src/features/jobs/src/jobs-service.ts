@@ -10,12 +10,12 @@ export type JobDto = JobFields & { id: string; match: Match | null; createdAt: s
 const iso = (value: string) => new Date(value).toISOString();
 
 function toDto(row: JobRow): JobDto {
-  const { spaceId: _space, userId: _user, matchPct, matchSummary, skillsHave, skillsMissing, matchedAt, events, createdAt, updatedAt, ...fields } = row;
+  const { spaceId: _space, userId: _user, reminderSentFor: _reminded, nextStepAt, matchPct, matchSummary, skillsHave, skillsMissing, matchedAt, events, createdAt, updatedAt, ...fields } = row;
   const match =
     matchPct === null || matchedAt === null
       ? null
       : { pct: matchPct, summary: matchSummary ?? '', skillsHave: skillsHave ?? [], skillsMissing: skillsMissing ?? [], matchedAt: iso(matchedAt) };
-  return { ...fields, events: events as JobEvent[], match, createdAt: iso(createdAt), updatedAt: iso(updatedAt) };
+  return { ...fields, nextStepAt: nextStepAt && iso(nextStepAt), events: events as JobEvent[], match, createdAt: iso(createdAt), updatedAt: iso(updatedAt) };
 }
 
 const matchColumns = (match: Match | null | undefined) =>

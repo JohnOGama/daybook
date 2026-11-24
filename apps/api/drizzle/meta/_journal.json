@@ -218,6 +218,13 @@
       "when": 1795527292551,
       "tag": "0030_dazzling_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795533624322,
+      "tag": "0031_ordinary_hellcat",
+      "breakpoints": true
     }
   ]
 }

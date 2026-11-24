@@ -12,7 +12,7 @@
   - Anything else is **down**, with a short reason ("502 Bad Gateway", "Timed out after 10 s", "Connection refused", "Address not found", "Not a public address").
   - `checkWithRetry` tries a down result once more after 5 s and keeps only the second answer, so a blip never turns a site red.
 - **Only public addresses.** Every connection's resolved address must pass `isPublicAddress`, checked in the socket `lookup` through `shared/utils/public-address.ts` (shared with the jobs posting fetcher), so redirects and DNS rebinding can't reach private addresses. Adding a site, or changing its URL, first runs `isPublicUrl` (http(s), at most 2,000 characters, every DNS address public); otherwise it answers 400 "Public addresses only".
-- **The scheduler** (`UptimeScheduler`) is the API's one background job.
+- **The scheduler** (`UptimeScheduler`) is one of the API's two background jobs (the other sends interview reminders).
   - Every 15 s it checks each due site: not paused, last checked a minute ago or more (or never), in a space that isn't in Trash, and still visible through `SpaceAccessService.viewerIds` (so a folder or group in Trash stops it too). Locked spaces are still checked: the password guards reading.
   - A tick that is still running makes later ticks skip, so at most 5 checks ever run at once, and a site already in flight is skipped.
   - Each site is recorded at the time its own check started (the tick's time plus its wait in the queue).

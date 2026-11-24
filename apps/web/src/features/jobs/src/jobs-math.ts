@@ -1,5 +1,5 @@
 import { addDays } from '@/shared/utils/date-formatter';
-import type { Job, JobEvent, JobFields, JobProfile, JobSort, JobStatus } from './jobs-types';
+import { type Job, type JobEvent, type JobFields, type JobProfile, type JobSort, type JobStatus, STATUS_LABELS } from './jobs-types';
 
 const NUDGE_FROM_DAYS = 7;
 const CLOSE_IT_FROM_DAYS = 30;
@@ -33,6 +33,40 @@ export function moveTo(job: Job, status: JobStatus, day: string): Pick<Job, 'sta
   return { status, events: [...job.events, { kind: 'status', status, day }] };
 }
 
+// The booked next step (an interview, usually) only counts while the job is in Interviewing. One kept after moving
+// on to Offer or Not accepted is history, so it never shows as upcoming.
+export function bookedStep(job: Job): { day: string; note: string | null; time: string | null } | null {
+  return job.status === 'interviewing' && job.nextStepDay ? { day: job.nextStepDay, note: job.nextStepNote, time: stepTime(job.nextStepAt) } : null;
+}
+
+// A day and a typed time ("09:30") as one moment, read in the browser's own time zone; no time, no moment.
+export const stepInstant = (day: string | null, time: string): string | null => (day && time ? new Date(`${day}T${time}`).toISOString() : null);
+
+// The local "HH:MM" of a stored moment.
+export function stepTime(at: string | null): string | null {
+  if (!at) return null;
+  const date = new Date(at);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export type CalendarEntry = { jobId: string; day: string; kind: 'interview' | 'status' | 'followUp'; label: string; status?: JobStatus };
+
+// What a job hunt calendar shows: booked interviews, every status change and every follow-up, by day.
+export function calendarEntries(jobs: Job[]): CalendarEntry[] {
+  return jobs.flatMap((job) => {
+    const booked = bookedStep(job);
+    const interview: CalendarEntry[] = booked
+      ? [{ jobId: job.id, day: booked.day, kind: 'interview', label: [job.company, booked.time, booked.note ?? 'Interview'].filter(Boolean).join(' · ') }]
+      : [];
+    const history: CalendarEntry[] = job.events.map((event) =>
+      event.kind === 'status'
+        ? { jobId: job.id, day: event.day, kind: 'status', status: event.status, label: `${job.company} · ${STATUS_LABELS[event.status]}` }
+        : { jobId: job.id, day: event.day, kind: 'followUp', label: `${job.company} · Followed up` },
+    );
+    return [...interview, ...history];
+  });
+}
+
 export const followUp = (job: Job, day: string): Pick<Job, 'events'> => ({ events: [...job.events, { kind: 'followUp', day }] });
 
 const TRAILS: Record<JobStatus, JobStatus[]> = {
@@ -52,8 +86,11 @@ export function jobStats(jobs: Job[], today: string) {
   const everApplied = jobs.filter((job) => appliedOn(job) !== null);
   const replied = everApplied.filter((job) => statusDays(job, REPLIED).length > 0);
   const upcoming = jobs
-    .filter((job) => job.nextStepDay !== null && job.nextStepDay >= today)
-    .sort((a, b) => (a.nextStepDay as string).localeCompare(b.nextStepDay as string))[0];
+    .flatMap((job) => {
+      const booked = bookedStep(job);
+      return booked && booked.day >= today ? [{ job, ...booked }] : [];
+    })
+    .sort((a, b) => a.day.localeCompare(b.day))[0];
   const now = (status: JobStatus) => replied.filter((job) => job.status === status).length;
   return {
     appliedWeek: within(7),
@@ -61,7 +98,7 @@ export function jobStats(jobs: Job[], today: string) {
     waiting: waiting.length,
     waitingLong: waiting.filter((job) => (waitingDays(job, today) ?? 0) >= WAITING_LONG_DAYS).length,
     interviewing: jobs.filter((job) => job.status === 'interviewing').length,
-    nextStep: upcoming ? { job: upcoming, day: upcoming.nextStepDay as string, note: upcoming.nextStepNote } : null,
+    nextStep: upcoming ?? null,
     everApplied: everApplied.length,
     replyRate: everApplied.length === 0 ? null : replied.length / everApplied.length,
     replied: { interviewing: now('interviewing'), offer: now('offer'), rejected: now('rejected') },
@@ -122,6 +159,7 @@ export function newJob(fields: Partial<JobFields> & Pick<JobFields, 'role' | 'co
     events: [],
     nextStepDay: null,
     nextStepNote: null,
+    nextStepAt: null,
     ...fields,
     id: crypto.randomUUID(),
     match: null,

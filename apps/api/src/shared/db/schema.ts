@@ -576,6 +576,10 @@ export const jobs = pgTable(
     events: jsonb('events').$type<unknown[]>().notNull(),
     nextStepDay: date('next_step_day', { mode: 'string' }),
     nextStepNote: text('next_step_note'),
+    // The interview's exact moment, worked out in the browser from the day and time in the person's own time zone.
+    nextStepAt: timestamp('next_step_at', { withTimezone: true, mode: 'string' }),
+    // The `nextStepAt` a reminder email was sent for, so each booked time is reminded once and a new time is reminded again.
+    reminderSentFor: timestamp('reminder_sent_for', { withTimezone: true, mode: 'string' }),
     matchPct: integer('match_pct'),
     matchSummary: text('match_summary'),
     skillsHave: jsonb('skills_have').$type<string[]>(),

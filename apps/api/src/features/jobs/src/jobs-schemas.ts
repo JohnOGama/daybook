@@ -43,6 +43,7 @@ const jobFields = {
   events: z.array(jobEventSchema).max(200),
   nextStepDay: day.nullable(),
   nextStepNote: optionalText(120),
+  nextStepAt: z.iso.datetime({ offset: true }).nullable().default(null),
 };
 
 export const jobFieldsSchema = z.object(jobFields);
@@ -57,7 +58,10 @@ export const newJobSchema = jobFieldsSchema.extend({
 });
 export type NewJob = z.infer<typeof newJobSchema>;
 
-const partialFields = Object.fromEntries(Object.entries(jobFields).map(([key, schema]) => [key, schema.optional()])) as {
+// A change carries only what changed: a field's default (an empty description, no next step) must not fill in a field
+// that wasn't sent, or every status change would wipe the description and notes.
+const withoutDefault = (schema: z.ZodType): z.ZodType => (schema instanceof z.ZodDefault ? (schema.removeDefault() as z.ZodType) : schema);
+const partialFields = Object.fromEntries(Object.entries(jobFields).map(([key, schema]) => [key, withoutDefault(schema).optional()])) as {
   [K in keyof typeof jobFields]: z.ZodOptional<(typeof jobFields)[K]>;
 };
 

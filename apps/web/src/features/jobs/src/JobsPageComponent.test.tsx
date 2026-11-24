@@ -46,6 +46,7 @@ const job = (id: string, role: string, company: string, value: JobStatus, events
   events,
   nextStepDay: null,
   nextStepNote: null,
+  nextStepAt: null,
   match: null,
   createdAt: '2026-11-01T09:00:00.000Z',
   updatedAt: '2026-11-01T09:00:00.000Z',
@@ -243,7 +244,20 @@ it('asks for the next step when moving to Interviewing', async () => {
   await userEvent.click(panel().getByRole('button', { name: 'Save' }));
   expect(mutations.saveJob.mutate).toHaveBeenCalledWith({
     id: 'globex',
-    changes: { ...moveTo(globex, 'interviewing', TODAY), nextStepDay: '2026-11-19', nextStepNote: 'Interview 10:00' },
+    changes: { ...moveTo(globex, 'interviewing', TODAY), nextStepDay: '2026-11-19', nextStepNote: 'Interview 10:00', nextStepAt: null },
+  });
+});
+
+it('books an interview time, saved as an exact moment, and says a reminder email will come', async () => {
+  show();
+  await open('Frontend Engineer');
+  expect(panel().getByText('Add a time to get an email 30 minutes before.')).toBeInTheDocument();
+  fireEvent.change(panel().getByLabelText('Next step time'), { target: { value: '09:30' } });
+  expect(panel().getByText("We'll email you 30 minutes before.")).toBeInTheDocument();
+  await userEvent.click(panel().getByRole('button', { name: 'Save' }));
+  expect(mutations.saveJob.mutate).toHaveBeenCalledWith({
+    id: 'acme',
+    changes: { nextStepDay: '2026-11-19', nextStepNote: 'Interview 10:00', nextStepAt: new Date('2026-11-19T09:30').toISOString() },
   });
 });
 
@@ -327,4 +341,27 @@ it('closes the panel with Escape, but not while its menu is open', async () => {
   await vi.waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
   await userEvent.keyboard('{Escape}');
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+it('shows booked interviews and the job hunt on a calendar, and opens a job from it', async () => {
+  const oldInterview = { ...initech, nextStepDay: '2026-11-18', nextStepNote: 'Old interview' };
+  show({ ...withCv, jobs: [acme, oldInterview, hooli] });
+  await userEvent.click(screen.getByRole('radio', { name: 'Calendar view' }));
+  const calendar = within(screen.getByRole('region', { name: 'Job hunt calendar' }));
+  expect(calendar.getByRole('heading', { name: 'November 2026' })).toBeInTheDocument();
+  const day19 = calendar.getByRole('gridcell', { name: /^2026-11-19/ });
+  expect(within(day19).getByRole('button', { name: 'Acme · Interview 10:00' })).toBeInTheDocument();
+  expect(calendar.queryByText(/Old interview/)).not.toBeInTheDocument();
+  expect(within(calendar.getByRole('gridcell', { name: /^2026-11-12/ })).getByRole('button', { name: 'Hooli · Offer' })).toBeInTheDocument();
+  await userEvent.click(calendar.getByRole('button', { name: 'Next month' }));
+  expect(calendar.getByRole('heading', { name: 'December 2026' })).toBeInTheDocument();
+  await userEvent.click(calendar.getByRole('button', { name: 'This month' }));
+  await userEvent.click(within(calendar.getByRole('gridcell', { name: /^2026-11-19/ })).getByRole('button', { name: 'Acme · Interview 10:00' }));
+  expect(await screen.findByRole('heading', { name: 'Frontend Engineer' })).toBeInTheDocument();
+});
+
+it('stops showing an interview as upcoming once the job has moved on', () => {
+  show({ ...withCv, jobs: [{ ...initech, nextStepDay: '2026-11-18', nextStepNote: 'Old interview' }] });
+  expect(tile('Interviewing')).toHaveTextContent('Nothing booked');
+  expect(row('Initech')).not.toHaveTextContent('Old interview');
 });
