@@ -112,6 +112,8 @@ export type MealPlanInput = z.infer<typeof mealPlanSchema>;
 
 export const weightSchema = z.object({ spaceId, day, weightG: z.number().int().min(20_000).max(400_000) });
 export const weightQuerySchema = z.object({ spaceId, day });
+export const MAX_GLASSES = 30;
+export const waterSchema = z.object({ spaceId, day, glasses: z.number().int().min(0).max(MAX_GLASSES) });
 
 export const MUSCLES = [
   'neck',

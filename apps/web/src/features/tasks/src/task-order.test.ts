@@ -13,6 +13,7 @@ function task(id: string, subtasks: Task[] = []): Task {
     day: '2026-11-09',
     plannedDay: '2026-11-09',
     completedOn: null,
+    dueDay: null,
     createdAt: '',
     subtasks,
   };

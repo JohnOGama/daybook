@@ -19,6 +19,7 @@ function task(id: string, title: string, plannedDay: string, day: string): Task 
     day,
     plannedDay,
     completedOn: null,
+    dueDay: null,
     createdAt: `${plannedDay}T12:00:00.000Z`,
     subtasks: [],
   };

@@ -91,6 +91,16 @@ describe('SpaceGroupsService', () => {
     expect(inWork[1].parentId).toBeNull();
   });
 
+  it('reorders your groups, and only with all of them', async () => {
+    const [main] = await groups.list('u1');
+    const work = await groups.create('u1', { title: 'Work' });
+    await groups.reorder('u1', [work.id, main.id]);
+    expect((await groups.list('u1')).map((group) => group.title)).toEqual(['Work', 'Spaces']);
+    await expect(groups.reorder('u1', [work.id])).rejects.toBeInstanceOf(BadRequestException);
+    const [theirs] = await groups.list('u2');
+    await expect(groups.reorder('u1', [work.id, theirs.id])).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("won't delete your only group", async () => {
     const [main] = await groups.list('u1');
     await expect(groups.remove('u1', main.id)).rejects.toBeInstanceOf(BadRequestException);

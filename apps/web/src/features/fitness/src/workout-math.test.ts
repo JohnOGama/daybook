@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import type { Workout, WorkoutItem, WorkoutSet, WorkoutTemplate } from './fitness-types';
 import { MUSCLES } from './muscles';
-import { formatSets, lastTime, muscleLoad, musclesOf, setsDone, templateFromWorkout, workoutFromTemplate } from './workout-math';
+import { formatSets, lastTime, muscleLoad, musclesOf, nextTry, setsDone, templateFromWorkout, workoutFromTemplate } from './workout-math';
 
 const set = (done: boolean, reps = 8, weightG = 60_000): WorkoutSet => ({ reps, weightG, seconds: null, meters: null, done });
 const bench = (sets: WorkoutSet[]): WorkoutItem => ({ exerciseId: 'bench', name: 'Bench press', kind: 'weight', primary: ['chest'], secondary: ['triceps', 'shoulders'], sets });
@@ -55,4 +55,13 @@ it('writes sets the short way, and counts how many are done', () => {
   expect(formatSets([{ reps: null, weightG: null, seconds: 1500, meters: 5000, done: true }], 'time')).toBe('25 min, 5 km');
   expect(formatSets([], 'weight')).toBe('No sets');
   expect(setsDone(workout('2026-11-13', [bench([set(true), set(false)]), bench([set(true)])]))).toEqual({ done: 2, total: 3 });
+});
+
+it('suggests a small step up from the best set last time', () => {
+  const set = (reps: number | null, weightG: number | null): WorkoutSet => ({ reps, weightG, seconds: null, meters: null, done: true });
+  expect(nextTry([set(8, 60_000), set(6, 60_000), set(10, 50_000)], 'weight')).toBe('Try 8 at 62.5 kg, or 9 at 60 kg');
+  expect(nextTry([set(12, 0)], 'weight')).toBe('Try 13 reps');
+  expect(nextTry([set(15, null), set(20, null)], 'reps')).toBe('Try 21 reps');
+  expect(nextTry([set(null, 60_000)], 'weight')).toBeNull();
+  expect(nextTry([{ ...set(null, null), seconds: 600 }], 'time')).toBeNull();
 });

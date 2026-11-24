@@ -1,5 +1,5 @@
 import { throwIfConflict } from '@/shared/utils/conflict-error';
-import type { Day, Exercise, Fitness, Food, FoodLog, MealPlan, Profile, Weight, Workout, WorkoutTemplate } from './fitness-types';
+import type { Day, Exercise, Fitness, Food, FoodLog, MealPlan, Profile, Water, Weight, Workout, WorkoutTemplate } from './fitness-types';
 
 async function request(method: string, path: string, body: unknown, failure: string): Promise<Response> {
   const response = await fetch(`/api/fitness${path}`, {
@@ -60,6 +60,7 @@ export const createMealPlan = (input: MealPlan & { spaceId: string }) => send('P
 export const saveMealPlan = ({ id, ...plan }: MealPlan & Saved) => saveDocument(`/meal-plans/${id}`, plan, 'That meal plan could not be saved. Please try again.');
 export const deleteMealPlan = (id: string) => send('DELETE', `/meal-plans/${id}`, undefined, 'That meal plan could not be deleted. Please try again.');
 
+export const saveWater = (input: Water & { spaceId: string }) => send('PUT', '/water', input, 'That could not be saved. Please try again.');
 export const saveWeight = (input: Weight & { spaceId: string }) => send('PUT', '/weights', input, 'That weigh-in could not be saved. Please try again.');
 export const deleteWeight = ({ spaceId, day }: { spaceId: string; day: string }) =>
   send('DELETE', `/weights?${new URLSearchParams({ spaceId, day })}`, undefined, 'That weigh-in could not be deleted. Please try again.');

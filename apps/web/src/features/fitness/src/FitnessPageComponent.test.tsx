@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FitnessPageComponent } from './FitnessPageComponent';
@@ -14,6 +14,8 @@ const { useFitness, useFitnessDays, useFoodSearch, mutations, query } = vi.hoist
       saveProfile: mutation(),
       addLogs: mutation(),
       updateLog: mutation(),
+      removeLog: mutation(),
+      saveWater: mutation(),
       deleteLogWithUndo: vi.fn(),
       createFood: mutation(),
       saveFood: mutation(),
@@ -77,10 +79,10 @@ const riceLog = (id: string, eaten: boolean): FoodLog => ({
   fiberMg: 1000,
 });
 
-const show = (fitness: Fitness, search = 'space=s1', day: Day = { logs: [], workouts: [] }) => {
+const show = (fitness: Fitness, search = 'space=s1', { water = [], ...day }: Omit<Day, 'water'> & Partial<Day> = { logs: [], workouts: [] }) => {
   query.current = search;
   useFitness.mockReturnValue({ data: fitness, isPending: false, isError: false });
-  useFitnessDays.mockReturnValue({ data: day, isPending: false, isError: false });
+  useFitnessDays.mockReturnValue({ data: { ...day, water }, isPending: false, isError: false });
   useFoodSearch.mockReturnValue({ data: [rice], isPending: false, isError: false });
   render(<FitnessPageComponent />);
 };
@@ -112,11 +114,55 @@ it('counts only eaten food against the target, and ticking a planned row marks i
   expect(mutations.updateLog.mutate).toHaveBeenCalledWith({ id: 'planned', changes: { eaten: true } });
 });
 
-it('shows an empty day without targets as zeros and a prompt, not broken numbers', () => {
+it('shows an empty day without targets as zeros and the getting-started steps, not broken numbers', () => {
   show(empty);
   expect(within(tile('Calories')).getByText('0 kcal')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Set up your profile' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Open settings' })).toHaveAttribute('href', '/fitness?space=s1&view=settings');
+  expect(screen.getByRole('link', { name: 'Add a weigh-in' })).toHaveAttribute('href', '/fitness?space=s1&view=progress');
   expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
+});
+
+it('ticks off getting-started steps as they are done, and hides the card once all are', () => {
+  show({ ...empty, profile });
+  expect(screen.getByText('2 of 3 done')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Open settings' })).not.toBeInTheDocument();
+  screen.getByRole('link', { name: 'Add a weigh-in' });
+  cleanup();
+  show(withTargets);
+  expect(screen.queryByText('Get started')).not.toBeInTheDocument();
+});
+
+it('offers a Start workout button in an empty Workout card', () => {
+  show(withTargets);
+  expect(screen.getAllByRole('button', { name: 'Start workout' })).toHaveLength(2);
+});
+
+it('logs a recent food again in one tap with the amount used last time, and opens it at that amount', async () => {
+  const recentRice: Food = { ...rice, servings: [{ id: 'cup', label: '1 cup', amountMg: 158_000, custom: false }], last: { quantityMilli: 2000, servingLabel: '1 cup' } };
+  show(withTargets);
+  useFoodSearch.mockReturnValue({ data: [recentRice], isPending: false, isError: false });
+  await userEvent.click(screen.getByRole('button', { name: 'Add food to Dinner' }));
+  const sheet = within(screen.getByRole('dialog'));
+  expect(sheet.getByText('Last time 2 × 1 cup · 411 kcal')).toBeInTheDocument();
+  await userEvent.click(sheet.getByRole('button', { name: 'Add 2 × 1 cup of Rice, white, cooked again' }));
+  expect(mutations.addLogs.mutate).toHaveBeenCalledWith([expect.objectContaining({ meal: 'dinner', eaten: true, servingLabel: '1 cup', quantityMilli: 2000, amountMg: 316_000 })]);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  await userEvent.click(sheet.getByRole('button', { name: /^Rice, white, cooked/ }));
+  expect(sheet.getByLabelText('Amount')).toHaveValue('2');
+  expect(sheet.getByRole('combobox', { name: 'Serving' })).toHaveTextContent('1 cup');
+});
+
+it('asks before leaving Settings with unsaved changes', async () => {
+  show(withTargets, 'space=s1&view=settings');
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const progress = screen.getByRole('link', { name: 'Progress' });
+  progress.addEventListener('click', (event) => event.preventDefault());
+  await userEvent.click(progress);
+  expect(confirm).not.toHaveBeenCalled();
+  await userEvent.type(screen.getByRole('textbox', { name: 'Height (cm)' }), '1');
+  await userEvent.click(progress);
+  expect(confirm).toHaveBeenCalledWith('You have unsaved settings. Leave without saving?');
+  confirm.mockRestore();
 });
 
 it('adds a searched food to a meal by amount, and refuses an amount of zero', async () => {
@@ -196,11 +242,37 @@ it('saves a set as done when it is ticked, shows last time, and lights up the mu
   const todays = { id: 'w1', day: '2026-11-13', name: 'Push day', items: [bench([false, false])] };
   show(withTargets, 'space=s1&view=workouts', { logs: [], workouts: [earlier, todays] });
   expect(screen.getByText('Last time (6 Nov): 3 × 8 at 60 kg')).toBeInTheDocument();
+  expect(screen.getByText('Try 8 at 62.5 kg, or 9 at 60 kg')).toBeInTheDocument();
+  expect(screen.queryByRole('timer', { name: 'Rest' })).not.toBeInTheDocument();
   expect(within(screen.getByRole('group', { name: 'Primary' })).getByText('Chest')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Push day.*3 of 3 sets/ })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('checkbox', { name: 'Bench press, set 2 done' }));
   expect(mutations.saveWorkout.mutate).toHaveBeenCalledWith(expect.objectContaining({ workout: { ...todays, items: [bench([false, true])] } }));
   expect(screen.getByText('1 of 2 sets done')).toBeInTheDocument();
+  expect(screen.getByRole('timer', { name: 'Rest' })).toHaveTextContent(/1:(30|29)/);
+  await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+  expect(screen.queryByRole('timer', { name: 'Rest' })).not.toBeInTheDocument();
+});
+
+it('counts glasses of water for the shown day', async () => {
+  show(withTargets, 'space=s1', { logs: [], workouts: [], water: [{ day: '2026-11-13', glasses: 3 }] });
+  expect(screen.getByText('3 of 8 glasses')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'One more glass' }));
+  expect(mutations.saveWater.mutate).toHaveBeenLastCalledWith({ day: '2026-11-13', glasses: 4 });
+  await userEvent.click(screen.getByRole('button', { name: '6 glasses' }));
+  expect(mutations.saveWater.mutate).toHaveBeenLastCalledWith({ day: '2026-11-13', glasses: 6 });
+  await userEvent.click(screen.getByRole('button', { name: '3 glasses' }));
+  expect(mutations.saveWater.mutate).toHaveBeenLastCalledWith({ day: '2026-11-13', glasses: 2 });
+});
+
+it('copies an empty meal from what was eaten yesterday, and offers nothing for a planned-only meal', async () => {
+  const yesterday = { ...riceLog('y1', true), day: '2026-11-12' };
+  const plannedDinner = { ...riceLog('y2', false), day: '2026-11-12', meal: 'dinner' as const };
+  show(withTargets, 'space=s1', { logs: [yesterday, plannedDinner], workouts: [] });
+  expect(screen.getAllByRole('button', { name: /Same as yesterday/ })).toHaveLength(1);
+  await userEvent.click(screen.getByRole('button', { name: 'Same as yesterday · 1 food, 325 kcal' }));
+  expect(mutations.addLogs.mutate).toHaveBeenCalledWith([expect.objectContaining({ day: '2026-11-13', meal: 'lunch', eaten: true, kcal: 325 })]);
+  expect(mutations.addLogs.mutate.mock.calls[0][0][0].id).not.toBe('y1');
 });
 
 it('shows the day’s workout on Today and the week’s training on Progress', () => {

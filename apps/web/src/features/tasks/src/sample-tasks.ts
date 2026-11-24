@@ -11,6 +11,7 @@ function sampleTask(id: string, title: string, fields: Partial<Task> = {}): Task
     day: '',
     plannedDay: null,
     completedOn: null,
+    dueDay: null,
     createdAt: '2026-01-15T12:00:00.000Z',
     subtasks: [],
     ...fields,

@@ -13,6 +13,7 @@ function task(id: string, subtasks: Task[] = []): Task {
     day: '2026-11-09',
     plannedDay: '2026-11-09',
     completedOn: null,
+    dueDay: null,
     createdAt: '2026-11-06T10:00:00.000Z',
     subtasks,
   };
@@ -74,6 +75,7 @@ it('a task finished before its planned day is a single day', () => {
   const early = spanning('m', '2026-11-25', '2026-11-20', {
     finished: true,
     completedOn: '2026-11-20',
+    dueDay: null,
     createdAt: '2026-11-10T12:00:00.000Z',
   });
   expect(taskSpan(early)).toEqual({ start: '2026-11-20', end: '2026-11-20' });

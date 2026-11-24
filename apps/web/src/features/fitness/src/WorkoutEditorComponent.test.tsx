@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', fetch);
   queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  queryClient.setQueryData<Day>(key, { logs: [], workouts: [opened] });
+  queryClient.setQueryData<Day>(key, { logs: [], water: [], workouts: [opened] });
   onServer = opened;
   putReply = () => Response.json({ version: 3 });
 });
@@ -48,7 +48,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it('saves over the version it opened with, even after a refetch brought someone else’s newer one', async () => {
   const name = show();
-  queryClient.setQueryData<Day>(key, { logs: [], workouts: [{ ...opened, name: 'Theirs', version: 9 }] });
+  queryClient.setQueryData<Day>(key, { logs: [], water: [], workouts: [{ ...opened, name: 'Theirs', version: 9 }] });
 
   fireEvent.change(name, { target: { value: 'Mine' } });
 

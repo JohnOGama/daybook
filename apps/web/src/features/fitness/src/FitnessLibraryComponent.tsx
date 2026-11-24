@@ -19,13 +19,16 @@ import { WorkoutTemplateEditorComponent } from './WorkoutTemplateEditorComponent
 const SAMPLE_ROWS = ['First sample row', 'Second sample row'].map((name, index) => ({ id: `sample-${index}`, name, detail: 'Sample detail' }));
 
 type Row = { id: string; name: string; detail: string };
-type OwnListProps = { title: string; label: string; rows: Row[] | undefined; isPending: boolean; isError: boolean; empty: string; canEdit: boolean; onDelete: (id: string) => void };
+type OwnListProps = { title: string; hint: string; label: string; rows: Row[] | undefined; isPending: boolean; isError: boolean; empty: string; canEdit: boolean; onDelete: (id: string) => void };
+
+const Hint = ({ children }: { children: string }) => <p className="-mt-1 px-4 pb-2 text-xs text-muted-foreground">{children}</p>;
 
 // A list of the owner's own foods or exercises, each with a delete button.
-function OwnList({ title, label, rows, isPending, isError, empty, canEdit, onDelete }: OwnListProps) {
+function OwnList({ title, hint, label, rows, isPending, isError, empty, canEdit, onDelete }: OwnListProps) {
   const shown = isPending ? SAMPLE_ROWS : (rows ?? []);
   return (
     <SectionCardComponent title={title}>
+      <Hint>{hint}</Hint>
       {isError && (
         <p role="alert" className="px-4 pb-4 text-sm text-destructive">
           Could not load these. Please try again.
@@ -67,6 +70,7 @@ function MyFoods({ canEdit }: { canEdit: boolean }) {
   return (
     <OwnList
       title="My foods"
+      hint="Foods you added that the built-in list doesn't have. Numbers are per 100 g."
       label="Loading your foods"
       rows={data?.map((food) => ({ id: food.id, name: food.name, detail: `${formatKcal(food.kcal)} per 100 g` }))}
       isPending={isPending}
@@ -85,6 +89,7 @@ function MyExercises({ canEdit }: { canEdit: boolean }) {
   return (
     <OwnList
       title="My exercises"
+      hint="Exercises you added that the built-in list doesn't have."
       label="Loading your exercises"
       rows={mine?.map((exercise) => ({ id: exercise.id, name: exercise.name, detail: exercise.primary.map((muscle) => MUSCLE_LABELS[muscle]).join(', ') || 'No muscles set' }))}
       isPending={isPending}
@@ -96,9 +101,9 @@ function MyExercises({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-type SavedListProps<T extends { id: string; name: string }> = { title: string; newLabel: string; items: T[]; detail: (item: T) => string; empty: string; canEdit: boolean; onNew: () => void; onOpen: (item: T) => void };
+type SavedListProps<T extends { id: string; name: string }> = { title: string; hint: string; newLabel: string; items: T[]; detail: (item: T) => string; empty: string; canEdit: boolean; onNew: () => void; onOpen: (item: T) => void };
 
-function SavedList<T extends { id: string; name: string }>({ title, newLabel, items, detail, empty, canEdit, onNew, onOpen }: SavedListProps<T>): ReactNode {
+function SavedList<T extends { id: string; name: string }>({ title, hint, newLabel, items, detail, empty, canEdit, onNew, onOpen }: SavedListProps<T>): ReactNode {
   return (
     <SectionCardComponent
       title={title}
@@ -111,6 +116,7 @@ function SavedList<T extends { id: string; name: string }>({ title, newLabel, it
         )
       }
     >
+      <Hint>{hint}</Hint>
       {items.length > 0 ? (
         <ul className="px-2 pb-2">
           {items.map((item) => (
@@ -194,7 +200,8 @@ export function FitnessLibraryComponent({ fitness, canEdit = true }: FitnessView
         newLabel="New template"
         items={fitness.templates}
         detail={(template) => `${count(template.items.length, 'exercise', 'exercises')} · ${count(template.items.reduce((sets, item) => sets + item.sets.length, 0), 'set', 'sets')}`}
-        empty="A template is a workout you can reuse. Start a workout from it, then tick off the sets you actually did."
+        hint="Workouts you repeat. Start one from Today or Workouts, then tick off the sets you actually do."
+        empty="No templates yet."
         canEdit={canEdit}
         onNew={() => setEditing({ kind: 'template', template: { id: crypto.randomUUID(), name: '', items: [] }, isNew: true })}
         onOpen={(template) => setEditing({ kind: 'template', template, isNew: false })}
@@ -204,7 +211,8 @@ export function FitnessLibraryComponent({ fitness, canEdit = true }: FitnessView
         newLabel="New meal plan"
         items={fitness.mealPlans}
         detail={(plan) => `${count(plan.items.length, 'food', 'foods')} · ${formatKcal(totalsOf(plan.items).kcal)}`}
-        empty="A meal plan is a day of eating you can reuse. Apply it on Today, then tick off what you actually ate."
+        hint="Days of eating you repeat. Apply one on Today, then tick off what you actually eat."
+        empty="No meal plans yet."
         canEdit={canEdit}
         onNew={() => setEditing({ kind: 'plan', plan: { id: crypto.randomUUID(), name: '', items: [] }, isNew: true })}
         onOpen={(plan) => setEditing({ kind: 'plan', plan, isNew: false })}

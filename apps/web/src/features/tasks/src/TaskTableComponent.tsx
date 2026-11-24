@@ -4,7 +4,6 @@ import {
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
-  type Modifier,
   PointerSensor,
   useSensor,
   useSensors,
@@ -12,6 +11,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Fragment, memo, useMemo, useState } from 'react';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
+import { keepRowInTable } from '@/shared/utils/keep-row-in-table';
 import { withinSameList } from '@/shared/utils/within-same-list';
 import { useCollapsedTasks } from '../hooks/useCollapsedTasks';
 import { useColumnWidths } from '../hooks/useColumnWidths';
@@ -25,12 +25,6 @@ import type { Task } from './task-types';
 
 const MAX_STAGGERED_ROWS = 10;
 
-// The table wrapper scrolls sideways, which also makes it scroll vertically if a row is dragged past its edge.
-export const keepRowInTable: Modifier = ({ transform, draggingNodeRect: row, containerNodeRect: rows }) => ({
-  ...transform,
-  x: 0,
-  y: row && rows ? Math.min(Math.max(transform.y, rows.top - row.top), rows.bottom - row.bottom) : transform.y,
-});
 
 type TaskRowsProps = {
   rows: Task[];
@@ -124,6 +118,7 @@ export function TaskTableComponent({
               <col />
               <col style={{ width: widths.status }} />
               <col style={{ width: widths.priority }} />
+              <col style={{ width: widths.due }} />
               <col style={{ width: widths.created }} />
               <col style={{ width: widths.completed }} />
               <col className="w-12" />
@@ -159,8 +154,17 @@ export function TaskTableComponent({
                 </TableHead>
                 <TableHead scope="col" className="relative px-3">
                   <ColumnResizerComponent
-                    boundary={{ left: 'priority', right: 'created' }}
-                    label="Resize Priority and Created columns"
+                    boundary={{ left: 'priority', right: 'due' }}
+                    label="Resize Priority and Due columns"
+                    widths={widths}
+                    onChange={setWidths}
+                  />
+                  Due
+                </TableHead>
+                <TableHead scope="col" className="relative px-3">
+                  <ColumnResizerComponent
+                    boundary={{ left: 'due', right: 'created' }}
+                    label="Resize Due and Created columns"
                     widths={widths}
                     onChange={setWidths}
                   />

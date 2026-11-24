@@ -45,6 +45,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
   const [day, setDay] = useState(defaultDay);
   const [status, setStatus] = useState<TaskStatus>(isEdit && task ? task.status : 'todo');
   const [highPriority, setHighPriority] = useState(isEdit && task ? task.highPriority : false);
+  const [dueDay, setDueDay] = useState(isEdit && task ? (task.dueDay ?? '') : '');
   const [saving, setSaving] = useState(false);
 
   const hasDetails = mode !== 'move';
@@ -53,7 +54,7 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
   const canSave = (!hasDetails || title.trim().length > 0) && (!hasDay || day !== '');
 
   function save() {
-    const fields = { title, status, highPriority };
+    const fields = { title, status, highPriority, dueDay: dueDay || null };
     if (mode === 'new') return mutations.create.mutateAsync({ ...fields, day });
     if (mode === 'subtask') {
       return mutations.createSubtask.mutateAsync({ parentId: task!.id, input: fields });
@@ -134,6 +135,10 @@ function TaskForm({ mode, task, defaultDay, onOpenChange, onPasteList }: TaskFor
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-due">Due date (optional)</Label>
+            <Input id="task-due" type="date" value={dueDay} onChange={(event) => setDueDay(event.target.value)} />
           </div>
           <div className="flex items-center gap-2">
             <Checkbox

@@ -39,6 +39,7 @@ function task(id: string, fields: Partial<Task> = {}): Task {
     day: today,
     plannedDay: today,
     completedOn: null,
+    dueDay: null,
     createdAt: '',
     subtasks: [],
     ...fields,

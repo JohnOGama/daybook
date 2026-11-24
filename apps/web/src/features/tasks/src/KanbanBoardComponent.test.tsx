@@ -32,6 +32,7 @@ const task = (id: string, fields: Partial<Task> = {}): Task => ({
   day: '2026-11-09',
   plannedDay: '2026-11-09',
   completedOn: null,
+  dueDay: null,
   createdAt: '2026-11-06T10:00:00.000Z',
   subtasks: [],
   ...fields,

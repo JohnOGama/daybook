@@ -4,6 +4,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { Flag, GripVertical, ListChecks } from 'lucide-react';
 import type { PointerEventHandler, ReactNode } from 'react';
 import { cn } from '@/shared/utils/cn';
+import { DueLabelComponent } from './DueDateComponent';
 import type { Task } from './task-types';
 
 type KanbanCardFaceProps = { task: Task; handle?: ReactNode; onOpen?: () => void; className?: string };
@@ -29,12 +30,17 @@ export function KanbanCardFace({ task, handle, onOpen, className }: KanbanCardFa
           <Flag className="mt-0.5 size-3.5 shrink-0 fill-current text-signal" aria-label="High priority" />
         )}
       </div>
-      {task.subtasks.length > 0 && (
-        <p className="mt-1.5 flex items-center gap-1.5 pl-5.5 text-xs text-muted-foreground tabular-nums">
-          <ListChecks className="size-3.5" aria-hidden />
-          <span aria-label={`${subtasksDone} of ${task.subtasks.length} subtasks done`}>
-            {subtasksDone}/{task.subtasks.length}
-          </span>
+      {(task.subtasks.length > 0 || task.dueDay) && (
+        <p className="mt-1.5 flex items-center gap-3 pl-5.5 text-xs text-muted-foreground tabular-nums">
+          {task.subtasks.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              <ListChecks className="size-3.5" aria-hidden />
+              <span aria-label={`${subtasksDone} of ${task.subtasks.length} subtasks done`}>
+                {subtasksDone}/{task.subtasks.length}
+              </span>
+            </span>
+          )}
+          <DueLabelComponent task={task} />
         </p>
       )}
     </div>

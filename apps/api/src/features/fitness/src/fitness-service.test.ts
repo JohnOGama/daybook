@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces } from '../../../shared/db/schema.ts';
 import { createTestDb, insertUser } from '../../../shared/db/test-db.ts';
-import { DEFAULT_PROFILE, mealPlanSchema, weightSchema } from './fitness-schemas.ts';
+import { DEFAULT_PROFILE, mealPlanSchema, waterSchema, weightSchema } from './fitness-schemas.ts';
 import { FitnessService } from './fitness-service.ts';
 
 describe('FitnessService', () => {
@@ -66,6 +66,20 @@ describe('FitnessService', () => {
       expect(mealPlanSchema.safeParse({ name: 'Ok', items: [item] }).success).toBe(true);
       expect(mealPlanSchema.safeParse({ name: 'Empty', items: [] }).success).toBe(false);
       expect(mealPlanSchema.safeParse({ name: 'Huge', items: Array.from({ length: 101 }, () => item) }).success).toBe(false);
+    });
+  });
+
+  describe('water', () => {
+    it('keeps one count per day, lists a range for its owner only, and refuses too many glasses', async () => {
+      await svc.saveWater('u1', space, '2026-11-12', 3);
+      await svc.saveWater('u1', space, '2026-11-12', 5);
+      await svc.saveWater('u1', space, '2026-11-14', 1);
+      expect(await svc.water('u1', space, '2026-11-12', '2026-11-13')).toEqual([{ day: '2026-11-12', glasses: 5 }]);
+      expect(await svc.water('u2', space, '2026-11-01', '2026-11-30')).toEqual([]);
+      await expect(svc.saveWater('u2', space, '2026-11-12', 1)).rejects.toThrow(NotFoundException);
+      expect(waterSchema.safeParse({ spaceId: space, day: '2026-11-12', glasses: 30 }).success).toBe(true);
+      expect(waterSchema.safeParse({ spaceId: space, day: '2026-11-12', glasses: 31 }).success).toBe(false);
+      expect(waterSchema.safeParse({ spaceId: space, day: '2026-11-12', glasses: -1 }).success).toBe(false);
     });
   });
 

@@ -85,6 +85,8 @@ describe('food log', () => {
     await svc.addLogs('u1', space, [log('2026-11-09', bread, 'Bread, rye')]);
     await svc.addLogs('u1', space, [log('2026-11-10', null, 'Typed by hand')]);
     expect((await svc.recentFoods('u1', space)).map((food) => food.name)).toEqual(['Bread, rye', 'Rice, white, cooked']);
+    await svc.addLogs('u1', space, [{ ...log('2026-11-11'), quantityMilli: 2000, servingLabel: '1 cup', amountMg: 316_000 }]);
+    expect((await svc.recentFoods('u1', space))[0]).toMatchObject({ name: 'Rice, white, cooked', last: { quantityMilli: 2000, servingLabel: '1 cup' } });
     expect(await svc.recentFoods('u2', theirs)).toEqual([]);
   });
 

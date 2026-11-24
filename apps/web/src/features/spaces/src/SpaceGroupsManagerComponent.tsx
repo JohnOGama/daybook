@@ -1,5 +1,8 @@
 'use client';
 
+import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -15,13 +18,16 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { ReorderHandleComponent } from '@/shared/components/ReorderHandleComponent';
 import { Input } from '@/shared/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
-import { useCreateSpaceGroup, useDeleteSpaceGroup, useRenameSpaceGroup, useSpaceGroups } from '../hooks/useSpaceGroups';
+import { useCreateSpaceGroup, useDeleteSpaceGroup, useRenameSpaceGroup, useReorderSpaceGroups, useSpaceGroups } from '../hooks/useSpaceGroups';
 import { useSpaces } from '../hooks/useSpaces';
 import { groupOf } from './space-cache';
 import { isOwn } from './space-tree';
 import type { SpaceGroup } from './space-types';
+import { cn } from '@/shared/utils/cn';
+import { keepRowInTable } from '@/shared/utils/keep-row-in-table';
 
 const SAMPLE_GROUPS: SpaceGroup[] = [
   { id: 'sample-1', title: 'Spaces' },
@@ -62,15 +68,25 @@ function TitleDialog({ heading, initial, action, onSave, onClose }: TitleDialogP
   );
 }
 
-function GroupRow({ group, count, isOnly }: { group: SpaceGroup; count: number; isOnly: boolean }) {
+function GroupRow({ group, count, isOnly, canReorder }: { group: SpaceGroup; count: number; isOnly: boolean; canReorder: boolean }) {
+  const sortable = useSortable({ id: group.id, disabled: !canReorder });
   const rename = useRenameSpaceGroup();
   const remove = useDeleteSpaceGroup();
   const [renaming, setRenaming] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <TableRow className="hover:bg-transparent">
-      <TableCell className="py-3 pl-4 font-medium">{group.title}</TableCell>
+    <TableRow
+      ref={sortable.setNodeRef}
+      style={{ transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition }}
+      className={cn('group/row relative bg-card hover:bg-transparent', sortable.isDragging && 'z-10 shadow-sm')}
+    >
+      <TableCell className="py-3 pl-4 font-medium">
+        <div className="flex items-center gap-2">
+          {canReorder && <ReorderHandleComponent title={group.title} sortable={sortable} className="relative shrink-0 bg-transparent opacity-100" />}
+          {group.title}
+        </div>
+      </TableCell>
       <TableCell className="text-[13px] text-muted-foreground">
         {count} {count === 1 ? 'item' : 'items'}
       </TableCell>
@@ -117,15 +133,24 @@ function GroupRow({ group, count, isOnly }: { group: SpaceGroup; count: number; 
   );
 }
 
-// Settings > Spaces: the sidebar's groups ("Spaces", "Work"...), with New, Rename and Delete.
+// Settings > Spaces: the sidebar's groups ("Spaces", "Work"...), with New, Rename, Delete and drag to reorder.
 export function SpaceGroupsManagerComponent() {
   const { data: groupData, isPending, isError } = useSpaceGroups();
   const { data: spaces = [] } = useSpaces();
   const createGroup = useCreateSpaceGroup();
+  const reorder = useReorderSpaceGroups();
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const [creating, setCreating] = useState(false);
   const groups = isPending ? SAMPLE_GROUPS : (groupData ?? []);
   const topLevel = spaces.filter((space) => space.parentId === null && isOwn(space));
   const countIn = (id: string) => topLevel.filter((space) => groupOf(space, groups) === id).length;
+  const ids = groups.map((group) => group.id);
+  const canReorder = !isPending && groups.length > 1;
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    reorder.mutate(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
+  }
 
   if (isError) {
     return (
@@ -155,11 +180,22 @@ export function SpaceGroupsManagerComponent() {
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {groups.map((group) => (
-                <GroupRow key={group.id} group={group} count={countIn(group.id)} isOnly={groups.length === 1} />
-              ))}
-            </TableBody>
+            <DndContext
+              id="space-groups"
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              modifiers={[keepRowInTable]}
+              autoScroll={false}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                <TableBody>
+                  {groups.map((group) => (
+                    <GroupRow key={group.id} group={group} count={countIn(group.id)} isOnly={groups.length === 1} canReorder={canReorder} />
+                  ))}
+                </TableBody>
+              </SortableContext>
+            </DndContext>
           </Table>
         </div>
       </Skeleton>

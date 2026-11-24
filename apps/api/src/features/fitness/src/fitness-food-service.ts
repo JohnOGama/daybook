@@ -11,6 +11,8 @@ export type ServingDto = { id: string; label: string; amountMg: number; custom: 
 export type FoodDto = Pick<FoodRow, 'id' | 'name' | 'category' | 'kcal' | 'proteinMg' | 'carbsMg' | 'fatMg' | 'fiberMg'> & {
   custom: boolean;
   servings: ServingDto[];
+  // Recent foods only: the amount logged last time, so it can be logged again in one tap.
+  last?: { quantityMilli: number; servingLabel: string };
 };
 
 const SEARCH_LIMIT = 30;
@@ -143,7 +145,15 @@ export class FitnessFoodService {
       .groupBy(fitnessFoodLogs.foodId)
       .orderBy(desc(lastLogged))
       .limit(RECENT_FOODS);
-    return this.foodsById(spaceId, rows.map((row) => row.foodId as string));
+    const ids = rows.map((row) => row.foodId as string);
+    if (ids.length === 0) return [];
+    const lastLogs = await this.db
+      .selectDistinctOn([fitnessFoodLogs.foodId], { foodId: fitnessFoodLogs.foodId, quantityMilli: fitnessFoodLogs.quantityMilli, servingLabel: fitnessFoodLogs.servingLabel })
+      .from(fitnessFoodLogs)
+      .where(and(eq(fitnessFoodLogs.spaceId, spaceId), eq(fitnessFoodLogs.userId, userId), inArray(fitnessFoodLogs.foodId, ids)))
+      .orderBy(fitnessFoodLogs.foodId, desc(fitnessFoodLogs.createdAt));
+    const lastBy = new Map(lastLogs.map(({ foodId, ...last }) => [foodId, last]));
+    return (await this.foodsById(spaceId, ids)).map((food) => ({ ...food, last: lastBy.get(food.id) }));
   }
 
   private ownLog(userId: string, id: string) {

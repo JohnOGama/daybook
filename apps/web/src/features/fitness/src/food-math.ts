@@ -14,6 +14,12 @@ export const servingsFor = (food: Food): ServingChoice[] => [...WEIGHT_UNITS, ..
 
 const PER_100G_MG = 100_000;
 
+// The same amount as last time, if that serving still exists.
+export function lastItem(food: Food): FoodItem | null {
+  const serving = food.last && servingsFor(food).find(({ label }) => label === food.last?.servingLabel);
+  return food.last && serving ? itemFor(food, food.last.quantityMilli / 1000, serving) : null;
+}
+
 export function itemFor(food: Food, quantity: number, serving: ServingChoice): FoodItem {
   const amountMg = Math.round(quantity * serving.amountMg);
   const of = (per100g: number) => Math.round((per100g * amountMg) / PER_100G_MG);

@@ -8,7 +8,7 @@ import { Input } from '@/shared/components/ui/input';
 import { formatShortDay } from '@/shared/utils/date-formatter';
 import { ExercisePickerComponent } from './ExercisePickerComponent';
 import type { Exercise, ExerciseKind, Workout, WorkoutItem, WorkoutSet } from './fitness-types';
-import { formatSets, lastTime } from './workout-math';
+import { formatSets, lastTime, nextTry } from './workout-math';
 
 const MAX_SETS = 30;
 const MAX_ITEMS = 60;
@@ -85,6 +85,7 @@ export function WorkoutItemsEditorComponent({ items, onChange, workout }: Workou
     <div className="flex flex-col gap-3">
       {items.map((item, index) => {
         const previous = workout ? lastTime(item, workout.day, workout.history) : null;
+        const hint = previous && nextTry(previous.sets, item.kind);
         return (
           <section key={index} aria-label={item.name} className="rounded-lg border p-3">
             <div className="flex items-start justify-between gap-2">
@@ -95,6 +96,7 @@ export function WorkoutItemsEditorComponent({ items, onChange, workout }: Workou
                     {previous ? `Last time (${formatShortDay(previous.day)}): ${formatSets(previous.sets, item.kind)}` : 'First time logging this'}
                   </p>
                 )}
+                {hint && <p className="text-xs font-medium tabular-nums">{hint}</p>}
               </div>
               <Button type="button" variant="ghost" size="sm" className="shrink-0 text-muted-foreground" onClick={() => onChange(items.filter((_, at) => at !== index), true)}>
                 Remove

@@ -2,8 +2,8 @@ import { copyTitle } from '@/shared/utils/copy-title';
 import type { Task, TaskStatus } from './task-types';
 
 type DayRange = { from: string; to: string };
-type TaskFieldChanges = Partial<Pick<Task, 'title' | 'status' | 'highPriority'>>;
-type NewTaskFields = { id: string; title: string; status: TaskStatus; highPriority: boolean };
+type TaskFieldChanges = Partial<Pick<Task, 'title' | 'status' | 'highPriority' | 'dueDay'>>;
+type NewTaskFields = { id: string; title: string; status: TaskStatus; highPriority: boolean; dueDay?: string | null };
 export type NewPastedTask = { id: string; title: string; subtasks: NewPastedTask[] };
 
 const shownDay = (day: string, today: string, carryOver: boolean) => (carryOver && day < today ? today : day);
@@ -113,6 +113,7 @@ export function buildTask(fields: NewTaskFields & { day: string }, today: string
     day: shownDay(fields.day, today, carryOver),
     plannedDay: fields.day,
     completedOn: null,
+    dueDay: fields.dueDay ?? null,
     createdAt: new Date().toISOString(),
     subtasks: [],
   };
@@ -129,6 +130,7 @@ export function buildSubtask(fields: NewTaskFields, parent: Task): Task {
     day: parent.day,
     plannedDay: null,
     completedOn: null,
+    dueDay: fields.dueDay ?? null,
     createdAt: new Date().toISOString(),
     subtasks: [],
   };

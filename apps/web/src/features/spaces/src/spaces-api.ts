@@ -52,6 +52,9 @@ export const renameSpaceGroup = ({ id, title }: SpaceGroup) =>
 export const deleteSpaceGroup = (id: string) =>
   send(`/api/space-groups/${id}`, 'DELETE', 'That group could not be deleted. Please try again.');
 
+export const reorderSpaceGroups = (ids: string[]) =>
+  send('/api/space-groups/order', 'PUT', 'That order could not be saved. Please try again.', { ids });
+
 export const reorderSpaces =(ids: string[]) =>
   send('/api/spaces/order', 'PUT', 'That order could not be saved. Please try again.', { ids });
 

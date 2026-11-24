@@ -5,6 +5,7 @@ import type { Db } from '../../../shared/db/create-db.ts';
 import { spaces as dbSpaces, tasks } from '../../../shared/db/schema.ts';
 import { createTestDb, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { TasksService } from './tasks-service.ts';
+import { updateTaskSchema } from './task-schemas.ts';
 
 const today = '2026-11-09';
 const onlyToday = { from: today, to: today, today };
@@ -65,6 +66,20 @@ describe('TasksService listing and editing', () => {
       await addTask({ userId: 'u2', plannedDay: yesterday });
       expect(await svc.list('u2', spaces.u2, onlyToday)).toHaveLength(1);
     });
+  });
+
+  it('sets, changes and clears a due date on tasks and subtasks, and keeps it on a copy', async () => {
+    const id = crypto.randomUUID();
+    await svc.create('u1', { id, spaceId: spaces.u1, title: 'Report', day: today, dueDay: '2026-11-20' });
+    await svc.createSubtask('u1', id, { title: 'Draft', dueDay: '2026-11-15' });
+    expect(await svc.list('u1', spaces.u1, onlyToday)).toMatchObject([{ id, dueDay: '2026-11-20', subtasks: [{ title: 'Draft', dueDay: '2026-11-15' }] }]);
+    await svc.update('u1', id, { dueDay: '2026-11-22' });
+    await svc.copy('u1', id, today);
+    expect((await svc.list('u1', spaces.u1, onlyToday)).map((task) => task.dueDay)).toEqual(['2026-11-22', '2026-11-22']);
+    await svc.update('u1', id, { dueDay: null });
+    expect((await svc.list('u1', spaces.u1, onlyToday)).find((task) => task.id === id)?.dueDay).toBeNull();
+    expect(updateTaskSchema.safeParse({ dueDay: 'soon' }).success).toBe(false);
+    expect(updateTaskSchema.safeParse({ dueDay: null }).success).toBe(true);
   });
 
   it("carries yesterday's open task to today by default", async () => {

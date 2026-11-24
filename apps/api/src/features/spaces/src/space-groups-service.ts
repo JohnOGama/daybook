@@ -50,6 +50,20 @@ export class SpaceGroupsService {
     if (renamed.length === 0) throw new NotFoundException('Group not found');
   }
 
+  // ids must be exactly your groups, in their new order.
+  async reorder(userId: string, ids: string[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const groups = await this.live(userId, tx);
+      const known = new Set(groups.map((group) => group.id));
+      if (new Set(ids).size !== ids.length || ids.length !== groups.length || !ids.every((id) => known.has(id))) {
+        throw new BadRequestException('Send every group once');
+      }
+      for (const [position, id] of ids.entries()) {
+        await tx.update(spaceGroups).set({ position }).where(eq(spaceGroups.id, id));
+      }
+    });
+  }
+
   // The group and every folder and space at its top level go to Trash together; your last group can't go.
   async remove(userId: string, id: string): Promise<void> {
     await this.db.transaction(async (tx) => {

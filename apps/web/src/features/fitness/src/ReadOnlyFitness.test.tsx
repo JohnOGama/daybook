@@ -56,7 +56,7 @@ const workout: Workout = {
   name: 'Push day',
   items: [{ exerciseId: null, name: 'Bench press', kind: 'weight', primary: ['chest'], secondary: [], sets: [{ reps: 8, weightG: 60_000, seconds: null, meters: null, done: true }] }],
 };
-const day: Day = { logs: [log], workouts: [workout] };
+const day: Day = { logs: [log], workouts: [workout], water: [{ day: '2026-11-13', glasses: 3 }] };
 
 const show = (view: string) => {
   query.current = `space=s1&view=${view}`;

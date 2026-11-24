@@ -25,7 +25,7 @@ const sentBody = (fetch: ReturnType<typeof vi.fn>, call: number) => JSON.parse(f
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  queryClient.setQueryData<Day>(daysKey, { logs: [], workouts: [workout] });
+  queryClient.setQueryData<Day>(daysKey, { logs: [], workouts: [workout], water: [] });
 });
 afterEach(() => vi.unstubAllGlobals());
 

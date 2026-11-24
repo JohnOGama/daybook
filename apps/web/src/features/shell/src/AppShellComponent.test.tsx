@@ -19,6 +19,7 @@ vi.mock('@/features/spaces', () => ({ useSpaces, SpaceGateComponent: passThrough
 vi.mock('@/features/assistant', () => ({ AssistantPanelComponent: () => null }));
 vi.mock('@/features/tasks', () => ({ TaskMutationsProviderComponent: passThrough }));
 vi.mock('@/features/vault', () => ({ VaultSessionProviderComponent: passThrough }));
+vi.mock('@/features/focus', () => ({ FocusTimerProviderComponent: passThrough, FocusPillComponent: () => null }));
 vi.mock('./LiveUpdatesProviderComponent', () => ({ LiveUpdatesProviderComponent: passThrough }));
 vi.mock('./SidebarComponent', () => ({ SidebarComponent: () => <nav aria-label="Main" /> }));
 vi.mock('./FirstRunBarComponent', () => ({ FirstRunBarComponent: () => <header>first run bar</header> }));

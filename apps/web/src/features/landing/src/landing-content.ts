@@ -6,7 +6,7 @@ pnpm run db:migrate
 pnpm run dev`;
 
 export const FEATURES = [
-  { mark: '11', title: 'Eleven tools', text: 'List, Notebook, Book, Vault, Budget, Fitness, Job hunt, Database diagram, Pipelines, Skills and Uptime.' },
+  { mark: '12', title: 'Twelve tools', text: 'List, Notebook, Book, Vault, Budget, Fitness, Job hunt, Database diagram, Pipelines, Skills, Uptime and Focus.' },
   { mark: '⇄', title: 'Share and edit live', text: 'Invite people by email, see their cursors and avatars as they work, and keep roles per space.' },
   { mark: '●●', title: 'Private by design', text: 'Vault encrypts in your browser. Any space can get its own password, enforced on the server.' },
   { mark: 'AI', title: 'AI only where you ask', text: 'Rewrite a block, read a receipt, improve a skill. Only the text involved is sent, never your whole space.' },

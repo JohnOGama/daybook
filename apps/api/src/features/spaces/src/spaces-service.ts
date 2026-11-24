@@ -263,7 +263,7 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
-      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs' || source.tool === 'pipelines' || source.tool === 'uptime') {
+      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs' || source.tool === 'pipelines' || source.tool === 'uptime' || source.tool === 'focus') {
         throw new BadRequestException(`A ${source.tool} space cannot be duplicated`);
       }
 

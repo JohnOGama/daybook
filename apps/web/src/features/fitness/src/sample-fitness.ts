@@ -38,5 +38,6 @@ export function sampleDay(day: string): Day {
       sampleLog('sample-4', day, 'dinner', 'Salmon with vegetables', 450),
     ],
     workouts: [],
+    water: [{ day, glasses: 5 }],
   };
 }

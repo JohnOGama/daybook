@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { TaskFormDialogComponent } from './TaskFormDialogComponent';
@@ -32,6 +32,7 @@ const task: Task = {
   day: '2026-11-09',
   plannedDay: '2026-11-09',
   completedOn: null,
+  dueDay: null,
   createdAt: '2026-11-06T10:00:00.000Z',
   subtasks: [],
 };
@@ -111,6 +112,7 @@ it('new mode creates a task on the default day and closes', async () => {
     day: '2026-11-20',
     status: 'todo',
     highPriority: false,
+    dueDay: null,
   });
   expect(onOpenChange).toHaveBeenCalledWith(false);
 });
@@ -129,7 +131,7 @@ it('edit mode starts from the task and has no day field', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(update).toHaveBeenCalledWith({
     id: 't1',
-    input: { title: 'Task one', status: 'in_progress', highPriority: true },
+    input: { title: 'Task one', status: 'in_progress', highPriority: true, dueDay: null },
   });
 });
 
@@ -150,8 +152,22 @@ it('subtask mode adds a subtask to the task', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(createSubtask).toHaveBeenCalledWith({
     parentId: 't1',
-    input: { title: 'Child', status: 'todo', highPriority: false },
+    input: { title: 'Child', status: 'todo', highPriority: false, dueDay: null },
   });
+});
+
+it('sets a due date, and edit mode starts from the task due date and can clear it', async () => {
+  const { unmount } = render(<TaskFormDialogComponent mode="new" defaultDay="2026-11-20" open onOpenChange={onOpenChange} />);
+  await userEvent.type(screen.getByLabelText('Title'), 'Report');
+  fireEvent.change(screen.getByLabelText('Due date (optional)'), { target: { value: '2026-11-28' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Report', dueDay: '2026-11-28' }));
+  unmount();
+  render(<TaskFormDialogComponent mode="edit" task={{ ...task, dueDay: '2026-11-30' }} defaultDay="2026-11-09" open onOpenChange={onOpenChange} />);
+  expect(screen.getByLabelText('Due date (optional)')).toHaveValue('2026-11-30');
+  fireEvent.change(screen.getByLabelText('Due date (optional)'), { target: { value: '' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect(update).toHaveBeenLastCalledWith({ id: 't1', input: expect.objectContaining({ dueDay: null }) });
 });
 
 it('stays open when saving fails', async () => {

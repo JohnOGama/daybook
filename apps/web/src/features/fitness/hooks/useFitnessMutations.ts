@@ -4,7 +4,7 @@ import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-quer
 import { toast } from 'sonner';
 import { ConflictError, type EditedFrom } from '@/shared/utils/conflict-error';
 import * as api from '../src/fitness-api';
-import type { Day, Exercise, Fitness, FoodLog, MealPlan, Profile, Weight, Workout, WorkoutTemplate } from '../src/fitness-types';
+import type { Day, Exercise, Fitness, FoodLog, MealPlan, Profile, Water, Weight, Workout, WorkoutTemplate } from '../src/fitness-types';
 import { useFitnessSpaceId } from './useFitness';
 
 // Runs fitness requests one at a time, so editing a new row can't reach the server before the row exists.
@@ -81,6 +81,15 @@ export function useFitnessMutations() {
   }
 
   // One weigh-in per day: a second one on the same day replaces the first.
+  const saveWater = useChange<Water, Day>(
+    daysKey,
+    (water) => api.saveWater({ ...water, spaceId }),
+    (data, water, queryKey) => ({
+      ...data,
+      water: inRange(water.day, queryKey) ? [...data.water.filter(({ day }) => day !== water.day), water] : data.water,
+    }),
+  );
+
   const saveWeight = useChange<Weight, Fitness>(
     fitnessKey,
     (weight) => api.saveWeight({ ...weight, spaceId }),
@@ -201,7 +210,9 @@ export function useFitnessMutations() {
     saveProfile,
     addLogs,
     updateLog,
+    removeLog,
     deleteLogWithUndo,
+    saveWater,
     createFood,
     saveFood,
     removeFood,

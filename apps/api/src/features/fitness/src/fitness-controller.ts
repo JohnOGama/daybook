@@ -25,6 +25,7 @@ import {
   searchFoodsSchema,
   spaceQuerySchema,
   updateLogSchema,
+  waterSchema,
   weightQuerySchema,
   weightSchema,
 } from './fitness-schemas.ts';
@@ -120,8 +121,12 @@ export class FitnessController {
     const { spaceId, from, to } = parseOrThrow(daysSchema, query);
     const { ownerId } = await this.access.resolve(userId, spaceId, 'view');
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
-    const [logs, workouts] = await Promise.all([this.foods.logs(ownerId, spaceId, from, to), this.training.workouts(ownerId, spaceId, from, to)]);
-    return { logs, workouts };
+    const [logs, workouts, water] = await Promise.all([
+      this.foods.logs(ownerId, spaceId, from, to),
+      this.training.workouts(ownerId, spaceId, from, to),
+      this.fitness.water(ownerId, spaceId, from, to),
+    ]);
+    return { logs, workouts, water };
   }
 
   @Post('logs')
@@ -149,6 +154,13 @@ export class FitnessController {
     const { spaceId, day, weightG } = parseOrThrow(weightSchema, body);
     const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
     return this.fitness.saveWeight(ownerId, spaceId, day, weightG);
+  }
+
+  @Put('water')
+  async saveWater(@UserId() userId: string, @Body() body: unknown) {
+    const { spaceId, day, glasses } = parseOrThrow(waterSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    return this.fitness.saveWater(ownerId, spaceId, day, glasses);
   }
 
   @Delete('weights')

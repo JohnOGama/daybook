@@ -3,6 +3,7 @@ import { z } from 'zod';
 const day = z.iso.date();
 const title = z.string().trim().min(1).max(200);
 const status = z.enum(['todo', 'in_progress', 'on_hold']);
+const dueDay = day.nullable().optional();
 
 export const rangeSchema = z.object({ spaceId: z.uuid(), from: day, to: day, today: day });
 export const createTaskSchema = z.object({
@@ -12,6 +13,7 @@ export const createTaskSchema = z.object({
   day,
   status: status.optional(),
   highPriority: z.boolean().optional(),
+  dueDay,
 });
 const pastedTask = z.object({
   id: z.uuid(),
@@ -31,6 +33,7 @@ export const createSubtaskSchema =z.object({
   title,
   status: status.optional(),
   highPriority: z.boolean().optional(),
+  dueDay,
 });
 export const createManySubtasksSchema = z.object({
   subtasks: z.array(pastedTask).min(1).max(500),
@@ -40,6 +43,7 @@ export const updateTaskSchema =z.object({
   status: status.optional(),
   highPriority: z.boolean().optional(),
   day: day.optional(),
+  dueDay,
 });
 export const finishedSchema = z.object({ finished: z.boolean(), today: day, status: status.optional() });
 export const todaySchema = z.object({ today: day });

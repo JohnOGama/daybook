@@ -26,6 +26,7 @@ function task(id: string, fields: Partial<Task> = {}): Task {
     day: today,
     plannedDay: today,
     completedOn: null,
+    dueDay: null,
     createdAt: '',
     subtasks: [],
     ...fields,
@@ -47,12 +48,12 @@ describe('with carry over turned off', () => {
   });
 
   it('reopening sends a task back to its planned day', () => {
-    const family = task('p', { finished: true, completedOn: today, plannedDay: past });
+    const family = task('p', { finished: true, completedOn: today, dueDay: null, plannedDay: past });
     expect(withFinished(family, 'p', false, today, false).day).toBe(past);
   });
 
   it('adding a subtask to a finished task sends it back to its planned day', () => {
-    const family = task('p', { finished: true, completedOn: today, plannedDay: past });
+    const family = task('p', { finished: true, completedOn: today, dueDay: null, plannedDay: past });
     expect(withSubtask(family, sub('s'), today, false).day).toBe(past);
   });
 
@@ -209,6 +210,7 @@ describe('withFinished', () => {
     const family = task('p', {
       finished: true,
       completedOn: today,
+      dueDay: null,
       subtasks: [sub('s', { finished: true, completedOn: today })],
     });
     const result = withFinished(family, 'p', false, today);

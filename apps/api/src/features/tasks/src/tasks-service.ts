@@ -18,6 +18,7 @@ export type TaskDto = {
   day: string;
   plannedDay: string | null;
   completedOn: string | null;
+  dueDay: string | null;
   createdAt: string;
   subtasks: TaskDto[];
 };
@@ -33,6 +34,7 @@ function toDto(row: TaskRow, day: string, subtasks: TaskDto[] = []): TaskDto {
     day,
     plannedDay: row.plannedDay,
     completedOn: row.completedOn,
+    dueDay: row.dueDay,
     createdAt: row.createdAt.toISOString(),
     subtasks,
   };
@@ -50,11 +52,12 @@ function assertPasteSize(rows: unknown[]): void {
   if (rows.length > MAX_PASTED_TASKS) throw new BadRequestException('That list is too long to add at once');
 }
 
-function unfinishedFields(row: TaskRow): Pick<TaskRow, 'spaceId' | 'status' | 'highPriority'> {
+function unfinishedFields(row: TaskRow): Pick<TaskRow, 'spaceId' | 'status' | 'highPriority' | 'dueDay'> {
   return {
     spaceId: row.spaceId,
     status: row.completedOn ? 'todo' : row.status,
     highPriority: row.highPriority,
+    dueDay: row.dueDay,
   };
 }
 
@@ -113,7 +116,7 @@ export class TasksService {
 
   async create(
     userId: string,
-    input: { id?: string; spaceId: string; title: string; day: string; status?: TaskStatus; highPriority?: boolean },
+    input: { id?: string; spaceId: string; title: string; day: string; status?: TaskStatus; highPriority?: boolean; dueDay?: string | null },
   ): Promise<void> {
     await this.assertTaskSpace(this.db, userId, input.spaceId);
     const { day, ...fields } = input;
@@ -150,7 +153,7 @@ export class TasksService {
   async update(
     userId: string,
     id: string,
-    input: { title?: string; status?: TaskStatus; highPriority?: boolean; day?: string },
+    input: { title?: string; status?: TaskStatus; highPriority?: boolean; day?: string; dueDay?: string | null },
   ): Promise<void> {
     const task = await this.findOwned(this.db, userId, id);
     const { day, ...fields } = input;
@@ -186,7 +189,7 @@ export class TasksService {
   async createSubtask(
     userId: string,
     parentId: string,
-    input: { id?: string; title: string; status?: TaskStatus; highPriority?: boolean },
+    input: { id?: string; title: string; status?: TaskStatus; highPriority?: boolean; dueDay?: string | null },
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const parent = await this.lockFamily(tx, userId, parentId);

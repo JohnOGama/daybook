@@ -1,12 +1,13 @@
 import { expect, it } from 'vitest';
 import { DEFAULT_COLUMN_WIDTHS, parseColumnWidths, resizeColumns } from './task-columns';
 
-const widths = { status: 150, priority: 100, created: 100, completed: 120 };
+const widths = { status: 150, priority: 100, due: 104, created: 100, completed: 120 };
 
 it('moves width between the two columns beside a boundary', () => {
   expect(resizeColumns(widths, { left: 'status', right: 'priority' }, 10)).toEqual({
     status: 160,
     priority: 90,
+    due: 104,
     created: 100,
     completed: 120,
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { SectionCardComponent, StatTileComponent } from '@/features/budget';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -96,6 +96,22 @@ export function FitnessSettingsComponent({ fitness, today, canEdit = true }: Fit
   const warnings = targetWarnings(profile, weightG, today);
   const { macros } = profile;
   const unsaved = JSON.stringify(profile) !== JSON.stringify(fitness.profile);
+
+  // Unsaved changes would be lost by closing the tab or following any link, so ask first.
+  useEffect(() => {
+    if (!unsaved) return;
+    const onUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    const onClick = (event: MouseEvent) => {
+      const link = event.target instanceof Element && event.target.closest('a[href]');
+      if (link && !window.confirm('You have unsaved settings. Leave without saving?')) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', onUnload);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', onUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [unsaved]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();

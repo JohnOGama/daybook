@@ -1,7 +1,7 @@
 import type { NewPastedTask } from './task-cache';
 import type { Task, TaskStatus } from './task-types';
 
-export type TaskFields = { title: string; status: TaskStatus; highPriority: boolean };
+export type TaskFields = { title: string; status: TaskStatus; highPriority: boolean; dueDay?: string | null };
 export type NewTaskFields = TaskFields & { id: string };
 export type TaskChanges = Partial<TaskFields> & { day?: string };
 

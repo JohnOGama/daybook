@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { parseOrThrow } from '../../../shared/utils/parse-or-throw.ts';
 import { AuthGuard, UserId } from '../../auth/index.ts';
-import { createGroupSchema, renameSpaceSchema } from './space-schemas.ts';
+import { createGroupSchema, renameSpaceSchema, reorderSpacesSchema } from './space-schemas.ts';
 import { SpaceGroupsService } from './space-groups-service.ts';
 
 @UseGuards(AuthGuard)
@@ -17,6 +17,11 @@ export class SpaceGroupsController {
   @Post()
   create(@UserId() userId: string, @Body() body: unknown) {
     return this.groups.create(userId, parseOrThrow(createGroupSchema, body));
+  }
+
+  @Put('order')
+  reorder(@UserId() userId: string, @Body() body: unknown) {
+    return this.groups.reorder(userId, parseOrThrow(reorderSpacesSchema, body).ids);
   }
 
   @Patch(':id')

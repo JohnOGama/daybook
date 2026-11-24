@@ -10,6 +10,8 @@ export type Task = {
   day: string;
   plannedDay: string | null;
   completedOn: string | null;
+  // A deadline, separate from the day the task shows on.
+  dueDay: string | null;
   createdAt: string;
   subtasks: Task[];
 };

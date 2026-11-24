@@ -14,7 +14,8 @@ import { SpacesModule } from './features/spaces/index.ts';
 import { TasksModule } from './features/tasks/index.ts';
 import { TrashModule } from './features/trash/index.ts';
 import { UptimeModule } from './features/uptime/index.ts';
+import { FocusModule } from './features/focus/index.ts';
 import { DbModule } from './shared/db/db-module.ts';
 
-@Module({ imports: [DbModule, AuthModule, SpacesModule, TasksModule, NotebookModule, VaultModule, BudgetModule, FitnessModule, JobsModule, DiagramsModule, TrashModule, RealtimeModule, PipelinesModule, UptimeModule, McpModule], controllers: [HealthController] })
+@Module({ imports: [DbModule, AuthModule, SpacesModule, TasksModule, NotebookModule, VaultModule, BudgetModule, FitnessModule, JobsModule, DiagramsModule, TrashModule, RealtimeModule, PipelinesModule, UptimeModule, FocusModule, McpModule], controllers: [HealthController] })
 export class AppModule {}

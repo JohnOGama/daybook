@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, between, eq, isNull, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { fitnessMealPlans, fitnessProfiles, fitnessWeights, fitnessWorkoutTemplates, spaces } from '../../../shared/db/schema.ts';
+import { fitnessMealPlans, fitnessProfiles, fitnessWater, fitnessWeights, fitnessWorkoutTemplates, spaces } from '../../../shared/db/schema.ts';
 import { DEFAULT_PROFILE, type MealPlanInput, type Profile, profileSchema, type Versioned } from './fitness-schemas.ts';
 
 @Injectable()
@@ -53,6 +53,22 @@ export class FitnessService {
       .insert(fitnessWeights)
       .values({ spaceId, userId, day, weightG })
       .onConflictDoUpdate({ target: [fitnessWeights.spaceId, fitnessWeights.day], set: { weightG } });
+  }
+
+  async water(userId: string, spaceId: string, from: string, to: string): Promise<{ day: string; glasses: number }[]> {
+    return this.db
+      .select({ day: fitnessWater.day, glasses: fitnessWater.glasses })
+      .from(fitnessWater)
+      .where(and(eq(fitnessWater.spaceId, spaceId), eq(fitnessWater.userId, userId), between(fitnessWater.day, from, to)))
+      .orderBy(asc(fitnessWater.day));
+  }
+
+  async saveWater(userId: string, spaceId: string, day: string, glasses: number): Promise<void> {
+    await this.assertSpace(userId, spaceId);
+    await this.db
+      .insert(fitnessWater)
+      .values({ spaceId, userId, day, glasses })
+      .onConflictDoUpdate({ target: [fitnessWater.spaceId, fitnessWater.day], set: { glasses } });
   }
 
   async removeWeight(userId: string, spaceId: string, day: string): Promise<void> {

@@ -26,7 +26,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines', 'skills', 'uptime']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines', 'skills', 'uptime', 'focus']);
 
 export const shareRole = pgEnum('share_role', ['edit', 'view']);
 export type ShareRole = (typeof shareRole.enumValues)[number];
@@ -158,6 +158,8 @@ export const tasks = pgTable(
     status: taskStatus('status').notNull().default('todo'),
     highPriority: boolean('high_priority').notNull().default(false),
     completedOn: date('completed_on', { mode: 'string' }),
+    // A deadline, separate from the day the task shows on; any task or subtask can have one.
+    dueDay: date('due_day', { mode: 'string' }),
     position: integer('position'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -484,6 +486,18 @@ export const fitnessWeights = pgTable(
   (t) => [uniqueIndex('fitness_weights_day_idx').on(t.spaceId, t.day)],
 );
 
+// Glasses of water drunk on a day, one row per space and day.
+export const fitnessWater = pgTable(
+  'fitness_water',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ...ownedBySpace(),
+    day: date('day').notNull(),
+    glasses: integer('glasses').notNull(),
+  },
+  (t) => [uniqueIndex('fitness_water_day_idx').on(t.spaceId, t.day)],
+);
+
 export const fitnessExercises = pgTable(
   'fitness_exercises',
   {
@@ -712,4 +726,34 @@ export const uptimeIncidents = pgTable(
     reason: text('reason'),
   },
   (t) => [index('uptime_incidents_monitor_time_idx').on(t.monitorId, t.startedAt)],
+);
+
+// A Focus space's timer lengths, one row per space; a space without a row uses the defaults in focus-schemas.ts.
+export const focusSettings = pgTable(
+  'focus_settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ...ownedBySpace(),
+    focusMinutes: integer('focus_minutes').notNull(),
+    shortBreakMinutes: integer('short_break_minutes').notNull(),
+    longBreakMinutes: integer('long_break_minutes').notNull(),
+    longBreakEvery: integer('long_break_every').notNull(),
+  },
+  (t) => [uniqueIndex('focus_settings_space_idx').on(t.spaceId)],
+);
+
+// A finished focus session. `day` is the person's local day; the task is copied in (`taskTitle`), so editing or
+// deleting the task never changes history, and `taskId` only groups sessions and links back.
+export const focusSessions = pgTable(
+  'focus_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    ...ownedBySpace(),
+    day: date('day').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    minutes: integer('minutes').notNull(),
+    taskId: uuid('task_id'),
+    taskTitle: text('task_title'),
+  },
+  (t) => [index('focus_sessions_space_day_idx').on(t.spaceId, t.day)],
 );

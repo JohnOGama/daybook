@@ -11,4 +11,9 @@
 - The body diagram's shapes (`body-shapes.ts`) are from react-body-highlighter (MIT, notice in the file). Its one upper-back region stands for both lats and middle back.
 - The AI read reuses `BudgetAiService.fitnessRead` through `POST /fitness/ai/read`. It is sent only what `fitness-summary.ts` builds: figures, never food, exercise or workout names.
 - AI apps log food, workouts and weigh-ins through MCP (`docs/claude/mcp.md`) under the same rules: one-off foods are logs only, never stored foods.
+- Recent foods (`GET /fitness/foods/recent`) carry `last`, the amount and serving logged last time, so the Add food list can log them again in one tap (`lastItem` in `food-math.ts`) and opens them at that amount.
+- Today shows a "Get started" card (`GettingStartedComponent`) to editors until the profile, a weigh-in and a first logged food are all done. Settings asks before a link or tab close throws away unsaved changes.
+- Water is a glass count per day (`fitness_water`, one row per space and day, 0 to 30, `PUT /fitness/water`), returned with the day range as `water`. The goal is a fixed 8 glasses (`WATER_GOAL`).
+- An empty meal on Today offers "Same as yesterday", which copies yesterday's eaten rows for that meal as new eaten rows, with Undo. It only happens when tapped.
+- Ticking a set starts a 90 s rest timer (`RestTimerComponent`, +30 s or Skip, a tone at the end). Under "Last time" each exercise suggests a small step up (`nextTry`: +2.5 kg at the same reps, or one more rep; nothing for timed exercises).
 - There is no offline queue and a Fitness space cannot be duplicated.

@@ -6,6 +6,7 @@ const today = '2026-11-13';
 const profile: Profile = { ...DEFAULT_PROFILE, sex: 'male', birthDate: '1996-11-13', heightMm: 1800, goal: 'lose', goalWeightG: 75_000, paceGPerWeek: 500 };
 const log = (day: string, name: string): FoodLog => ({ id: day, day, meal: 'lunch', eaten: true, foodId: null, name, quantityMilli: 1000, servingLabel: 'g', amountMg: 1000, kcal: 2000, proteinMg: 150_000, carbsMg: 200_000, fatMg: 60_000, fiberMg: 0 });
 const days: Day = {
+  water: [],
   logs: [log('2026-11-12', 'Secret snack'), log('2026-11-13', 'Private pasta')],
   workouts: [
     {
@@ -46,7 +47,7 @@ it('summarises the profile, intake, training and forecast', () => {
 });
 
 it('says what is missing instead of sending broken numbers', () => {
-  const summary = fitnessSummary({ profile: DEFAULT_PROFILE, weights: [], days: { logs: [], workouts: [] }, today });
+  const summary = fitnessSummary({ profile: DEFAULT_PROFILE, weights: [], days: { logs: [], workouts: [], water: [] }, today });
   expect(JSON.stringify(summary)).not.toMatch(/NaN|Infinity/);
   expect(summary).toMatchObject({ currentWeightKg: null, dailyTargets: null, last7Days: null, last30Days: null, doneSetsPerMuscleLast7Days: {} });
 });

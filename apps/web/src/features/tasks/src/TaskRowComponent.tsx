@@ -11,6 +11,7 @@ import { type CSSProperties, memo, useState } from 'react';
 import { cn } from '@/shared/utils/cn';
 import { formatShortDate, formatShortDay } from '@/shared/utils/date-formatter';
 import { useTaskMutations } from '../hooks/useTaskMutations';
+import { DueDateComponent } from './DueDateComponent';
 import { PriorityPillComponent } from './PriorityPillComponent';
 import { StatusIconComponent } from './StatusIconComponent';
 import { StatusPillComponent } from './StatusPillComponent';
@@ -147,6 +148,9 @@ export const TaskRowComponent = memo(function TaskRowComponent({
           </TableCell>
           <TableCell className="px-3 py-0">
             <PriorityPillComponent task={task} readOnly={!canEdit} />
+          </TableCell>
+          <TableCell className="px-3 py-0">
+            <DueDateComponent task={task} readOnly={!canEdit} />
           </TableCell>
           <TableCell className="truncate px-3 py-0">{formatShortDate(task.createdAt)}</TableCell>
           <TableCell className="truncate px-3 py-0">{task.completedOn ? formatShortDay(task.completedOn) : '-'}</TableCell>

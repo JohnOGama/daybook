@@ -14,6 +14,7 @@ import { authClient } from '@/shared/services/auth-client';
 import { cn } from '@/shared/utils/cn';
 import { FirstRunBarComponent } from './FirstRunBarComponent';
 import { LiveUpdatesProviderComponent } from './LiveUpdatesProviderComponent';
+import { FocusPillComponent, FocusTimerProviderComponent } from '@/features/focus';
 import { ResizableSidebarComponent } from './ResizableSidebarComponent';
 import { SidebarComponent } from './SidebarComponent';
 
@@ -43,6 +44,7 @@ function SignedInShell({ children }: { children: ReactNode }) {
 
   return (
     <LiveUpdatesProviderComponent>
+    <FocusTimerProviderComponent>
     <div className="flex h-dvh overflow-hidden bg-sidebar">
       {!firstRun && (
         <ResizableSidebarComponent>
@@ -77,7 +79,9 @@ function SignedInShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <AssistantPanelComponent />
+      <FocusPillComponent />
     </div>
+    </FocusTimerProviderComponent>
     </LiveUpdatesProviderComponent>
   );
 }

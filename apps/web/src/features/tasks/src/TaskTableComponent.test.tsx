@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { addDays, localDay } from '@/shared/utils/date-formatter';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { keepRowInTable, TaskTableComponent } from './TaskTableComponent';
+import { TaskTableComponent } from './TaskTableComponent';
 import type { Task } from './task-types';
 
+const { update } = vi.hoisted(() => ({ update: vi.fn() }));
 vi.mock('../hooks/useTaskMutations', () => ({
-  useTaskMutations: () => ({ reorder: { mutate: vi.fn() }, setFinished: { mutate: vi.fn(), isPending: false } }),
+  useTaskMutations: () => ({ reorder: { mutate: vi.fn() }, setFinished: { mutate: vi.fn(), isPending: false }, update: { mutate: update } }),
 }));
 vi.mock('./TaskRowContextMenuComponent', () => ({
   TaskRowContextMenuComponent: ({ children }: { children: ReactNode }) => children,
@@ -28,6 +30,7 @@ const task = (id: string, fields: Partial<Task> = {}): Task => ({
   day: '2026-11-09',
   plannedDay: '2026-11-09',
   completedOn: null,
+  dueDay: null,
   createdAt: '2026-11-06T10:00:00.000Z',
   subtasks: [],
   ...fields,
@@ -160,21 +163,18 @@ it('collapsing a middle level hides only what is under it', async () => {
 
 it('shows the completed date, or a dash when the task is open', () => {
   renderTable([task('a', { finished: true, completedOn: '2026-11-09' }), task('b')]);
-  const completedCell = (row: number) => screen.getAllByRole('row')[row].querySelectorAll('td')[6].textContent;
+  const completedCell = (row: number) => screen.getAllByRole('row')[row].querySelectorAll('td')[7].textContent;
   expect(screen.getByRole('columnheader', { name: /Completed at/ })).toBeInTheDocument();
   expect(completedCell(1)).toBe('9 Nov');
   expect(completedCell(2)).toBe('-');
 });
 
-const clampY = (y: number) =>
-  keepRowInTable({
-    transform: { x: 30, y, scaleX: 1, scaleY: 1 },
-    draggingNodeRect: { top: 100, bottom: 146 },
-    containerNodeRect: { top: 54, bottom: 192 },
-  } as Parameters<typeof keepRowInTable>[0]);
-
-it('keeps a dragged row inside the table and on its vertical axis', () => {
-  expect(clampY(20)).toMatchObject({ x: 0, y: 20 });
-  expect(clampY(500)).toMatchObject({ x: 0, y: 46 });
-  expect(clampY(-500)).toMatchObject({ x: 0, y: -46 });
+it('shows a due date, flags it overdue while open, and adds one from the Due column', async () => {
+  const today = localDay();
+  renderTable([task('a', { title: 'Late', dueDay: addDays(today, -1) }), task('b', { title: 'Done late', dueDay: addDays(today, -1), finished: true, completedOn: today }), task('c', { title: 'Open' })]);
+  expect(screen.getByRole('button', { name: 'Change due date of Late' })).toHaveTextContent('Due Yesterday, overdue');
+  expect(screen.getByRole('button', { name: 'Change due date of Done late' })).not.toHaveTextContent('overdue');
+  await userEvent.click(screen.getByRole('button', { name: 'Add a due date to Open' }));
+  fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
+  expect(update).toHaveBeenCalledWith({ id: 'c', input: { dueDay: '2026-12-01' } });
 });

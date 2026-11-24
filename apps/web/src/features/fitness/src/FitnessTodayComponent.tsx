@@ -1,6 +1,6 @@
 'use client';
 
-import { ClipboardList, Plus } from 'lucide-react';
+import { ClipboardList, Copy, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -13,11 +13,12 @@ import { useFitnessDays } from '../hooks/useFitnessDays';
 import { useFitnessMutations } from '../hooks/useFitnessMutations';
 import { DaySwitcherComponent } from './DaySwitcherComponent';
 import { formatKcal } from './fitness-format';
-import { type FitnessViewProps, type Meal, MEAL_LABELS, MEALS } from './fitness-types';
+import { type FitnessViewProps, type FoodLog, type Meal, MEAL_LABELS, MEALS } from './fitness-types';
 import { dayTotals, plannedTotals, totalsOf } from './food-math';
 import { intakeByDay } from './forecast-math';
 import { StartWorkoutMenuComponent } from './FitnessWorkoutsComponent';
 import { FoodLogRowComponent } from './FoodLogRowComponent';
+import { GettingStartedComponent } from './GettingStartedComponent';
 import { type FoodSheetState, FoodSearchSheetComponent } from './FoodSearchSheetComponent';
 import { IntakeWeekComponent } from './IntakeWeekComponent';
 import { MacroMetersComponent } from './MacroMetersComponent';
@@ -25,6 +26,7 @@ import { MuscleMapCardComponent } from './MuscleMapCardComponent';
 import { logsFromPlan, planFromLogs } from './plan-math';
 import { sampleDay } from './sample-fitness';
 import { targetsFor } from './targets-math';
+import { WaterCardComponent } from './WaterCardComponent';
 import { WeightCardComponent } from './WeightCardComponent';
 import { setsDone } from './workout-math';
 
@@ -39,13 +41,23 @@ function mealForNow(): Meal {
 export function FitnessTodayComponent(props: FitnessViewProps) {
   const { fitness, today, day, hrefFor, canEdit = true } = props;
   const { data, isPending, isError } = useFitnessDays(addDays(day, -6), day);
-  const { updateLog, addLogs, addMealPlan } = useFitnessMutations();
+  const { updateLog, addLogs, removeLog, addMealPlan } = useFitnessMutations();
   const [sheet, setSheet] = useState<FoodSheetState>(null);
   const sample = useMemo(() => sampleDay(day), [day]);
   const week = data ?? sample;
   const logs = week.logs.filter((log) => log.day === day);
   const workouts = week.workouts.filter((workout) => workout.day === day);
   const targets = targetsFor(fitness.profile, fitness.weights.at(-1)?.weightG ?? null, today);
+  const yesterday = addDays(day, -1);
+  const eatenYesterday = (meal: Meal) => week.logs.filter((log) => log.day === yesterday && log.meal === meal && log.eaten);
+
+  // Most meals repeat, so an empty meal can take yesterday's eaten food in one tap (with Undo).
+  function copyYesterday(meal: Meal, rows: FoodLog[]) {
+    const copies = rows.map(({ id: _id, day: _day, ...row }) => ({ ...row, id: crypto.randomUUID(), day, eaten: true }));
+    addLogs.mutate(copies);
+    const undo = () => copies.forEach((copy) => removeLog.mutate(copy.id));
+    toast(`Copied ${copies.length} ${copies.length === 1 ? 'food' : 'foods'} to ${MEAL_LABELS[meal]}`, { action: { label: 'Undo', onClick: undo } });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,15 +107,15 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
         <Skeleton loading={isPending} label="Loading the day">
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="flex min-w-0 flex-col gap-4">
-              <MacroMetersComponent totals={dayTotals(logs)} planned={plannedTotals(logs)} targets={targets} />
-              {!targets && (
-                <p className="text-sm text-muted-foreground">
-                  <Link href={hrefFor({ view: 'settings' })} className="underline underline-offset-2 hover:text-foreground">
-                    Set up your profile
-                  </Link>{' '}
-                  and add a weigh-in to get calorie and macro targets.
-                </p>
+              {canEdit && !isPending && (
+                <GettingStartedComponent
+                  fitness={fitness}
+                  hasFoodThisWeek={week.logs.length > 0}
+                  hrefFor={hrefFor}
+                  onLogFood={() => setSheet({ mode: 'add', day, meal: mealForNow() })}
+                />
               )}
+              <MacroMetersComponent totals={dayTotals(logs)} planned={plannedTotals(logs)} targets={targets} />
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {MEALS.map((meal) => {
@@ -139,13 +151,21 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
                       ) : !canEdit ? (
                         <p className="px-4 pb-4 text-sm text-muted-foreground">Nothing logged</p>
                       ) : (
-                        <Button
-                          variant="outline"
-                          onClick={() => setSheet({ mode: 'add', day, meal })}
-                          className="mx-4 mb-4 h-auto justify-start border-dashed py-3 font-normal text-muted-foreground"
-                        >
-                          Nothing logged yet
-                        </Button>
+                        <div className="mx-4 mb-4 flex flex-col gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setSheet({ mode: 'add', day, meal })}
+                            className="h-auto justify-start border-dashed py-3 font-normal text-muted-foreground"
+                          >
+                            Nothing logged yet
+                          </Button>
+                          {eatenYesterday(meal).length > 0 && (
+                            <Button variant="ghost" size="sm" className="justify-start text-muted-foreground" onClick={() => copyYesterday(meal, eatenYesterday(meal))}>
+                              <Copy aria-hidden />
+                              Same as yesterday · {eatenYesterday(meal).length} {eatenYesterday(meal).length === 1 ? 'food' : 'foods'}, {formatKcal(totalsOf(eatenYesterday(meal)).kcal)}
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </SectionCardComponent>
                   );
@@ -178,13 +198,17 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
                     })}
                   </ul>
                 ) : (
-                  <p className="px-4 pb-4 text-sm text-muted-foreground">{canEdit ? 'No workout on this day. Start one from a template above.' : 'No workout on this day.'}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4">
+                    <p className="text-sm text-muted-foreground">No workout on this day.</p>
+                    {canEdit && <StartWorkoutMenuComponent templates={fitness.templates} day={day} />}
+                  </div>
                 )}
               </SectionCardComponent>
             </div>
 
             <aside aria-label="Your week" className="flex min-w-0 flex-col gap-4">
               <IntakeWeekComponent intake={intakeByDay(week.logs)} day={day} targetKcal={targets?.kcal ?? null} hrefFor={hrefFor} />
+              <WaterCardComponent day={day} glasses={week.water.find((water) => water.day === day)?.glasses ?? 0} canEdit={canEdit} />
               <WeightCardComponent {...props} />
               <MuscleMapCardComponent workouts={week.workouts} day={day} />
             </aside>

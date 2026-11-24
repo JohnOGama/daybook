@@ -40,10 +40,23 @@ export const DEFAULT_PROFILE: Profile = {
 // Food weight and macros are whole milligrams, energy whole kcal, body weight whole grams.
 export type Targets = { kcal: number; proteinMg: number; carbsMg: number; fatMg: number };
 export type Weight = { day: string; weightG: number };
+// Glasses of water drunk on a day.
+export type Water = { day: string; glasses: number };
+export const WATER_GOAL = 8;
+export const MAX_GLASSES = 30;
 
 export type Serving = { id: string; label: string; amountMg: number; custom: boolean };
 // Nutrition is per 100 g.
-export type Food = Targets & { id: string; name: string; category: string | null; custom: boolean; fiberMg: number; servings: Serving[] };
+// `last` comes only with recent foods: the amount logged last time.
+export type Food = Targets & {
+  id: string;
+  name: string;
+  category: string | null;
+  custom: boolean;
+  fiberMg: number;
+  servings: Serving[];
+  last?: Pick<FoodItem, 'quantityMilli' | 'servingLabel'>;
+};
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export type Meal = (typeof MEALS)[number];
@@ -69,7 +82,7 @@ export type WorkoutItem = { exerciseId: string | null; name: string; kind: Exerc
 export type WorkoutTemplate = { id: string; name: string; items: WorkoutItem[]; version?: number };
 export type Workout = { id: string; day: string; name: string; items: WorkoutItem[]; version?: number };
 
-export type Day = { logs: FoodLog[]; workouts: Workout[] };
+export type Day = { logs: FoodLog[]; workouts: Workout[]; water: Water[] };
 export type Fitness = { profile: Profile; weights: Weight[]; mealPlans: MealPlan[]; templates: WorkoutTemplate[]; aiEnabled: boolean };
 
 export const FITNESS_VIEWS = ['today', 'workouts', 'progress', 'library', 'settings'] as const;

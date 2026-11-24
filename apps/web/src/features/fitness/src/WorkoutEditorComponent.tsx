@@ -7,6 +7,7 @@ import type { EditedFrom } from '@/shared/utils/conflict-error';
 import { Input } from '@/shared/components/ui/input';
 import { useFitnessMutations } from '../hooks/useFitnessMutations';
 import { BodyDiagramComponent, strengthFromMuscles } from './BodyDiagramComponent';
+import { REST_MS, RestTimerComponent } from './RestTimerComponent';
 import type { Workout } from './fitness-types';
 import { musclesOf, setsDone, templateFromWorkout } from './workout-math';
 import { WorkoutItemsEditorComponent } from './WorkoutItemsEditorComponent';
@@ -19,6 +20,7 @@ type WorkoutEditorProps = { workout: Workout; history: Workout[] };
 export function WorkoutEditorComponent({ workout, history }: WorkoutEditorProps) {
   const { saveWorkout, deleteWorkoutWithUndo, addTemplate } = useFitnessMutations();
   const [draft, setDraft] = useState(workout);
+  const [restUntil, setRestUntil] = useState<number | null>(null);
   const from = useRef<EditedFrom>({ version: workout.version ?? 0, conflicted: false }).current;
   const pending = useRef<Workout | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -44,6 +46,7 @@ export function WorkoutEditorComponent({ workout, history }: WorkoutEditorProps)
 
   function change(next: Workout, now: boolean) {
     if (from.conflicted) return;
+    if (setsDone(next).done > setsDone(draft).done) setRestUntil(Date.now() + REST_MS);
     setDraft(next);
     pending.current = next;
     clearTimeout(timer.current);
@@ -95,6 +98,7 @@ export function WorkoutEditorComponent({ workout, history }: WorkoutEditorProps)
         <WorkoutItemsEditorComponent items={draft.items} onChange={(items, now) => change({ ...draft, items }, now)} workout={{ day: draft.day, history }} />
         <BodyDiagramComponent label={`Muscles worked by ${draft.name}`} strength={strengthFromMuscles(musclesOf(draft.items))} />
       </div>
+      {restUntil !== null && <RestTimerComponent until={restUntil} onChange={setRestUntil} />}
     </div>
   );
 }

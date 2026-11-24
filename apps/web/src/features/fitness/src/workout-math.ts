@@ -55,6 +55,20 @@ function formatSet(set: WorkoutSet, kind: ExerciseKind): string {
   return kind === 'weight' && set.weightG !== null ? `${reps} at ${trim(set.weightG / 1000, 2)} kg` : reps;
 }
 
+// ponytail: one fixed step for every lift; make it per exercise if small plates matter.
+const WEIGHT_STEP_G = 2500;
+
+// A small step up from last time's best set: one more rep, or (for weighted sets) the next weight at the same reps.
+export function nextTry(sets: WorkoutSet[], kind: ExerciseKind): string | null {
+  const counted = sets.filter((set) => set.reps !== null && (kind !== 'weight' || set.weightG !== null));
+  if (kind === 'time' || counted.length === 0) return null;
+  const heaviest = kind === 'weight' ? Math.max(...counted.map((set) => set.weightG as number)) : 0;
+  const reps = Math.max(...counted.filter((set) => (set.weightG ?? 0) === heaviest || kind !== 'weight').map((set) => set.reps as number));
+  if (heaviest === 0) return `Try ${reps + 1} reps`;
+  const kg = (weightG: number) => `${trim(weightG / 1000, 2)} kg`;
+  return `Try ${reps} at ${kg(heaviest + WEIGHT_STEP_G)}, or ${reps + 1} at ${kg(heaviest)}`;
+}
+
 // "3 × 8 at 60 kg" when every set is the same, otherwise each set in turn.
 export function formatSets(sets: WorkoutSet[], kind: ExerciseKind): string {
   if (sets.length === 0) return 'No sets';

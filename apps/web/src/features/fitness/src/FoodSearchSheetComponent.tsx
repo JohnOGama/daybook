@@ -3,6 +3,7 @@
 import { ArrowLeft, Plus } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
+import { toast } from 'sonner';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Input } from '@/shared/components/ui/input';
@@ -13,7 +14,7 @@ import { useFitnessMutations } from '../hooks/useFitnessMutations';
 import { useFoodSearch } from '../hooks/useFoodSearch';
 import { formatGrams, formatKcal, parseAmount } from './fitness-format';
 import { type Food, type FoodItem, type FoodLog, type Meal, MEAL_LABELS, MEALS } from './fitness-types';
-import { formatQuantity, itemFor, scaleItem, type ServingChoice, servingsFor } from './food-math';
+import { formatQuantity, itemFor, lastItem, scaleItem, type ServingChoice, servingsFor } from './food-math';
 
 // `pick` hands the chosen food and amount back to the caller (a meal plan); the others write to a day's log.
 export type FoodSheetState =
@@ -69,9 +70,17 @@ function Numbers({ item }: { item: Pick<FoodItem, 'kcal' | 'proteinMg' | 'carbsM
   );
 }
 
-type SearchProps = { onChoose: (food: Food) => void; onCreate: (name: string) => void };
+// What a row in the food list says under the name: last time's amount, or calories per 100 g and per serving.
+function foodDetail(food: Food, last: FoodItem | null): string {
+  if (last) return `Last time ${formatQuantity(last)} · ${formatKcal(last.kcal)}`;
+  const serving = food.servings[0];
+  const perServing = serving ? ` · ${serving.label} ${formatKcal(itemFor(food, 1, serving).kcal)}` : '';
+  return `${formatKcal(food.kcal)} per 100 g${perServing}${food.custom ? ' · yours' : ''}`;
+}
 
-function Search({ onChoose, onCreate }: SearchProps) {
+type SearchProps = { onChoose: (food: Food) => void; onCreate: (name: string) => void; onQuickAdd: (item: FoodItem) => void };
+
+function Search({ onChoose, onCreate, onQuickAdd }: SearchProps) {
   const [text, setText] = useState('');
   const { data, isPending, isError } = useFoodSearch(text);
   const foods = isPending ? SAMPLE_FOODS : (data ?? []);
@@ -86,20 +95,27 @@ function Search({ onChoose, onCreate }: SearchProps) {
       {!text.trim() && foods.length > 0 && <p className="text-xs font-medium text-muted-foreground">Recently logged</p>}
       <Skeleton loading={isPending} label="Loading foods">
         <ul aria-label="Foods" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {foods.map((food) => (
-            <li key={food.id}>
-              <button
-                type="button"
-                onClick={() => onChoose(food)}
-                className="flex w-full flex-col rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="text-sm font-medium">{food.name}</span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {formatKcal(food.kcal)} per 100 g{food.custom ? ' · yours' : ''}
-                </span>
-              </button>
-            </li>
-          ))}
+          {foods.map((food) => {
+            const last = lastItem(food);
+            return (
+              <li key={food.id} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onChoose(food)}
+                  className="flex min-w-0 flex-1 flex-col rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="text-sm font-medium">{food.name}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{foodDetail(food, last)}</span>
+                </button>
+                {last && (
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" aria-label={`Add ${formatQuantity(last)} of ${food.name} again`} onClick={() => onQuickAdd(last)}>
+                    <Plus aria-hidden />
+                    Add
+                  </Button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </Skeleton>
       {!isPending && !isError && foods.length === 0 && (
@@ -119,8 +135,9 @@ function Amount({ food, meal: startingMeal, canPlan, onBack, onAdd }: AmountProp
   const { addServing } = useFitnessMutations();
   const [added, setAdded] = useState<ServingChoice[]>([]);
   const servings = [...servingsFor(food), ...added];
-  const [servingLabel, setServingLabel] = useState('g');
-  const [amount, setAmount] = useState('100');
+  const last = lastItem(food);
+  const [servingLabel, setServingLabel] = useState(last?.servingLabel ?? 'g');
+  const [amount, setAmount] = useState(last ? String(last.quantityMilli / 1000) : '100');
   const [meal, setMeal] = useState(startingMeal);
   const [eaten, setEaten] = useState(true);
   const [newLabel, setNewLabel] = useState('');
@@ -336,13 +353,20 @@ function AddFlow({ state, onClose }: { state: Exclude<FoodSheetState, null | { m
     onClose();
   }
 
+  // Adds the same amount as last time and keeps the list open, so several foods can be added in a row.
+  function quickAdd(item: FoodItem) {
+    if (state.mode === 'pick') state.onPick(item, state.meal);
+    else addLogs.mutate([{ ...item, id: crypto.randomUUID(), day: state.day, meal: state.meal, eaten: true }]);
+    toast.success(`Added ${formatQuantity(item)} of ${item.name} to ${state.mode === 'pick' ? 'the plan' : MEAL_LABELS[state.meal]}`);
+  }
+
   if (step.at === 'amount') {
     return <Amount food={step.food} meal={state.meal} canPlan={state.mode === 'add'} onBack={() => setStep({ at: 'search' })} onAdd={add} />;
   }
   if (step.at === 'new') {
     return <NewFood name={step.name} onBack={() => setStep({ at: 'search' })} onCreated={(food) => setStep({ at: 'amount', food })} />;
   }
-  return <Search onChoose={(food) => setStep({ at: 'amount', food })} onCreate={(name) => setStep({ at: 'new', name })} />;
+  return <Search onChoose={(food) => setStep({ at: 'amount', food })} onCreate={(name) => setStep({ at: 'new', name })} onQuickAdd={quickAdd} />;
 }
 
 export function FoodSearchSheetComponent({ state, onClose }: { state: FoodSheetState; onClose: () => void }) {
