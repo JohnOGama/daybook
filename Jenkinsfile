@@ -13,7 +13,7 @@ def daybookFinish(String status) {
     sh label: 'Report to Daybook', script: "curl -sS -m 5 -X POST \"\$DAYBOOK_URL/api/pipelines/report\" -H \"Authorization: Bearer \$DAYBOOK_KEY\" -H 'Content-Type: application/json' --data @.daybook-run.json || true"
   } catch (e) {
     echo "Daybook report skipped: ${e}"
-  } 
+  }
 }
 pipeline {
     agent any
