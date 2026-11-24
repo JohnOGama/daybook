@@ -17,7 +17,7 @@ def daybookFinish(String status) {
 }
 pipeline {
     agent any
-
+ 
     tools {
         nodejs("Node 22")
     }
