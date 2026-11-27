@@ -7,20 +7,24 @@ import { WrongSecretError } from './vault-crypto';
 
 const crypt = vi.hoisted(() => ({
   createVault: vi.fn(),
+  unlockSpaceWithPasscode: vi.fn(),
   unlockWithPasscode: vi.fn(),
   recoverPasscode: vi.fn(),
 }));
 const api = vi.hoisted(() => ({ saveNewVault: vi.fn(), savePasscodeWrap: vi.fn(), eraseVault: vi.fn() }));
 const state = vi.hoisted(() => ({
   vault: { data: null as object | null, isPending: false, isError: false },
-  session: { key: null as object | null, unlock: vi.fn(), lock: vi.fn() },
+  session: { key: null as object | null, spaceKeys: {} as Record<string, object>, unlock: vi.fn(), unlockSpace: vi.fn(), lock: vi.fn() },
+  access: { isOwner: true, canEdit: true },
+  sharing: { data: null as object | null, isPending: false, isError: false },
 }));
 
 vi.mock('./vault-crypto', async (original) => ({ ...(await original<typeof import('./vault-crypto')>()), ...crypt }));
 vi.mock('./vault-api', () => api);
 vi.mock('../hooks/useVault', () => ({ useVault: () => state.vault }));
 vi.mock('../hooks/useVaultSession', () => ({ useVaultSession: () => state.session }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Safe' }) }));
+vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Safe', ownerName: 'Sam' }), useSpaceAccess: () => state.access }));
+vi.mock('../hooks/useVaultSpaceKey', () => ({ useVaultSpaceKey: () => state.sharing }));
 vi.mock('./VaultUnlockedComponent', () => ({ VaultUnlockedComponent: () => <p>the open vault</p> }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -48,6 +52,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.vault = { data: null, isPending: false, isError: false };
   state.session.key = null;
+  state.session.spaceKeys = {};
+  state.access = { isOwner: true, canEdit: true };
+  state.sharing = { data: null, isPending: false, isError: false };
   crypt.createVault.mockResolvedValue({ material, recoveryKey: 'AAAA-BBBB', key });
   api.saveNewVault.mockResolvedValue(undefined);
   api.savePasscodeWrap.mockResolvedValue(undefined);
@@ -179,5 +186,39 @@ describe('with a vault', () => {
     await type('Type ERASE to confirm', 'ERASE');
     await userEvent.click(erase);
     await waitFor(() => expect(api.eraseVault).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('a vault shared with you', () => {
+  const wrap = { salt: 's', iterations: 600_000, wrappedKey: 'w' };
+  beforeEach(() => {
+    state.access = { isOwner: false, canEdit: false };
+    state.sharing = { data: wrap, isPending: false, isError: false };
+  });
+
+  it('asks for the sharing passcode, never your own vault, and opens it with that', async () => {
+    const spaceKey = { space: 'key' };
+    crypt.unlockSpaceWithPasscode.mockResolvedValue(spaceKey);
+    renderPage();
+    expect(screen.getByText("Ask Sam for this vault's sharing passcode.")).toBeInTheDocument();
+    expect(screen.queryByText(/First time/)).not.toBeInTheDocument();
+    await type('Sharing passcode', PASS);
+    await click('Unlock');
+    expect(crypt.unlockSpaceWithPasscode).toHaveBeenCalledWith(wrap, PASS);
+    expect(state.session.unlockSpace).toHaveBeenCalledWith('s1', spaceKey);
+  });
+
+  it('says so when the sharing passcode is wrong', async () => {
+    crypt.unlockSpaceWithPasscode.mockRejectedValue(new WrongSecretError('no'));
+    renderPage();
+    await type('Sharing passcode', PASS);
+    await click('Unlock');
+    expect(await screen.findByRole('alert')).toHaveTextContent('That sharing passcode is not right.');
+  });
+
+  it('shows the items once it is open', () => {
+    state.session.spaceKeys = { s1: {} };
+    renderPage();
+    expect(screen.getByText('the open vault')).toBeInTheDocument();
   });
 });

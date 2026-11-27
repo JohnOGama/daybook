@@ -1,0 +1,1 @@
+ALTER TYPE "public"."space_tool" ADD VALUE 'security';

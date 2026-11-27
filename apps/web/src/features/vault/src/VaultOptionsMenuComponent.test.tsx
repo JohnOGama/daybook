@@ -21,6 +21,8 @@ vi.mock('./vault-crypto', async (original) => ({
   replaceRecoveryKey: state.replaceRecoveryKey,
 }));
 vi.mock('../hooks/useVault', () => ({ useVault: () => ({ data: material }) }));
+vi.mock('../hooks/useVaultSession', () => ({ useVaultSession: () => ({ key: null, unlock: vi.fn(), lock: vi.fn() }) }));
+vi.mock('../hooks/useVaultSpaceKey', () => ({ useVaultSpaceKey: () => ({ data: null }) }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-10' }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -38,7 +40,7 @@ async function enter(field: HTMLElement, text: string) {
 function renderMenu() {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <VaultOptionsMenuComponent records={records} onImport={onImport} onRecoveryKey={onRecoveryKey} />
+      <VaultOptionsMenuComponent spaceId="s1" items={[]} records={records} onImport={onImport} onRecoveryKey={onRecoveryKey} />
     </QueryClientProvider>,
   );
 }

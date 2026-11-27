@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { createItem, deleteItem, fetchItems, updateItem } from '../src/vault-api';
 import { decryptJson, encryptJson } from '../src/vault-crypto';
 import type { ItemContent, VaultItem, VaultRecord } from '../src/vault-types';
-import { useVaultSession } from './useVaultSession';
+import { useItemKey } from './useVaultSpaceKey';
 
 const decryptRecord = async (key: CryptoKey, record: VaultRecord): Promise<VaultItem> => ({
   id: record.id,
@@ -16,7 +16,7 @@ const decryptRecord = async (key: CryptoKey, record: VaultRecord): Promise<Vault
 
 // ponytail: decrypts every item on each change; keep decrypted items by id and iv if vaults get large
 export function useVaultItems(spaceId: string) {
-  const { key } = useVaultSession();
+  const key = useItemKey(spaceId);
   const queryClient = useQueryClient();
   const queryKey = ['vault-items', spaceId];
   const { data: records, isError } = useQuery({ queryKey, queryFn: () => fetchItems(spaceId), enabled: key !== null });

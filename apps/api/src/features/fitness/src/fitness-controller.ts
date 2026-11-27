@@ -10,6 +10,7 @@ import {
   addLogsSchema,
   daysSchema,
   exerciseSchema,
+  fitnessMacrosSchema,
   fitnessReadSchema,
   foodSchema,
   newExerciseSchema,
@@ -265,5 +266,14 @@ export class FitnessController {
     await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
     await this.fitness.assertSpace(ownerId, spaceId);
     return this.ai.fitnessRead(summary);
+  }
+
+  @Post('ai/macros')
+  async macros(@UserId() userId: string, @Body() body: unknown, @Req() request: Request) {
+    const { spaceId, figures } = parseOrThrow(fitnessMacrosSchema, body);
+    const { ownerId } = await this.access.resolve(userId, spaceId, 'edit');
+    await this.lock.assertUnlocked(userId, spaceId, request.headers.cookie);
+    await this.fitness.assertSpace(ownerId, spaceId);
+    return this.ai.suggestMacros(figures);
   }
 }

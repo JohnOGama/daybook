@@ -1,34 +1,31 @@
 'use client';
 
-import { ClipboardList, Copy, Plus } from 'lucide-react';
-import Link from 'next/link';
+import { ClipboardList, Dumbbell, GlassWater, Plus, Weight as WeightIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Skeleton } from 'skullet/react';
-import { SectionCardComponent } from '@/features/budget';
 import { toast } from 'sonner';
 import { Button } from '@/shared/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { addDays, relativeDayLabel } from '@/shared/utils/date-formatter';
 import { useFitnessDays } from '../hooks/useFitnessDays';
 import { useFitnessMutations } from '../hooks/useFitnessMutations';
-import { DaySwitcherComponent } from './DaySwitcherComponent';
-import { formatKcal } from './fitness-format';
-import { type FitnessViewProps, type FoodLog, type Meal, MEAL_LABELS, MEALS } from './fitness-types';
-import { dayTotals, plannedTotals, totalsOf } from './food-math';
+import { formatKg } from './fitness-format';
+import { type FitnessViewProps, type Meal, WATER_GOAL } from './fitness-types';
+import { dayTotals, plannedTotals } from './food-math';
 import { intakeByDay } from './forecast-math';
-import { StartWorkoutMenuComponent } from './FitnessWorkoutsComponent';
-import { FoodLogRowComponent } from './FoodLogRowComponent';
-import { GettingStartedComponent } from './GettingStartedComponent';
 import { type FoodSheetState, FoodSearchSheetComponent } from './FoodSearchSheetComponent';
-import { IntakeWeekComponent } from './IntakeWeekComponent';
-import { MacroMetersComponent } from './MacroMetersComponent';
-import { MuscleMapCardComponent } from './MuscleMapCardComponent';
+import { MacroMetersComponent, type QuickStat } from './MacroMetersComponent';
+import { MealsCardComponent } from './MealsCardComponent';
 import { logsFromPlan, planFromLogs } from './plan-math';
 import { sampleDay } from './sample-fitness';
 import { targetsFor } from './targets-math';
+import { TodayWorkoutCardComponent } from './TodayWorkoutCardComponent';
 import { WaterCardComponent } from './WaterCardComponent';
 import { WeightCardComponent } from './WeightCardComponent';
+import { WeekStripComponent } from './WeekStripComponent';
 import { setsDone } from './workout-math';
+
+const STAT_ICON = 'size-4 shrink-0 text-muted-foreground';
 
 function mealForNow(): Meal {
   const hour = new Date().getHours();
@@ -41,7 +38,7 @@ function mealForNow(): Meal {
 export function FitnessTodayComponent(props: FitnessViewProps) {
   const { fitness, today, day, hrefFor, canEdit = true } = props;
   const { data, isPending, isError } = useFitnessDays(addDays(day, -6), day);
-  const { updateLog, addLogs, removeLog, addMealPlan } = useFitnessMutations();
+  const { addLogs, addMealPlan } = useFitnessMutations();
   const [sheet, setSheet] = useState<FoodSheetState>(null);
   const sample = useMemo(() => sampleDay(day), [day]);
   const week = data ?? sample;
@@ -49,168 +46,95 @@ export function FitnessTodayComponent(props: FitnessViewProps) {
   const workouts = week.workouts.filter((workout) => workout.day === day);
   const targets = targetsFor(fitness.profile, fitness.weights.at(-1)?.weightG ?? null, today);
   const yesterday = addDays(day, -1);
-  const eatenYesterday = (meal: Meal) => week.logs.filter((log) => log.day === yesterday && log.meal === meal && log.eaten);
 
-  // Most meals repeat, so an empty meal can take yesterday's eaten food in one tap (with Undo).
-  function copyYesterday(meal: Meal, rows: FoodLog[]) {
-    const copies = rows.map(({ id: _id, day: _day, ...row }) => ({ ...row, id: crypto.randomUUID(), day, eaten: true }));
-    addLogs.mutate(copies);
-    const undo = () => copies.forEach((copy) => removeLog.mutate(copy.id));
-    toast(`Copied ${copies.length} ${copies.length === 1 ? 'food' : 'foods'} to ${MEAL_LABELS[meal]}`, { action: { label: 'Undo', onClick: undo } });
-  }
+  const glasses = week.water.find((water) => water.day === day)?.glasses ?? 0;
+  const sets = workouts.map(setsDone).reduce((sum, { done, total }) => ({ done: sum.done + done, total: sum.total + total }), { done: 0, total: 0 });
+  const weighIn = fitness.weights.filter((weight) => weight.day <= day).at(-1);
+  const stats: QuickStat[] = [
+    { icon: <GlassWater className={STAT_ICON} aria-hidden />, label: 'Water', value: `${glasses} / ${WATER_GOAL}` },
+    { icon: <Dumbbell className={STAT_ICON} aria-hidden />, label: 'Workout', value: sets.total > 0 ? `${sets.done} / ${sets.total} sets` : 'None' },
+    { icon: <WeightIcon className={STAT_ICON} aria-hidden />, label: 'Weight', value: weighIn ? formatKg(weighIn.weightG) : '—' },
+  ];
 
   return (
-    <div className="flex flex-col gap-4">
-      <DaySwitcherComponent day={day} today={today} hrefFor={hrefFor}>
+    <div className="flex flex-col gap-4 xl:min-h-0 xl:flex-1">
+      <WeekStripComponent day={day} today={today} intake={intakeByDay(week.logs)} targetKcal={targets?.kcal ?? null} hrefFor={hrefFor}>
         {canEdit && (
           <>
-        <Button size="sm" disabled={isPending} onClick={() => setSheet({ mode: 'add', day, meal: mealForNow() })}>
-          <Plus aria-hidden />
-          Log food
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" disabled={isPending}>
-              <ClipboardList aria-hidden />
-              Meal plan
+            <Button size="sm" disabled={isPending} onClick={() => setSheet({ mode: 'add', day, meal: mealForNow() })}>
+              <Plus aria-hidden />
+              Log food
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {fitness.mealPlans.map((plan) => (
-              <DropdownMenuItem key={plan.id} onSelect={() => addLogs.mutate(logsFromPlan(plan, day, () => crypto.randomUUID()))}>
-                Apply “{plan.name}”
-              </DropdownMenuItem>
-            ))}
-            {fitness.mealPlans.length === 0 && <DropdownMenuItem disabled>No meal plans yet. Make one in Library.</DropdownMenuItem>}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={logs.length === 0}
-              onSelect={() => {
-                addMealPlan.mutate(planFromLogs(`Plan from ${relativeDayLabel(day, today)}`, logs, () => crypto.randomUUID()));
-                toast.success('Saved as a meal plan. Rename it in Library.');
-              }}
-            >
-              Save this day as a plan
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <StartWorkoutMenuComponent templates={fitness.templates} day={day} disabled={isPending} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={isPending}>
+                  <ClipboardList aria-hidden />
+                  Meal plan
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {fitness.mealPlans.map((plan) => (
+                  <DropdownMenuItem key={plan.id} onSelect={() => addLogs.mutate(logsFromPlan(plan, day, () => crypto.randomUUID()))}>
+                    Apply “{plan.name}”
+                  </DropdownMenuItem>
+                ))}
+                {fitness.mealPlans.length === 0 && <DropdownMenuItem disabled>No meal plans yet. Make one in Library.</DropdownMenuItem>}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={logs.length === 0}
+                  onSelect={() => {
+                    addMealPlan.mutate(planFromLogs(`Plan from ${relativeDayLabel(day, today)}`, logs, () => crypto.randomUUID()));
+                    toast.success('Saved as a meal plan. Rename it in Library.');
+                  }}
+                >
+                  Save this day as a plan
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         )}
-      </DaySwitcherComponent>
+      </WeekStripComponent>
 
       {isError ? (
         <p role="alert" className="text-sm text-destructive">
           Could not load this day. Please try again.
         </p>
       ) : (
-        <Skeleton loading={isPending} label="Loading the day">
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="flex min-w-0 flex-col gap-4">
-              {canEdit && !isPending && (
-                <GettingStartedComponent
-                  fitness={fitness}
-                  hasFoodThisWeek={week.logs.length > 0}
-                  hrefFor={hrefFor}
-                  onLogFood={() => setSheet({ mode: 'add', day, meal: mealForNow() })}
-                />
-              )}
-              <MacroMetersComponent totals={dayTotals(logs)} planned={plannedTotals(logs)} targets={targets} />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                {MEALS.map((meal) => {
-                  const rows = logs.filter((log) => log.meal === meal);
-                  const eaten = totalsOf(rows.filter((log) => log.eaten));
-                  return (
-                    <SectionCardComponent
-                      key={meal}
-                      title={MEAL_LABELS[meal]}
-                      action={
-                        <span className="flex items-center gap-1">
-                          {rows.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{formatKcal(eaten.kcal)}</span>}
-                          {canEdit && (
-                            <Button variant="ghost" size="icon" className="size-8" aria-label={`Add food to ${MEAL_LABELS[meal]}`} onClick={() => setSheet({ mode: 'add', day, meal })}>
-                              <Plus aria-hidden />
-                            </Button>
-                          )}
-                        </span>
-                      }
-                    >
-                      {rows.length > 0 ? (
-                        <ul className="px-2 pb-2">
-                          {rows.map((log) => (
-                            <FoodLogRowComponent
-                              key={log.id}
-                              log={log}
-                              canEdit={canEdit}
-                              onToggle={(isEaten) => updateLog.mutate({ id: log.id, changes: { eaten: isEaten } })}
-                              onOpen={() => setSheet({ mode: 'edit', log })}
-                            />
-                          ))}
-                        </ul>
-                      ) : !canEdit ? (
-                        <p className="px-4 pb-4 text-sm text-muted-foreground">Nothing logged</p>
-                      ) : (
-                        <div className="mx-4 mb-4 flex flex-col gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => setSheet({ mode: 'add', day, meal })}
-                            className="h-auto justify-start border-dashed py-3 font-normal text-muted-foreground"
-                          >
-                            Nothing logged yet
-                          </Button>
-                          {eatenYesterday(meal).length > 0 && (
-                            <Button variant="ghost" size="sm" className="justify-start text-muted-foreground" onClick={() => copyYesterday(meal, eatenYesterday(meal))}>
-                              <Copy aria-hidden />
-                              Same as yesterday · {eatenYesterday(meal).length} {eatenYesterday(meal).length === 1 ? 'food' : 'foods'}, {formatKcal(totalsOf(eatenYesterday(meal)).kcal)}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </SectionCardComponent>
-                  );
-                })}
-              </div>
-
-              <SectionCardComponent title="Workout">
-                {workouts.length > 0 ? (
-                  <ul className="flex flex-col gap-1 px-2 pb-2">
-                    {workouts.map((workout) => {
-                      const { done, total } = setsDone(workout);
-                      return (
-                        <li key={workout.id}>
-                          <Link
-                            href={hrefFor({ view: 'workouts' })}
-                            className="flex flex-col gap-2 rounded-lg px-2 py-2 text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <span className="flex items-center justify-between gap-3">
-                              <span className="truncate font-medium">{workout.name}</span>
-                              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                                {done} of {total} sets done
-                              </span>
-                            </span>
-                            <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted">
-                              <span className="block h-full rounded-full bg-signal transition-[width] duration-500" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4">
-                    <p className="text-sm text-muted-foreground">No workout on this day.</p>
-                    {canEdit && <StartWorkoutMenuComponent templates={fitness.templates} day={day} />}
-                  </div>
-                )}
-              </SectionCardComponent>
-            </div>
-
-            <aside aria-label="Your week" className="flex min-w-0 flex-col gap-4">
-              <IntakeWeekComponent intake={intakeByDay(week.logs)} day={day} targetKcal={targets?.kcal ?? null} hrefFor={hrefFor} />
-              <WaterCardComponent day={day} glasses={week.water.find((water) => water.day === day)?.glasses ?? 0} canEdit={canEdit} />
+        <Skeleton loading={isPending} label="Loading the day" className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">
+          {/* One column on phones in reading order (summary, meals, workout, water, weight). On large screens the workout
+              card is the right-hand column beside meals, water and weight. On extra-large ones it runs the full height on
+              the far right, beside the summary and Meals | Water and weight, and every column scrolls inside itself. */}
+          <div className="grid items-start gap-4 lg:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_20rem_minmax(24rem,0.9fr)] xl:grid-rows-[auto_minmax(0,1fr)] xl:items-stretch">
+            <MacroMetersComponent
+              className="lg:col-span-2 lg:row-start-1 xl:col-start-1 xl:row-start-1"
+              totals={dayTotals(logs)}
+              planned={plannedTotals(logs)}
+              targets={targets}
+              stats={stats}
+            />
+            <MealsCardComponent
+              className="lg:col-start-1 lg:row-start-2"
+              day={day}
+              logs={logs}
+              yesterday={week.logs.filter((log) => log.day === yesterday)}
+              canEdit={canEdit}
+              onAdd={(meal) => setSheet({ mode: 'add', day, meal })}
+              onOpen={(log) => setSheet({ mode: 'edit', log })}
+            />
+            <TodayWorkoutCardComponent
+              workouts={week.workouts}
+              templates={fitness.templates}
+              day={day}
+              hrefFor={hrefFor}
+              canEdit={canEdit}
+              className="lg:col-start-2 lg:row-span-2 lg:row-start-2 xl:col-start-3 xl:row-start-1"
+            />
+            <aside
+              aria-label="Water and weight"
+              className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-3 xl:col-start-2 xl:row-start-2 xl:min-h-0 xl:overflow-y-auto"
+            >
+              <WaterCardComponent day={day} glasses={glasses} canEdit={canEdit} />
               <WeightCardComponent {...props} />
-              <MuscleMapCardComponent workouts={week.workouts} day={day} />
             </aside>
           </div>
         </Skeleton>

@@ -8,12 +8,15 @@ export type PasscodeWrap = { salt: string; iterations: number; wrappedKey: strin
 export type RecoveryWrap = { recoverySalt: string; recoveryWrappedKey: string };
 export type VaultMaterial = PasscodeWrap & RecoveryWrap;
 export type EncryptedPayload = { iv: string; ciphertext: string };
+// A shared Vault's own key: wrapped by its sharing passcode, and (for the owner only) sealed with the owner's vault key.
+export type SpaceKeyWrap = PasscodeWrap & { ownerWrappedKey?: string };
 
 const AES_GCM = { name: 'AES-GCM', length: 256 };
 const IV_BYTES = 12;
 const SALT_BYTES = 16;
 const RECOVERY_BYTES = 20;
 const RECOVERY_INFO = 'daybook-vault-recovery-v1';
+const SPACE_KEY_INFO = 'daybook-vault-space-key-v1';
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -143,6 +146,43 @@ export async function recoverPasscode(material: VaultMaterial, recoveryKey: stri
 
 export async function replaceRecoveryKey(material: VaultMaterial, passcode: string) {
   return wrapWithNewRecoveryKey(await unwrapWithPasscode(material, passcode, true));
+}
+
+// The vault key only encrypts and decrypts, so the space key is sealed as raw bytes: iv (12) + key (32) + tag (16).
+async function sealSpaceKey(spaceKey: CryptoKey, vaultKey: CryptoKey): Promise<string> {
+  const iv = randomBytes(IV_BYTES);
+  const raw = await crypto.subtle.exportKey('raw', spaceKey);
+  const sealed = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: bytesOf(SPACE_KEY_INFO) }, vaultKey, raw);
+  return toBase64(new Uint8Array([...iv, ...new Uint8Array(sealed)]));
+}
+
+async function openSpaceKey(ownerWrappedKey: string, vaultKey: CryptoKey, extractable: boolean): Promise<CryptoKey> {
+  try {
+    const bytes = fromBase64(ownerWrappedKey);
+    const raw = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: bytes.slice(0, IV_BYTES), additionalData: bytesOf(SPACE_KEY_INFO) },
+      vaultKey,
+      bytes.slice(IV_BYTES),
+    );
+    return await crypto.subtle.importKey('raw', raw, AES_GCM, extractable, ['encrypt', 'decrypt']);
+  } catch {
+    throw new WrongSecretError('This vault could not be opened.');
+  }
+}
+
+export async function createSpaceKey(vaultKey: CryptoKey, passcode: string): Promise<{ wrap: Required<SpaceKeyWrap>; key: CryptoKey }> {
+  const spaceKey = await crypto.subtle.generateKey(AES_GCM, true, ['encrypt', 'decrypt']);
+  const ownerWrappedKey = await sealSpaceKey(spaceKey, vaultKey);
+  const wrap = { ...(await wrapWithPasscode(spaceKey, passcode)), ownerWrappedKey };
+  return { wrap, key: await openSpaceKey(ownerWrappedKey, vaultKey, false) };
+}
+
+export const unlockSpaceWithPasscode = (wrap: PasscodeWrap, passcode: string) => unwrapWithPasscode(wrap, passcode, false);
+
+export const unlockSpaceAsOwner = (ownerWrappedKey: string, vaultKey: CryptoKey) => openSpaceKey(ownerWrappedKey, vaultKey, false);
+
+export async function changeSpacePasscode(ownerWrappedKey: string, vaultKey: CryptoKey, passcode: string): Promise<Required<SpaceKeyWrap>> {
+  return { ...(await wrapWithPasscode(await openSpaceKey(ownerWrappedKey, vaultKey, true), passcode)), ownerWrappedKey };
 }
 
 export async function encryptJson(key: CryptoKey, id: string, value: unknown): Promise<EncryptedPayload> {

@@ -2,7 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../../../shared/db/create-db.ts';
-import { notebookPages, spaces, tasks, user } from '../../../shared/db/schema.ts';
+import { notebookPages, spaces, tasks, user, vaultSpaceKeys } from '../../../shared/db/schema.ts';
 import { createTestDb, insertFolder, insertShare, insertSpace, insertUser } from '../../../shared/db/test-db.ts';
 import { SpaceAccessService } from './space-access-service.ts';
 
@@ -89,7 +89,18 @@ describe('SpaceAccessService', () => {
       await expect(access.resolve('u2', folder, 'edit')).rejects.toBeInstanceOf(ForbiddenException);
     });
 
-    it('never resolves a Vault inside a shared folder', async () => {
+    it('resolves a shared Vault only once it has a sharing passcode, and lists it then', async () => {
+      const vault = await insertSpace(db, 'u1', { tool: 'vault' });
+      await share(vault, 'view');
+      await expect(access.resolve('u2', vault, 'view')).rejects.toBeInstanceOf(NotFoundException);
+      expect(await access.sharedWith('u2')).toEqual([]);
+      const b64 = (bytes: number) => Buffer.alloc(bytes, 1).toString('base64');
+      await db.insert(vaultSpaceKeys).values({ spaceId: vault, salt: b64(16), iterations: 600_000, wrappedKey: b64(60), ownerWrappedKey: b64(60) });
+      await expect(access.resolve('u2', vault, 'view')).resolves.toMatchObject({ access: 'view', ownerId: 'u1' });
+      expect((await access.sharedWith('u2')).map((r) => r.row.id)).toEqual([vault]);
+    });
+
+    it('never resolves a Vault with no sharing passcode inside a shared folder', async () => {
       const folder = await insertFolder(db, 'u1');
       const vault = await insertSpace(db, 'u1', { parentId: folder, tool: 'vault' });
       await share(folder, 'edit');

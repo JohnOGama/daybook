@@ -25,7 +25,12 @@ export const passcodeWrapSchema = z.object({ salt, iterations: z.int().min(MIN_I
 export const recoveryWrapSchema = z.object({ recoverySalt: salt, recoveryWrappedKey: wrappedKey });
 export const createVaultSchema = z.object({ ...passcodeWrapSchema.shape, ...recoveryWrapSchema.shape });
 
-export const listItemsSchema = z.object({ spaceId: z.uuid() });
+export const listItemsSchema = z.object({ spaceId: z.uuid(), includeDeleted: z.literal('true').optional() });
+export const spaceKeySchema = z.object({
+  ...passcodeWrapSchema.shape,
+  ownerWrappedKey: wrappedKey,
+  items: z.array(z.object({ id: z.uuid(), ...payload })).max(MAX_IMPORT_ITEMS).optional(),
+});
 export const createItemSchema = z.object({ id: z.uuid(), spaceId: z.uuid(), ...payload });
 export const updateItemSchema = z.object(payload);
 export const importItemsSchema = z.object({
@@ -38,4 +43,5 @@ export type RecoveryWrap = z.infer<typeof recoveryWrapSchema>;
 export type VaultDto = z.infer<typeof createVaultSchema>;
 export type ItemPayload = z.infer<typeof updateItemSchema>;
 export type CreateItemInput = z.infer<typeof createItemSchema>;
+export type SpaceKeyInput = z.infer<typeof spaceKeySchema>;
 export type ImportItemsInput = z.infer<typeof importItemsSchema>;

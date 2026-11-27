@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { LogoMarkComponent } from '@/shared/components/LogoMarkComponent';
 import type { FormEventHandler, ReactNode } from 'react';
 import { useRedirectIfSignedIn } from '../hooks/useRedirectIfSignedIn';
 import { AuthCardSkeletonComponent } from './AuthCardSkeletonComponent';
@@ -22,9 +22,7 @@ export function AuthCardComponent({ title, subtitle, error, onSubmit, children, 
     <main className="flex min-h-dvh items-center justify-center bg-sidebar p-4">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-6">
         <div className="mb-5 flex items-center gap-2.5 font-semibold">
-          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <Check className="size-4" strokeWidth={3} aria-hidden />
-          </span>
+          <LogoMarkComponent />
           Daybook
         </div>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>

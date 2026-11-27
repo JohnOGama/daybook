@@ -1,7 +1,8 @@
 'use client';
 
-import { Check, LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
+import { LogoMarkComponent } from '@/shared/components/LogoMarkComponent';
 import { Button } from '@/shared/components/ui/button';
 import { useSignOut } from '../hooks/useSignOut';
 
@@ -12,9 +13,7 @@ export function FirstRunBarComponent() {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between px-4 md:px-5">
       <span className="flex items-center gap-2.5 font-display font-extrabold tracking-[-0.03em]">
-        <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <Check className="size-4" strokeWidth={3} aria-hidden />
-        </span>
+        <LogoMarkComponent />
         Daybook
       </span>
       <nav aria-label="Account" className="flex gap-1">

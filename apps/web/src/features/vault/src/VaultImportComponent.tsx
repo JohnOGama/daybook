@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { useVaultSession } from '../hooks/useVaultSession';
+import { useItemKey } from '../hooks/useVaultSpaceKey';
 import { InvalidBackupError, openBackup, parseBackup, sealForImport } from './vault-backup';
 import { importItems } from './vault-api';
 import { WrongSecretError } from './vault-crypto';
@@ -26,7 +26,7 @@ function describeFailure(failure: unknown): string {
 
 export function VaultImportComponent({ spaceId, onDone }: { spaceId: string; onDone: () => void }) {
   const queryClient = useQueryClient();
-  const { key } = useVaultSession();
+  const key = useItemKey(spaceId);
   const [file, setFile] = useState<File>();
   const [secret, setSecret] = useState('');
   const [contents, setContents] = useState<ItemContent[]>();

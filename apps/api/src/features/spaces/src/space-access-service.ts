@@ -2,7 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { type AnyPgColumn, alias, type PgTable } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { type ShareRole, spaces, spaceShares, user } from '../../../shared/db/schema.ts';
+import { type ShareRole, spaces, spaceShares, user, vaultSpaceKeys } from '../../../shared/db/schema.ts';
 
 export type Access = 'owner' | 'edit' | 'view';
 export type Need = 'view' | 'edit';
@@ -67,7 +67,7 @@ export class SpaceAccessService {
   }
 
   // Everyone who may see the space right now: its owner and the signed-up people it, or a folder above it, is shared with.
-  // The reverse of `resolve`, with the same rules: a deleted ancestor or a Vault on the way hides it from everyone.
+  // The reverse of `resolve`, with the same rules: a deleted ancestor, or a Vault with no sharing passcode, hides it.
   async viewerIds(spaceId: string): Promise<string[]> {
     const [space] = await this.db.select().from(spaces).where(and(eq(spaces.id, spaceId), isNull(spaces.deletedAt)));
     if (!space) return [];
@@ -99,6 +99,14 @@ export class SpaceAccessService {
     const children = new Map<string, SpaceRow[]>();
     for (const s of ownerSpaces) if (s.parentId) children.set(s.parentId, [...(children.get(s.parentId) ?? []), s]);
 
+    // A Vault is shared only once its owner has set a sharing passcode for it.
+    const vaultIds = ownerSpaces.filter((s) => s.tool === 'vault').map((s) => s.id);
+    const keyed = new Set(
+      vaultIds.length === 0
+        ? []
+        : (await this.db.select({ id: vaultSpaceKeys.spaceId }).from(vaultSpaceKeys).where(inArray(vaultSpaceKeys.spaceId, vaultIds))).map((k) => k.id),
+    );
+
     const found = new Map<string, SharedSpace>();
     for (const share of shares) {
       const root = byId.get(share.spaceId);
@@ -106,7 +114,7 @@ export class SpaceAccessService {
       const stack = [root];
       while (stack.length > 0) {
         const space = stack.pop() as SpaceRow;
-        if (space.tool === 'vault') continue;
+        if (space.tool === 'vault' && !keyed.has(space.id)) continue;
         const seen = found.get(space.id);
         if (seen?.access === 'edit' || seen?.access === share.role) continue;
         found.set(space.id, { row: space, access: share.role, ownerName: share.ownerName });
@@ -119,8 +127,13 @@ export class SpaceAccessService {
     );
   }
 
-  // The space and its ancestors up to the root. A deleted or missing ancestor, or a Vault anywhere on the way, hides it.
+  // The space and its ancestors up to the root. A deleted or missing ancestor, a Vault above it, or a Vault with no
+  // sharing passcode hides it.
   private async chain(space: SpaceRow): Promise<SpaceRow[]> {
+    if (space.tool === 'vault') {
+      const [key] = await this.db.select({ id: vaultSpaceKeys.spaceId }).from(vaultSpaceKeys).where(eq(vaultSpaceKeys.spaceId, space.id));
+      if (!key) throw notFound();
+    }
     const chain = [space];
     for (let current = space; current.parentId; ) {
       if (chain.length > 32) throw notFound();
@@ -132,7 +145,7 @@ export class SpaceAccessService {
       chain.push(parent);
       current = parent;
     }
-    if (chain.some((s) => s.tool === 'vault')) throw notFound();
+    if (chain.slice(1).some((s) => s.tool === 'vault')) throw notFound();
     return chain;
   }
 

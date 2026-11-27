@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FitnessPageComponent } from './FitnessPageComponent';
@@ -46,7 +46,8 @@ vi.mock('../hooks/useFoodSearch', () => ({ useFoodSearch }));
 vi.mock('../hooks/useExercises', () => ({ useExercises: () => ({ data: [], isPending: false, isError: false }) }));
 vi.mock('../hooks/useMyFoods', () => ({ useMyFoods: () => ({ data: [], isPending: false, isError: false }) }));
 vi.mock('../hooks/useFitnessMutations', () => ({ useFitnessMutations: () => mutations }));
-const ai = vi.hoisted(() => ({ fetchFitnessRead: vi.fn() }));
+const ai = vi.hoisted(() => ({ fetchFitnessRead: vi.fn(), suggestMacros: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('./fitness-api', async (original) => ({ ...(await original<typeof import('./fitness-api')>()), ...ai }));
 vi.mock('@/features/spaces', () => ({
   useActiveSpace: () => ({ id: 's1', title: 'Body', tool: 'fitness' }),
@@ -55,7 +56,7 @@ vi.mock('@/features/spaces', () => ({
   ViewOnlyBadgeComponent: () => null,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-13' }));
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current) }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current), useRouter: () => router }));
 
 const profile: Profile = { ...DEFAULT_PROFILE, sex: 'male', birthDate: '1996-11-13', heightMm: 1800, goal: 'lose', paceGPerWeek: 500 };
 const empty: Fitness = { profile: DEFAULT_PROFILE, weights: [], mealPlans: [], templates: [], aiEnabled: false };
@@ -105,36 +106,95 @@ it('shows the calorie target and BMI worked out from the profile and the latest 
 
 it('counts only eaten food against the target, and ticking a planned row marks it eaten', async () => {
   show(withTargets, 'space=s1', { logs: [riceLog('eaten', true), riceLog('planned', false)], workouts: [] });
-  expect(within(tile('Calories')).getByText('325 kcal')).toBeInTheDocument();
-  expect(within(tile('Calories')).getByText('1,884 kcal left of 2,209 kcal')).toBeInTheDocument();
-  expect(screen.getByText(/If you finish what is planned: 650 kcal/)).toBeInTheDocument();
+  expect(within(tile('Left today')).getByText('1,884 kcal')).toBeInTheDocument();
+  expect(within(tile('Left today')).getByText('325 kcal eaten · 325 kcal planned')).toBeInTheDocument();
   const [eaten, planned] = screen.getAllByRole('checkbox', { name: 'Eaten: Rice, white, cooked' });
   expect(eaten).toBeChecked();
   await userEvent.click(planned);
   expect(mutations.updateLog.mutate).toHaveBeenCalledWith({ id: 'planned', changes: { eaten: true } });
 });
 
-it('shows an empty day without targets as zeros and the getting-started steps, not broken numbers', () => {
+it('shows an empty day without targets as zeros after skipping the onboarding, not broken numbers', async () => {
   show(empty);
-  expect(within(tile('Calories')).getByText('0 kcal')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Open settings' })).toHaveAttribute('href', '/fitness?space=s1&view=settings');
-  expect(screen.getByRole('link', { name: 'Add a weigh-in' })).toHaveAttribute('href', '/fitness?space=s1&view=progress');
+  await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+  expect(within(tile('Eaten today')).getByText('0 kcal')).toBeInTheDocument();
+  expect(within(tile('Eaten today')).getByText('No target yet')).toBeInTheDocument();
   expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
 });
 
-it('ticks off getting-started steps as they are done, and hides the card once all are', () => {
-  show({ ...empty, profile });
-  expect(screen.getByText('2 of 3 done')).toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Open settings' })).not.toBeInTheDocument();
-  screen.getByRole('link', { name: 'Add a weigh-in' });
-  cleanup();
-  show(withTargets);
-  expect(screen.queryByText('Get started')).not.toBeInTheDocument();
+// Steps 1 and 2 of the onboarding, as a 30-year-old 180 cm man weighing 80 kg who wants to reach 75 kg.
+async function fillAboutAndWeight() {
+  await userEvent.click(screen.getByRole('radio', { name: 'Male' }));
+  fireEvent.change(screen.getByLabelText('Birth date'), { target: { value: '1996-11-13' } });
+  await userEvent.type(screen.getByLabelText('Height (cm)'), '180');
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await userEvent.type(screen.getByLabelText('Weight today (kg)'), '80');
+  await userEvent.type(screen.getByLabelText('Goal weight (kg, optional)'), '75');
+}
+
+it('opens a new space in the onboarding and saves the profile, the first weigh-in and the standard macros', async () => {
+  show(empty);
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  await fillAboutAndWeight();
+  expect(screen.getByText('24.7 · Healthy')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(screen.getByRole('radio', { name: 'Lose' })).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByRole('radio', { name: 'Lose 0.5 kg a week' })).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByText('75.0 kg around 22 Jan 2027')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(screen.getByText('2,209 kcal')).toBeInTheDocument();
+  expect(screen.getByText('Standard split')).toBeInTheDocument();
+  expect(ai.suggestMacros).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Save and start' }));
+  expect(mutations.saveProfile.mutate).toHaveBeenCalledWith(
+    expect.objectContaining({ sex: 'male', birthDate: '1996-11-13', heightMm: 1800, goal: 'lose', goalWeightG: 75_000, paceGPerWeek: 500, macros: { method: 'preset', preset: 'balanced' } }),
+  );
+  expect(mutations.saveWeight.mutate).toHaveBeenCalledWith({ day: '2026-11-13', weightG: 80_000 });
 });
+
+it('uses the AI’s macro suggestion, sending only figures, and can switch back to the standard split', async () => {
+  ai.suggestMacros.mockResolvedValue({ proteinGPerKg: 2, carbsPct: 40, reason: 'Protein keeps muscle while you lose.' });
+  show({ ...empty, aiEnabled: true });
+  await fillAboutAndWeight();
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(await screen.findByText('AI suggested')).toBeInTheDocument();
+  expect(screen.getByText('2 g per kg')).toBeInTheDocument();
+  expect(ai.suggestMacros).toHaveBeenCalledWith({
+    spaceId: 's1',
+    figures: { age: 30, sex: 'male', heightCm: 180, weightKg: 80, goalWeightKg: 75, goal: 'lose', paceKgPerWeek: 0.5, activity: 'moderate', dailyKcal: 2209 },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Save and start' }));
+  expect(mutations.saveProfile.mutate).toHaveBeenCalledWith(expect.objectContaining({ macros: { method: 'perKg', proteinMgPerKg: 2000, carbsPct: 40 } }));
+});
+
 
 it('offers a Start workout button in an empty Workout card', () => {
   show(withTargets);
-  expect(screen.getAllByRole('button', { name: 'Start workout' })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: 'Start workout' })).toHaveLength(1);
+});
+
+it('completes the day’s workout in one tap, ticking every set in one save', async () => {
+  const todays = { id: 'w1', day: '2026-11-13', name: 'Push day', items: [bench([true, false, false])], version: 4 };
+  show(withTargets, 'space=s1', { logs: [], workouts: [todays] });
+  await userEvent.click(screen.getByRole('button', { name: 'Complete workout' }));
+  const [[{ workout, from }]] = mutations.saveWorkout.mutate.mock.calls;
+  expect(workout).toEqual({ ...todays, items: [bench([true, true, true])] });
+  expect(from).toEqual({ version: 4, conflicted: false });
+});
+
+it('charts weekly weigh-ins on round kg labels, and says when logging again replaces the day', () => {
+  const weights = [{ day: '2026-11-06', weightG: 80_000 }, { day: '2026-11-13', weightG: 79_200 }];
+  show({ ...withTargets, weights }, 'space=s1', { logs: [], workouts: [] });
+  expect(screen.getByRole('img', { name: 'Weight over the last 30 days' })).toBeInTheDocument();
+  expect(screen.getByText('−0.8 in 30 days')).toBeInTheDocument();
+  for (const label of ['80.0', '79.5', '79.0']) expect(screen.getByText(label)).toBeInTheDocument();
+  expect(screen.getByText('Logging again replaces this day’s 79.2 kg.')).toBeInTheDocument();
+});
+
+it('shows a finished workout as completed, with nothing left to tap', () => {
+  show(withTargets, 'space=s1', { logs: [], workouts: [{ id: 'w1', day: '2026-11-13', name: 'Push day', items: [bench([true, true])] }] });
+  expect(screen.getByRole('button', { name: 'Completed' })).toBeDisabled();
 });
 
 it('logs a recent food again in one tap with the amount used last time, and opens it at that amount', async () => {
@@ -316,7 +376,8 @@ it('shows the week, weight and muscle map beside the day, with quick logging', a
   const todays = { id: 'w1', day: '2026-11-13', name: 'Push day', items: [bench([true, true])] };
   const earlier = { id: 'w0', day: '2026-11-10', name: 'Legs', items: [{ ...bench([true]), primary: ['quads' as const], secondary: [] }] };
   show(withTargets, 'space=s1', { logs: [riceLog('a', true)], workouts: [earlier, todays] });
-  expect(screen.getByRole('img', { name: 'Weight over the last 60 days' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Weight over the last 30 days' })).toBeInTheDocument();
+  expect(screen.getByText('−2.0 in 30 days')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /325 kcal/ })).toHaveAttribute('aria-current', 'date');
   expect(within(screen.getByRole('group', { name: 'Most worked' })).getByText('Chest')).toBeInTheDocument();
   expect(screen.queryByText('Quads')).not.toBeInTheDocument();
@@ -328,4 +389,16 @@ it('shows the week, weight and muscle map beside the day, with quick logging', a
   expect(mutations.saveWeight.mutate).toHaveBeenCalledWith({ day: '2026-11-13', weightG: 79_500 });
   await userEvent.click(screen.getByRole('button', { name: 'Log food' }));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
+
+it('shows the month on the Calendar tab with calories, workouts and weigh-ins, each day opening Today', () => {
+  const done = { id: 'w1', day: '2026-11-13', name: 'Push day', items: [bench([true, true])] };
+  show(withTargets, 'space=s1&view=calendar', { logs: [riceLog('a', true)], workouts: [done] });
+  expect(useFitnessDays).toHaveBeenCalledWith('2026-10-26', '2026-12-06');
+  const day = screen.getByRole('gridcell', { name: 'Open 2026-11-13 on Today' });
+  expect(day).toHaveAttribute('href', '/fitness?space=s1');
+  expect(within(day).getByText('325 kcal')).toBeInTheDocument();
+  expect(within(day).getByText('Push day')).toBeInTheDocument();
+  expect(within(screen.getByRole('gridcell', { name: 'Open 2026-11-12 on Today' })).getByText('80.0 kg')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Next month' })).toHaveAttribute('href', '/fitness?space=s1&view=calendar&day=2026-12-01');
 });

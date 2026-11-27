@@ -8,6 +8,7 @@ import {
   listItemsSchema,
   passcodeWrapSchema,
   recoveryWrapSchema,
+  spaceKeySchema,
   updateItemSchema,
 } from './vault-schemas.ts';
 import { VaultService } from './vault-service.ts';
@@ -42,9 +43,20 @@ export class VaultController {
     return this.vault.erase(userId);
   }
 
+  @Get('spaces/:spaceId/key')
+  async spaceKey(@UserId() userId: string, @Param('spaceId', ParseUUIDPipe) spaceId: string) {
+    return { key: await this.vault.spaceKey(userId, spaceId) };
+  }
+
+  @Put('spaces/:spaceId/key')
+  setSpaceKey(@UserId() userId: string, @Param('spaceId', ParseUUIDPipe) spaceId: string, @Body() body: unknown) {
+    return this.vault.setSpaceKey(userId, spaceId, parseOrThrow(spaceKeySchema, body));
+  }
+
   @Get('items')
   listItems(@UserId() userId: string, @Query() query: unknown) {
-    return this.vault.listItems(userId, parseOrThrow(listItemsSchema, query).spaceId);
+    const { spaceId, includeDeleted } = parseOrThrow(listItemsSchema, query);
+    return this.vault.listItems(userId, spaceId, includeDeleted === 'true');
   }
 
   @Post('items')

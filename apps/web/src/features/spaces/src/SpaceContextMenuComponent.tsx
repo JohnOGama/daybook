@@ -55,6 +55,7 @@ const CONTENT_NAMES: Record<SpaceTool, string> = {
   skills: 'skills',
   uptime: 'its sites and their history',
   focus: 'its sessions and timer settings',
+  security: 'its findings',
 };
 
 type SpaceContextMenuProps = {
@@ -195,7 +196,7 @@ function OwnerMenu({ space, onEdit, editing, moreClassName, children }: SpaceCon
           </SubContent>
         </Sub>
       )}
-      {space.tool !== 'vault' && <Item onSelect={() => setSharing(true)}>Share…</Item>}
+      <Item onSelect={() => setSharing(true)}>Share…</Item>
       <Item onSelect={() => setConfirming(true)}>Delete</Item>
     </>
   );

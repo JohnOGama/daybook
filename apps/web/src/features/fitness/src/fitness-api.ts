@@ -78,6 +78,26 @@ export const createWorkout = (input: Workout & { spaceId: string }) => send('POS
 export const saveWorkout = ({ id, ...workout }: Workout & Saved) => saveDocument(`/workouts/${id}`, workout, 'Your workout could not be saved. Please try again.');
 export const deleteWorkout = (id: string) => send('DELETE', `/workouts/${id}`, undefined, 'That workout could not be deleted. Please try again.');
 
+export type MacroFigures = {
+  age: number;
+  sex: 'male' | 'female';
+  heightCm: number;
+  weightKg: number;
+  goalWeightKg: number | null;
+  goal: 'lose' | 'maintain' | 'gain';
+  paceKgPerWeek: number;
+  activity: string;
+  dailyKcal: number;
+};
+export type MacroSuggestion = { proteinGPerKg: number; carbsPct: number; reason: string };
+
+export async function suggestMacros(input: { spaceId: string; figures: MacroFigures }): Promise<MacroSuggestion> {
+  const response = await fetch('/api/fitness/ai/macros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (response.status === 429) throw new Error('The AI service is busy. Please try again in a minute.');
+  if (!response.ok) throw new Error("The AI couldn't suggest macros just now. The standard split is used instead.");
+  return response.json();
+}
+
 export type FitnessRead = { headline: string; points: string[] };
 
 export async function fetchFitnessRead(input: { spaceId: string; summary: Record<string, unknown> }): Promise<FitnessRead> {

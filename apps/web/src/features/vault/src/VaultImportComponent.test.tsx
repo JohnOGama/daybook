@@ -17,7 +17,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('./vault-api', () => ({ importItems: state.importItems }));
-vi.mock('../hooks/useVaultSession', () => ({ useVaultSession: () => state.session }));
+vi.mock('../hooks/useVaultSpaceKey', () => ({ useItemKey: () => state.session.key }));
 vi.mock('sonner', () => ({ toast: { success: state.toastSuccess, error: vi.fn() } }));
 
 const PASS = 'backup passcode 12';

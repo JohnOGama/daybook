@@ -156,8 +156,8 @@ it('says a folder goes to Trash with its spaces', async () => {
   expect(dialog).toHaveTextContent('"Team", the spaces inside it, and all their tasks will move to Trash');
 });
 
-it('offers no Duplicate for a vault space', async () => {
-  expect(await rightClick({ ...space, tool: 'vault' })).toEqual(['Edit', 'Delete']);
+it('offers Share but no Duplicate for a vault space', async () => {
+  expect(await rightClick({ ...space, tool: 'vault' })).toEqual(['Edit', 'Share…', 'Delete']);
 });
 
 it('offers Duplicate for a database diagram space', async () => {

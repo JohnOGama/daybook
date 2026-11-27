@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   changePasscode,
+  changeSpacePasscode,
+  createSpaceKey,
   createVault,
   decryptJson,
   encryptJson,
   recoverPasscode,
   replaceRecoveryKey,
+  unlockSpaceAsOwner,
+  unlockSpaceWithPasscode,
   unlockWithPasscode,
   unlockWithRecoveryKey,
   WeakSettingsError,
@@ -108,4 +112,19 @@ describe('vault crypto', () => {
     const { material } = await createVault('café passcode 12');
     await expect(unlockWithPasscode(material, 'café passcode 12')).resolves.toBeDefined();
   });
+});
+
+it('opens a shared vault key with its sharing passcode or the owner vault key, and changes the passcode', async () => {
+  const { key: vaultKey } = await createVault('owner passcode 1');
+  const { wrap, key: spaceKey } = await createSpaceKey(vaultKey, 'sharing passcode 1');
+  const sealed = await encryptJson(spaceKey, 'item-1', { secret: 42 });
+  expect(await decryptJson(await unlockSpaceWithPasscode(wrap, 'sharing passcode 1'), 'item-1', sealed)).toEqual({ secret: 42 });
+  expect(await decryptJson(await unlockSpaceAsOwner(wrap.ownerWrappedKey, vaultKey), 'item-1', sealed)).toEqual({ secret: 42 });
+  await expect(unlockSpaceWithPasscode(wrap, 'owner passcode 1')).rejects.toBeInstanceOf(WrongSecretError);
+
+  const changed = await changeSpacePasscode(wrap.ownerWrappedKey, vaultKey, 'new sharing pass');
+  expect(await decryptJson(await unlockSpaceWithPasscode(changed, 'new sharing pass'), 'item-1', sealed)).toEqual({ secret: 42 });
+  await expect(unlockSpaceWithPasscode(changed, 'sharing passcode 1')).rejects.toBeInstanceOf(WrongSecretError);
+  const { key: otherVault } = await createVault('another person 1');
+  await expect(unlockSpaceAsOwner(wrap.ownerWrappedKey, otherVault)).rejects.toBeInstanceOf(WrongSecretError);
 });

@@ -1,4 +1,4 @@
-export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram' | 'pipelines' | 'skills' | 'uptime' | 'focus';
+export type SpaceTool = 'list' | 'notebook' | 'book' | 'vault' | 'budget' | 'fitness' | 'jobs' | 'diagram' | 'pipelines' | 'skills' | 'uptime' | 'focus' | 'security';
 
 // A Pipelines space's sidebar dot: from each job's newest run, failed beats running beats passed; null with no runs.
 export type PipelineStatus = 'passed' | 'running' | 'failed';
@@ -52,4 +52,5 @@ export const TOOLS: { id: SpaceTool; label: string; description: string }[] = [
   { id: 'skills', label: 'Skills', description: 'Write Claude Code skills with AI help' },
   { id: 'uptime', label: 'Uptime', description: 'See if your sites and APIs are up' },
   { id: 'focus', label: 'Focus', description: 'Work in timed sessions on your tasks' },
+  { id: 'security', label: 'Security', description: 'Track security findings by severity and status' },
 ];

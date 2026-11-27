@@ -12,6 +12,9 @@ export const PRESET_SPLITS: Record<MacroPreset, { protein: number; carbs: number
 const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 };
 const toMg = (grams: number) => Math.round((grams * 1000) / 100) * 100;
 
+// Enough to work out targets: the formula's inputs, or macros typed in by hand.
+export const hasProfile = (profile: Profile) => Boolean(profile.sex && profile.birthDate && profile.heightMm) || profile.macros.method === 'manual';
+
 export function ageOn(birthDate: string, today: string): number {
   const years = Number(today.slice(0, 4)) - Number(birthDate.slice(0, 4));
   return today.slice(5) < birthDate.slice(5) ? years - 1 : years;

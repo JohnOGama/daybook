@@ -162,6 +162,22 @@ export type TemplateInput = z.infer<typeof templateSchema>;
 export type WorkoutInput = z.infer<typeof workoutSchema>;
 
 // Summary figures only; the size cap keeps a whole diary from being passed through.
+// Only these figures go to the AI for a macro suggestion: never a name, a food or a workout.
+export const fitnessMacrosSchema = z.object({
+  spaceId,
+  figures: z.object({
+    age: z.number().int().min(13).max(120),
+    sex: z.enum(['male', 'female']),
+    heightCm: z.number().min(50).max(250),
+    weightKg: z.number().min(20).max(400),
+    goalWeightKg: z.number().min(20).max(400).nullable(),
+    goal: z.enum(['lose', 'maintain', 'gain']),
+    paceKgPerWeek: z.number().min(0).max(1.5),
+    activity: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive']),
+    dailyKcal: z.number().int().min(500).max(8000),
+  }),
+});
+
 export const fitnessReadSchema = z.object({
   spaceId,
   summary: z.record(z.string(), z.unknown()).refine((value) => JSON.stringify(value).length <= 8_000, 'Summary too long'),

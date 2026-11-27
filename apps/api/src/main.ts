@@ -26,7 +26,7 @@ mountWellKnown(http, app.get(AUTH));
 app.use(MCP_PATH, mcpBodyParser());
 http.post(MCP_PATH, (req, res) => app.get(McpEndpoint).handle(req, res));
 http.all(MCP_PATH, (req, res) => app.get(McpEndpoint).notAllowed(req, res));
-app.use('/api/vault/items/import', express.json({ limit: '8mb' }));
+app.use(['/api/vault/items/import', '/api/vault/spaces'], express.json({ limit: '8mb' }));
 app.use(['/api/budget/receipts', '/api/budget/ai/scan-receipt'], express.json({ limit: '8mb' }));
 app.use(REPORT_PATH, reportBodyParser());
 app.use(express.json({ limit: '2mb' }));

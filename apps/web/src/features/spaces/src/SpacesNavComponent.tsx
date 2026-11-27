@@ -23,7 +23,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Activity, BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, ScrollText, Timer, Users, Workflow } from 'lucide-react';
+import { Activity, BookMarked, BriefcaseBusiness, Dumbbell, GripVertical, Network, Plus, ScrollText, ShieldAlert, Timer, Users, Workflow } from 'lucide-react';
 import Link from 'next/link';
 import { type PointerEventHandler, type ReactNode, useState } from 'react';
 import { Skeleton } from 'skullet/react';
@@ -214,6 +214,7 @@ export const TOOL_ICONS: Record<SpaceTool, IconComponent> = {
   skills: ScrollText,
   uptime: Activity,
   focus: Timer,
+  security: ShieldAlert,
 };
 
 type SpaceRowProps = {

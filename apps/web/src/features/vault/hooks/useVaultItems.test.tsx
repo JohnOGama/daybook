@@ -10,7 +10,7 @@ import { VaultSessionContext } from './useVaultSession';
 // Real key derivation is slow on purpose, and slower still while the whole suite runs.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-const api = vi.hoisted(() => ({ fetchItems: vi.fn(), createItem: vi.fn(), updateItem: vi.fn(), deleteItem: vi.fn() }));
+const api = vi.hoisted(() => ({ fetchItems: vi.fn(), createItem: vi.fn(), updateItem: vi.fn(), deleteItem: vi.fn(), fetchSpaceKey: vi.fn(async () => null) }));
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 
 vi.mock('../src/vault-api', () => api);

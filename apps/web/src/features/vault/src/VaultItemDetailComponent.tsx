@@ -49,8 +49,9 @@ export function VaultFieldRowComponent({ field, revealed, onToggle }: { field: I
 
 type VaultItemDetailProps = {
   item: VaultItem;
-  onEdit: () => void;
-  onDelete: () => void;
+  // Left out for someone who can only view.
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
 export function VaultItemDetailComponent({ item, onEdit, onDelete }: VaultItemDetailProps) {
@@ -80,16 +81,18 @@ export function VaultItemDetailComponent({ item, onEdit, onDelete }: VaultItemDe
           {content && <p className="text-[13px] text-muted-foreground">{ITEM_TYPES[content.type].label}</p>}
         </div>
         <div className="ml-auto flex shrink-0 gap-1">
-          {content && (
+          {content && onEdit && (
             <Button variant="outline" size="sm" onClick={onEdit}>
               <Pencil aria-hidden />
               Edit
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirming(true)}>
-            <Trash2 aria-hidden />
-            Delete
-          </Button>
+          {onDelete && (
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirming(true)}>
+              <Trash2 aria-hidden />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 

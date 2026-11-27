@@ -8,6 +8,7 @@ import { SpaceGateComponent, useSpaces } from '@/features/spaces';
 import { TaskMutationsProviderComponent } from '@/features/tasks';
 import { VaultSessionProviderComponent } from '@/features/vault';
 import { AppSkeletonComponent } from '@/shared/components/AppSkeletonComponent';
+import { LogoMarkComponent } from '@/shared/components/LogoMarkComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/components/ui/sheet';
 import { authClient } from '@/shared/services/auth-client';
@@ -67,7 +68,10 @@ function SignedInShell({ children }: { children: ReactNode }) {
                 <SidebarComponent />
               </SheetContent>
             </Sheet>
-            <span className="font-display font-extrabold tracking-[-0.03em]">Daybook</span>
+            <span className="flex items-center gap-2 font-display font-extrabold tracking-[-0.03em]">
+              <LogoMarkComponent className="size-6" />
+              Daybook
+            </span>
           </div>
         )}
         <main className={cn('min-h-0 flex-1 overflow-y-auto', !firstRun && 'bg-background md:rounded-[28px] md:border md:border-black/10 md:dark:border-border')}>

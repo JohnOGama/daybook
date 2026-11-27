@@ -85,7 +85,8 @@ export type Workout = { id: string; day: string; name: string; items: WorkoutIte
 export type Day = { logs: FoodLog[]; workouts: Workout[]; water: Water[] };
 export type Fitness = { profile: Profile; weights: Weight[]; mealPlans: MealPlan[]; templates: WorkoutTemplate[]; aiEnabled: boolean };
 
-export const FITNESS_VIEWS = ['today', 'workouts', 'progress', 'library', 'settings'] as const;
+// `setup` is the onboarding; it has no tab of its own.
+export const FITNESS_VIEWS = ['today', 'calendar', 'workouts', 'progress', 'library', 'settings', 'setup'] as const;
 export type FitnessView = (typeof FITNESS_VIEWS)[number];
 
 export type FitnessViewProps = {

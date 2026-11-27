@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { DB, type Db } from '../../../shared/db/create-db.ts';
-import { diagrams, notebookPages, type ShareRole, spaceShares, spaces, tasks, user } from '../../../shared/db/schema.ts';
+import { diagrams, notebookPages, type ShareRole, spaceShares, spaces, tasks, user, vaultSpaceKeys } from '../../../shared/db/schema.ts';
 import { copyTitle } from '../../../shared/utils/copy-title.ts';
 import { type DotStatus, dotStatuses } from '../../../shared/utils/pipeline-status.ts';
 import { type UptimeDot, uptimeDots } from '../../../shared/utils/uptime-status.ts';
@@ -124,7 +124,10 @@ export class SpacesService {
 
   async share(userId: string, spaceId: string, input: ShareInput): Promise<ShareDto> {
     const space = await this.ownedSpace(userId, spaceId);
-    if (space.tool === 'vault') throw new BadRequestException("A vault can't be shared");
+    if (space.tool === 'vault') {
+      const [key] = await this.db.select({ id: vaultSpaceKeys.spaceId }).from(vaultSpaceKeys).where(eq(vaultSpaceKeys.spaceId, spaceId));
+      if (!key) throw new BadRequestException('Set a sharing passcode for this vault first, under Vault options.');
+    }
     if ((await this.emailOf(userId)) === input.email) throw new BadRequestException("That's your own email");
     const [saved] = await this.db
       .insert(spaceShares)
@@ -263,7 +266,7 @@ export class SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId), isNull(spaces.deletedAt)));
       if (!source) throw new NotFoundException('Space not found');
       if (source.kind !== 'space') throw new BadRequestException('Only a space can be duplicated');
-      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs' || source.tool === 'pipelines' || source.tool === 'uptime' || source.tool === 'focus') {
+      if (source.tool === 'vault' || source.tool === 'budget' || source.tool === 'fitness' || source.tool === 'jobs' || source.tool === 'pipelines' || source.tool === 'uptime' || source.tool === 'focus' || source.tool === 'security') {
         throw new BadRequestException(`A ${source.tool} space cannot be duplicated`);
       }
 

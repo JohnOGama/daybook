@@ -8,6 +8,7 @@ import { spaces, vaultItems, vaults } from '../../../shared/db/schema.ts';
 import { createTestDb, insertUser } from '../../../shared/db/test-db.ts';
 import { AUTH, AuthGuard } from '../../auth/index.ts';
 import { VaultController } from './vault-controller.ts';
+import { SpaceAccessService } from '../../spaces/index.ts';
 import { VaultService } from './vault-service.ts';
 
 const fakeAuth = {
@@ -39,7 +40,7 @@ describe('vault API', () => {
     spaceId = space.id;
     const moduleRef = await Test.createTestingModule({
       controllers: [VaultController],
-      providers: [VaultService, AuthGuard, { provide: DB, useValue: db }, { provide: AUTH, useValue: fakeAuth }],
+      providers: [VaultService, SpaceAccessService, AuthGuard, { provide: DB, useValue: db }, { provide: AUTH, useValue: fakeAuth }],
     }).compile();
     app = moduleRef.createNestApplication({ bodyParser: false });
     app.use(express.json({ limit: '8mb' }));

@@ -116,6 +116,7 @@ describe('fitness API sharing', () => {
     ['PUT workouts/:id', 'put', `/workouts/${workout}`, { day: '2026-11-09', name: 'Renamed', items: [], version: 0 }],
     ['DELETE workouts/:id', 'delete', `/workouts/${workout}`],
     ['POST ai/read', 'post', '/ai/read', { spaceId: space, summary: { weeks: 1 } }],
+    ['POST ai/macros', 'post', '/ai/macros', { spaceId: space, figures: { age: 30, sex: 'male', heightCm: 180, weightKg: 80, goalWeightKg: 75, goal: 'lose', paceKgPerWeek: 0.5, activity: 'moderate', dailyKcal: 2200 } }],
   ];
   const labelled = (label: string) => routes().find(([name]) => name === label) as [string, Method, string, object?];
   const allLabels = routes().map(([label]) => label);
@@ -276,11 +277,12 @@ describe('fitness API sharing', () => {
     'DELETE workouts/:id',
     'DELETE weights',
     'POST ai/read',
+    'POST ai/macros',
   ] as const)('lets an editor use %s', async (name) => {
     await insertShare(db, { spaceId: space, ownerId: 'u1', email: 'u2@example.com', role: 'edit' });
     const [, method, url, body] = labelled(name);
     const response = await as('u2', method, url, body);
-    // ai/read answers 503 when no Gemini key is set; everything else must succeed.
-    expect(name === 'POST ai/read' ? [200, 201, 503] : [200, 201, 204]).toContain(response.status);
+    // The AI routes answer 503 when no Gemini key is set; everything else must succeed.
+    expect(name.startsWith('POST ai/') ? [200, 201, 503] : [200, 201, 204]).toContain(response.status);
   });
 });

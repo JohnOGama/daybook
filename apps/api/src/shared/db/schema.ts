@@ -26,7 +26,7 @@ export const taskStatus = pgEnum('task_status', ['todo', 'in_progress', 'on_hold
 export type TaskStatus = (typeof taskStatus.enumValues)[number];
 
 export const spaceKind = pgEnum('space_kind', ['folder', 'space']);
-export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines', 'skills', 'uptime', 'focus']);
+export const spaceTool = pgEnum('space_tool', ['list', 'notebook', 'vault', 'book', 'budget', 'fitness', 'jobs', 'diagram', 'pipelines', 'skills', 'uptime', 'focus', 'security']);
 
 export const shareRole = pgEnum('share_role', ['edit', 'view']);
 export type ShareRole = (typeof shareRole.enumValues)[number];
@@ -141,6 +141,19 @@ export const vaultItems = pgTable(
   },
   (t) => [index('vault_items_space_idx').on(t.spaceId)],
 );
+
+// A shared Vault's own key, wrapped twice: by the sharing passcode the owner hands out, and by the owner's vault key.
+export const vaultSpaceKeys = pgTable('vault_space_keys', {
+  spaceId: uuid('space_id')
+    .primaryKey()
+    .references(() => spaces.id, { onDelete: 'cascade' }),
+  salt: text('salt').notNull(),
+  iterations: integer('iterations').notNull(),
+  wrappedKey: text('wrapped_key').notNull(),
+  ownerWrappedKey: text('owner_wrapped_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const tasks = pgTable(
   'tasks',
@@ -760,4 +773,25 @@ export const focusSessions = pgTable(
     taskTitle: text('task_title'),
   },
   (t) => [index('focus_sessions_space_day_idx').on(t.spaceId, t.day)],
+);
+
+// A security finding tracked in a Security space (inspired by xalgorix's findings model). `cvss` is the base score
+// in tenths (0–100, i.e. score×10) so no floats are stored; null when no score is set. `target` is the affected
+// asset (a URL, host or component), optional. Severity and status drive the risk overview and the table.
+export const securityFindings = pgTable(
+  'security_findings',
+  {
+    id: uuid('id').primaryKey(),
+    ...ownedBySpace(),
+    title: text('title').notNull(),
+    target: text('target'),
+    severity: text('severity').notNull(),
+    status: text('status').notNull().default('open'),
+    cvss: integer('cvss'),
+    description: text('description'),
+    owasp: text('owasp'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('security_findings_space_idx').on(t.spaceId)],
 );

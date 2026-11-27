@@ -225,6 +225,34 @@
       "when": 1795533624322,
       "tag": "0031_ordinary_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795575089385,
+      "tag": "0032_aberrant_doctor_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795575161780,
+      "tag": "0033_unusual_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795577502470,
+      "tag": "0034_kind_prodigy",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795748345406,
+      "tag": "0035_same_silvermane",
+      "breakpoints": true
     }
   ]
 }

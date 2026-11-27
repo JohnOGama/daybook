@@ -38,7 +38,7 @@ const login: ItemContent = {
   fields: [{ label: 'Password', value: 'hunter2hunter2', secret: true }],
 };
 const item = (id: string, content: ItemContent | null): VaultItem => ({ id, updatedAt: '2026-11-09T12:00:00.000Z', content });
-const renderVault = () => render(<VaultUnlockedComponent spaceId="s1" spaceTitle="Safe" />);
+const renderVault = (canEdit = true) => render(<VaultUnlockedComponent spaceId="s1" spaceTitle="Safe" canEdit={canEdit} isOwner={canEdit} />);
 const row = (name: RegExp) => screen.getByRole('button', { name });
 
 beforeEach(() => {
@@ -142,4 +142,12 @@ it('locks on request', async () => {
   renderVault();
   await userEvent.click(screen.getByRole('button', { name: 'Lock now' }));
   expect(state.lock).toHaveBeenCalled();
+});
+
+it('shows a viewer the items but nothing that changes them', async () => {
+  renderVault(false);
+  expect(await screen.findByRole('heading', { name: 'Travel card' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Add item' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 });

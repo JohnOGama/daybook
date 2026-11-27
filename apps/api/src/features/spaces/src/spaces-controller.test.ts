@@ -208,11 +208,11 @@ describe('spaces API', () => {
       expect(await db.select().from(spaceShares)).toHaveLength(0);
     });
 
-    it('refuses to share a vault or with your own email', async () => {
+    it('refuses to share a vault with no sharing passcode, or with your own email', async () => {
       const vault = await insertSpace(db, 'u1', { tool: 'vault' });
       const space = await insertSpace(db, 'u1');
       const vaultReply = await as('u1').post(`/spaces/${vault}/shares`, { id: shareId, email: 'u2@example.com', role: 'view' }).expect(400);
-      expect(vaultReply.body.message).toBe("A vault can't be shared");
+      expect(vaultReply.body.message).toBe('Set a sharing passcode for this vault first, under Vault options.');
       const ownReply = await as('u1').post(`/spaces/${space}/shares`, { id: shareId, email: ' U1@Example.com', role: 'view' }).expect(400);
       expect(ownReply.body.message).toBe("That's your own email");
       expect(await db.select().from(spaceShares)).toHaveLength(0);

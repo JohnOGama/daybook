@@ -13,7 +13,7 @@ vi.mock('../hooks/useVaultSession', () => ({ useVaultSession: () => state.sessio
 vi.mock('../hooks/useVaultItems', () => ({
   useVaultItems: () => ({ items: [], records: [], isError: false, save: vi.fn(), remove: vi.fn() }),
 }));
-vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Safe' }) }));
+vi.mock('@/features/spaces', () => ({ useActiveSpace: () => ({ id: 's1', title: 'Safe' }), useSpaceAccess: () => ({ isOwner: true, canEdit: true }) }));
 vi.mock('./VaultOptionsMenuComponent', () => ({ VaultOptionsMenuComponent: () => null }));
 
 const onSave = vi.fn();

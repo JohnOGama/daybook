@@ -14,7 +14,7 @@ type VaultItemListProps = {
   items: VaultItem[];
   activeId?: string;
   onSelect: (id: string) => void;
-  onAdd: () => void;
+  onAdd?: () => void;
 };
 
 function ItemRow({ item, isActive, onSelect }: { item: VaultItem; isActive: boolean; onSelect: () => void }) {
@@ -55,10 +55,12 @@ export function VaultItemListComponent({ title, items, activeId, onSelect, onAdd
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
       </div>
-      <Button variant="outline" size="sm" onClick={onAdd}>
-        <Plus aria-hidden />
-        Add item
-      </Button>
+      {onAdd && (
+        <Button variant="outline" size="sm" onClick={onAdd}>
+          <Plus aria-hidden />
+          Add item
+        </Button>
+      )}
       <div className="relative">
         <Search className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" aria-hidden />
         <Input

@@ -1,0 +1,1 @@
+ALTER TABLE "security_findings" ADD COLUMN "owasp" text;

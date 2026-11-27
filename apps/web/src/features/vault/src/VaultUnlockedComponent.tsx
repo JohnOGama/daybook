@@ -25,7 +25,10 @@ const SAMPLE_ITEMS: VaultItem[] = ['Travel card', 'Passport', 'Work email'].map(
   content: { version: 1, type: 'other', name, fields: [], notes: '' },
 }));
 
-export function VaultUnlockedComponent({ spaceId, spaceTitle }: { spaceId: string; spaceTitle: string }) {
+type VaultUnlockedProps = { spaceId: string; spaceTitle: string; canEdit: boolean; isOwner: boolean };
+
+// `isOwner` false is someone the Vault is shared with: no backups, passcodes or recovery key, which are the owner's.
+export function VaultUnlockedComponent({ spaceId, spaceTitle, canEdit, isOwner }: VaultUnlockedProps) {
   const { lock } = useVaultSession();
   const { items, records, isError, save, remove } = useVaultItems(spaceId);
   const [pane, setPane] = useState<Pane>('view');
@@ -69,7 +72,7 @@ export function VaultUnlockedComponent({ spaceId, spaceTitle }: { spaceId: strin
             items={shownItems}
             activeId={pane === 'view' ? selected?.id : undefined}
             onSelect={select}
-            onAdd={() => setPane('add')}
+            onAdd={canEdit ? () => setPane('add') : undefined}
           />
         </Skeleton>
       </aside>
@@ -81,25 +84,34 @@ export function VaultUnlockedComponent({ spaceId, spaceTitle }: { spaceId: strin
             <Lock aria-hidden />
             Lock now
           </Button>
-          <VaultOptionsMenuComponent
-            records={records ?? []}
+          {isOwner && (
+            <VaultOptionsMenuComponent
+              spaceId={spaceId}
+              items={items ?? []}
+              records={records ?? []}
             onImport={() => setPane('import')}
-            onRecoveryKey={(recoveryKey) => {
-              setNewRecoveryKey(recoveryKey);
-              setPane('recovery-key');
-            }}
-          />
+              onRecoveryKey={(recoveryKey) => {
+                setNewRecoveryKey(recoveryKey);
+                setPane('recovery-key');
+              }}
+            />
+          )}
         </div>
 
         {!isLoading && pane === 'view' && selected && (
-          <VaultItemDetailComponent key={selected.id} item={selected} onEdit={() => setPane('edit')} onDelete={handleDelete} />
+          <VaultItemDetailComponent
+            key={selected.id}
+            item={selected}
+            onEdit={canEdit ? () => setPane('edit') : undefined}
+            onDelete={canEdit ? handleDelete : undefined}
+          />
         )}
         {!isLoading && pane === 'view' && !selected && (
           <EmptyStateComponent
             icon={<EmptyVaultIcon />}
             title="This vault is empty"
             description="Add a card, an ID, a login or a key. It's encrypted before it leaves your browser."
-            action={<Button onClick={() => setPane('add')}>Add item</Button>}
+            action={canEdit && <Button onClick={() => setPane('add')}>Add item</Button>}
           />
         )}
         {pane === 'import' && <VaultImportComponent spaceId={spaceId} onDone={() => setPane('view')} />}

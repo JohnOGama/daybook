@@ -3,6 +3,7 @@
 import { Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { LogoMarkComponent } from '@/shared/components/LogoMarkComponent';
 import { Button } from '@/shared/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { authClient } from '@/shared/services/auth-client';
@@ -41,7 +42,7 @@ export function LandingPageComponent() {
     <div className="mx-auto max-w-[800px] px-4">
       <header className="flex items-center justify-between gap-3 py-5">
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-black">
-          <span className="size-5.5 rounded-[7px] bg-foreground" />
+          <LogoMarkComponent className="size-6" />
           Daybook
         </Link>
         <nav aria-label="Landing" className="flex items-center gap-1 text-sm">

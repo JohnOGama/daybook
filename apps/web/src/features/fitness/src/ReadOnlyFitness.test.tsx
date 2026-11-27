@@ -25,7 +25,8 @@ vi.mock('@/features/spaces', () => ({
   ViewOnlyBadgeComponent: () => <span>View only</span>,
 }));
 vi.mock('@/shared/hooks/useToday', () => ({ useToday: () => '2026-11-13' }));
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current) }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(query.current), useRouter: () => router }));
 
 const fitness: Fitness = {
   profile: DEFAULT_PROFILE,

@@ -1,4 +1,4 @@
-import type { PasscodeWrap, RecoveryWrap, VaultMaterial } from './vault-crypto';
+import type { PasscodeWrap, RecoveryWrap, SpaceKeyWrap, VaultMaterial } from './vault-crypto';
 import type { VaultRecord } from './vault-types';
 
 export type NewVaultItem = Omit<VaultRecord, 'updatedAt'>;
@@ -36,8 +36,10 @@ export const saveRecoveryWrap = (wrap: RecoveryWrap) =>
 
 export const eraseVault = () => sendOrThrow('', 'DELETE', undefined, 'Your vault could not be erased. Please try again.');
 
-export async function fetchItems(spaceId: string): Promise<VaultRecord[]> {
-  const response = await send(`/items?${new URLSearchParams({ spaceId })}`, 'GET');
+// `includeDeleted` (owner only) adds trashed items, which setting a sharing passcode has to re-encrypt too.
+export async function fetchItems(spaceId: string, includeDeleted = false): Promise<VaultRecord[]> {
+  const query = new URLSearchParams(includeDeleted ? { spaceId, includeDeleted: 'true' } : { spaceId });
+  const response = await send(`/items?${query}`, 'GET');
   if (!response.ok) throw new Error('Could not load this vault');
   return response.json();
 }
@@ -53,3 +55,16 @@ export const deleteItem = (id: string) =>
 
 export const importItems = (input: { spaceId: string; items: NewVaultItem[] }) =>
   sendOrThrow('/items/import', 'POST', input, 'That backup could not be imported. Nothing was added.');
+
+export async function fetchSpaceKey(spaceId: string): Promise<SpaceKeyWrap | null> {
+  const response = await send(`/spaces/${spaceId}/key`, 'GET');
+  if (!response.ok) throw new Error('Could not load this vault');
+  return (await response.json()).key;
+}
+
+export async function saveSpaceKey(spaceId: string, body: SpaceKeyWrap & { items?: NewVaultItem[] }): Promise<void> {
+  const response = await send(`/spaces/${spaceId}/key`, 'PUT', body);
+  if (response.ok) return;
+  const { message } = response.status === 409 ? await response.json().catch(() => ({})) : {};
+  throw new Error(typeof message === 'string' ? message : 'The sharing passcode could not be saved. Please try again.');
+}

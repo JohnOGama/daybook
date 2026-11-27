@@ -35,6 +35,16 @@ describe('BudgetAiService', () => {
     await expect(withReply('{"text":"  "}').service.rewrite('x', 'Improve the writing.')).rejects.toThrow(BadGatewayException);
   });
 
+  it('suggests macros from figures only, rounded, and refuses a suggestion outside the safe ranges', async () => {
+    const figures = { age: 30, sex: 'male', heightCm: 180, weightKg: 80, goalWeightKg: 75, goal: 'lose', paceKgPerWeek: 0.5, activity: 'moderate', dailyKcal: 2200 };
+    const { service, generateContent } = withReply(JSON.stringify({ proteinGPerKg: 2.04, carbsPct: 40.6, reason: ' Keeps muscle while you lose. ' }));
+    expect(await service.suggestMacros(figures)).toEqual({ proteinGPerKg: 2, carbsPct: 41, reason: 'Keeps muscle while you lose.' });
+    expect(JSON.stringify(generateContent.mock.calls[0][0])).toContain('\\"weightKg\\":80');
+    for (const wild of [{ proteinGPerKg: 3.5, carbsPct: 40 }, { proteinGPerKg: 2, carbsPct: 80 }]) {
+      await expect(withReply(JSON.stringify({ ...wild, reason: 'x' })).service.suggestMacros(figures)).rejects.toThrow("couldn't give a usable answer");
+    }
+  });
+
   it('writes a fitness read from summary figures, trimmed to five points, and refuses a reply without points', async () => {
     const points = Array.from({ length: 7 }, (_, index) => `Point ${index}`);
     const { service, generateContent } = withReply(JSON.stringify({ headline: 'On track', points }));
